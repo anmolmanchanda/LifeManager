@@ -193,20 +193,45 @@ class MainViewModel: ObservableObject {
     // MARK: - Data Loading
     
     private func loadInitialData() async {
-        guard isAuthenticated else { return }
+        guard isAuthenticated else { 
+            print("🔧 LOAD DATA: Skipping - not authenticated")
+            return 
+        }
+        
+        print("🔧 LOAD DATA: Starting initial data load...")
     
         do {
+            // Load all data in parallel for better performance
             async let areasTask = AreaRepository().fetchAllAreas()
             async let projectsTask = ProjectRepository().fetchAllProjects()
+            async let resourcesTask = ResourceRepository().fetchAllResources()
+            async let archivesTask = ArchiveRepository().fetchAllArchives()
             async let blobsTask = BlobRepository().fetchRecentBlobs(days: 7)
             async let focusTasksTask = TaskRepository().fetchFocusTasks()
             
-            self.areas = try await areasTask
-            self.projects = try await projectsTask
-            self.recentBlobs = try await blobsTask
-            self.focusTasks = try await focusTasksTask
+            let loadedAreas = try await areasTask
+            let loadedProjects = try await projectsTask
+            let loadedResources = try await resourcesTask
+            let loadedArchives = try await archivesTask
+            let loadedBlobs = try await blobsTask
+            let loadedFocusTasks = try await focusTasksTask
+            
+            await MainActor.run {
+                self.areas = loadedAreas
+                self.projects = loadedProjects
+                self.resources = loadedResources
+                self.archives = loadedArchives
+                self.recentBlobs = loadedBlobs
+                self.focusTasks = loadedFocusTasks
+            }
+            
+            print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Blobs: \(loadedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
+            
         } catch {
-            errorMessage = "Failed to load data: \(error.localizedDescription)"
+            print("🔧 LOAD DATA: ❌ Error loading data - \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to load data: \(error.localizedDescription)"
+            }
         }
     }
     
@@ -242,12 +267,6 @@ class MainViewModel: ObservableObject {
     // MARK: - Quick Actions
     
     func addQuickNote(_ content: String) async {
-        // Development mode bypass - use mock data
-        if isDevelopmentMode {
-            await addMockNote(content)
-            return
-        }
-        
         print("🔧 ADD NOTE: Starting note addition process")
         print("🔧 ADD NOTE: Content length: \(content.count)")
         
@@ -270,21 +289,19 @@ class MainViewModel: ObservableObject {
             
             print("🔧 ADD NOTE: Created blob with ID: \(blob.id)")
             
-            // Set initial processing state
+            // Set initial processing state and add to UI immediately
             await MainActor.run {
                 self.blobProcessingStates[blob.id] = .unprocessed
+                // Add to the beginning of recent blobs for immediate visibility
+                self.recentBlobs.insert(blob, at: 0)
             }
             
             savedBlob = try await blobRepository().createBlob(blob)
             print("🔧 ADD NOTE: ✅ Successfully saved blob with ID: \(savedBlob!.id)")
             
-            // Immediately refresh the list to show the new note
-            try await loadRecentBlobs()
-            print("🔧 ADD NOTE: ✅ List refreshed with new note")
-            
-            // Show initial success message
+            // Show initial success message immediately
             await MainActor.run {
-                self.successMessage = "✅ Note saved - processing with AI..."
+                self.successMessage = "✅ Note saved - starting AI processing..."
             }
             
         } catch {
@@ -296,17 +313,23 @@ class MainViewModel: ObservableObject {
                     self.successMessage = "⚠️ Note saved (basic format - AI processing may be limited)"
                 } else {
                     self.errorMessage = "Failed to save note: \(error.localizedDescription)"
+                    // Remove from UI if save failed
+                    if let blob = savedBlob {
+                        self.recentBlobs.removeAll { $0.id == blob.id }
+                    }
                 }
             }
             return
         }
         
-        // Step 2: Immediately process with AI (blocking to ensure processing happens right away)
+        // Step 2: Immediately start AI processing (don't wait for UI refresh)
         if let blob = savedBlob {
             print("🔧 ADD NOTE: Starting immediate AI processing...")
+            
+            // Start processing in background while updating UI
             await processBlobIndividually(blob)
             
-            // Refresh the list again to show processing results
+            // Final refresh and update
             do {
                 try await loadRecentBlobs()
                 print("🔧 ADD NOTE: ✅ List refreshed after processing")
@@ -330,6 +353,7 @@ class MainViewModel: ObservableObject {
                 print("🔧 ADD NOTE: ⚠️ REFRESH ERROR after processing - \(error)")
                 await MainActor.run {
                     self.isLoading = false
+                    self.successMessage = "✅ Note saved and processed (refresh manually to see updates)"
                 }
             }
         } else {
@@ -553,7 +577,20 @@ class MainViewModel: ObservableObject {
     }
     
     func refreshData() async {
+        print("🔧 REFRESH: Starting data refresh...")
+        
+        await MainActor.run {
+            self.isLoading = true
+            self.errorMessage = nil
+        }
+        
         await loadInitialData()
+        print("🔧 REFRESH: ✅ Data refresh completed successfully")
+        
+        await MainActor.run {
+            self.isLoading = false
+            self.successMessage = "✅ Data refreshed"
+        }
     }
     
     // MARK: - Development Mode
@@ -672,6 +709,75 @@ class MainViewModel: ObservableObject {
             print("🔧 DELETE AREA: ❌ Error deleting area - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to delete area: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Delete a resource from the database
+    func deleteResource(_ resource: Resource) async {
+        print("🔧 DELETE RESOURCE: Deleting resource with ID: \(resource.id)")
+        
+        do {
+            try await ResourceRepository().deleteResource(id: resource.id)
+            print("🔧 DELETE RESOURCE: ✅ Successfully deleted resource")
+            
+            // Remove from local list
+            await MainActor.run {
+                self.resources.removeAll { $0.id == resource.id }
+                self.successMessage = "✅ Resource '\(resource.title)' deleted successfully"
+            }
+            
+        } catch {
+            print("🔧 DELETE RESOURCE: ❌ Error deleting resource - \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to delete resource: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Delete an archive from the database
+    func deleteArchive(_ archive: Archive) async {
+        print("🔧 DELETE ARCHIVE: Deleting archive with ID: \(archive.id)")
+        
+        do {
+            try await ArchiveRepository().deleteArchive(id: archive.id)
+            print("🔧 DELETE ARCHIVE: ✅ Successfully deleted archive")
+            
+            // Remove from local list
+            await MainActor.run {
+                self.archives.removeAll { $0.id == archive.id }
+                self.successMessage = "✅ Archive '\(archive.title)' deleted permanently"
+            }
+            
+        } catch {
+            print("🔧 DELETE ARCHIVE: ❌ Error deleting archive - \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to delete archive: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Restore an item from archive
+    func restoreFromArchive(_ archive: Archive) async {
+        print("🔧 RESTORE ARCHIVE: Restoring archive with ID: \(archive.id)")
+        
+        do {
+            try await ArchiveRepository().restoreFromArchive(id: archive.id)
+            print("🔧 RESTORE ARCHIVE: ✅ Successfully restored from archive")
+            
+            // Remove from archives list and refresh all data
+            await MainActor.run {
+                self.archives.removeAll { $0.id == archive.id }
+                self.successMessage = "✅ '\(archive.title)' restored from archive"
+            }
+            
+            // Refresh all data to show the restored item in the appropriate category
+            await loadInitialData()
+            
+        } catch {
+            print("🔧 RESTORE ARCHIVE: ❌ Error restoring from archive - \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to restore from archive: \(error.localizedDescription)"
             }
         }
     }

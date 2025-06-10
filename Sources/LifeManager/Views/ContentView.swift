@@ -859,19 +859,259 @@ struct ProjectRowView: View {
 
 /// Resources view
 struct ResourcesView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    
     var body: some View {
-        Text("Resources view - Knowledge base coming soon")
-            .font(.title2)
-            .foregroundColor(.secondary)
+        VStack(spacing: 20) {
+            // Header
+            HStack {
+                Text("Resources")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button("+ Add Resource") {
+                    // TODO: Add resource creation
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal)
+            
+            // Resources list
+            if viewModel.resources.isEmpty {
+                if #available(macOS 14.0, *) {
+                    ContentUnavailableView(
+                        "No resources yet",
+                        systemImage: "books.vertical",
+                        description: Text("Add reference materials, documents, and knowledge items")
+                    )
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "books.vertical")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No resources yet")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("Add reference materials, documents, and knowledge items")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                }
+            } else {
+                List(viewModel.resources) { resource in
+                    ResourceRowView(resource: resource)
+                        .environmentObject(viewModel)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .onAppear {
+            Task {
+                await viewModel.refreshData()
+            }
+        }
+    }
+}
+
+struct ResourceRowView: View {
+    let resource: Resource
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingDeleteConfirmation = false
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "doc.text")
+                .foregroundColor(.purple)
+            
+            VStack(alignment: .leading) {
+                Text(resource.title)
+                    .font(.headline)
+                
+                if let summary = resource.summary {
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            // Delete button
+            Button(action: {
+                showingDeleteConfirmation = true
+            }) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(.plain)
+            .help("Delete this resource")
+            
+            // Type badge
+            Text(resource.type.capitalized)
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.purple.opacity(0.2))
+                .foregroundColor(.purple)
+                .cornerRadius(8)
+        }
+        .padding(.vertical, 4)
+        .alert("Delete Resource", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.deleteResource(resource)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete '\(resource.title)'? This action cannot be undone.")
+        }
     }
 }
 
 /// Archives view
 struct ArchivesView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    
     var body: some View {
-        Text("Archives view - Archived content coming soon")
-            .font(.title2)
-            .foregroundColor(.secondary)
+        VStack(spacing: 20) {
+            // Header
+            HStack {
+                Text("Archives")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Text("Inactive items from Projects, Areas, and Resources")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal)
+            
+            // Archives list
+            if viewModel.archives.isEmpty {
+                if #available(macOS 14.0, *) {
+                    ContentUnavailableView(
+                        "No archived items",
+                        systemImage: "archivebox",
+                        description: Text("Completed projects and inactive items will appear here")
+                    )
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No archived items")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("Completed projects and inactive items will appear here")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                }
+            } else {
+                List(viewModel.archives) { archive in
+                    ArchiveRowView(archive: archive)
+                        .environmentObject(viewModel)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .onAppear {
+            Task {
+                await viewModel.refreshData()
+            }
+        }
+    }
+}
+
+struct ArchiveRowView: View {
+    let archive: Archive
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingDeleteConfirmation = false
+    
+    var body: some View {
+        HStack {
+            Image(systemName: archiveTypeIcon(archive.contentType))
+                .foregroundColor(.gray)
+            
+            VStack(alignment: .leading) {
+                Text(archive.title)
+                    .font(.headline)
+                
+                HStack {
+                    Text("Archived from: \(archive.contentType.capitalized)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if let archivedDate = archive.archivedAt {
+                        Text("• \(RelativeDateTimeFormatter().localizedString(for: ISO8601DateFormatter().date(from: archivedDate) ?? Date(), relativeTo: Date()))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Restore button
+            Button(action: {
+                Task {
+                    await viewModel.restoreFromArchive(archive)
+                }
+            }) {
+                Image(systemName: "arrow.uturn.backward")
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .help("Restore from archive")
+            
+            // Delete button
+            Button(action: {
+                showingDeleteConfirmation = true
+            }) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(.plain)
+            .help("Delete permanently")
+        }
+        .padding(.vertical, 4)
+        .alert("Delete Archive", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.deleteArchive(archive)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to permanently delete '\(archive.title)'? This action cannot be undone.")
+        }
+    }
+    
+    private func archiveTypeIcon(_ contentType: String) -> String {
+        switch contentType.lowercased() {
+        case "project": return "target"
+        case "area": return "square.stack.3d.up"  
+        case "resource": return "books.vertical"
+        default: return "archivebox"
+        }
     }
 }
 
@@ -1064,8 +1304,9 @@ struct HistoryView: View {
                 .padding()
             } else {
                 List {
-                    ForEach(Array(viewModel.processingResults.keys.sorted().reversed()), id: \.self) { blobId in
-                        if let result = viewModel.processingResults[blobId],
+                    ForEach(Array(viewModel.processingResults.keys).map { $0.uuidString }.sorted().reversed(), id: \.self) { blobIdString in
+                        if let blobId = UUID(uuidString: blobIdString),
+                           let result = viewModel.processingResults[blobId],
                            let blob = viewModel.recentBlobs.first(where: { $0.id == blobId }) {
                             HistoryRowView(blob: blob, result: result)
                                 .environmentObject(viewModel)
@@ -1211,10 +1452,10 @@ struct ProcessingConfirmationView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                if !viewModel.pendingConfirmations.isEmpty {
-                    let result = viewModel.pendingConfirmations[currentIndex]
-                    
+            if !viewModel.pendingConfirmations.isEmpty && currentIndex < viewModel.pendingConfirmations.count {
+                let result = viewModel.pendingConfirmations[currentIndex]
+                
+                VStack(spacing: 0) {
                     // Header
                     VStack(spacing: 12) {
                         HStack {
@@ -1255,14 +1496,15 @@ struct ProcessingConfirmationView: View {
                                 .padding(.horizontal, 20)
                             }
                             
-                            // AI Suggestions - Always show this section
+                            // AI Suggestions section
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("AI Suggestions:")
                                     .font(.headline)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 
-                                // PARA Category - Always show
-                                VStack(alignment: .leading, spacing: 8) {
+                                // Category section
+                                VStack(alignment: .leading, spacing: 12) {
+                                    // PARA Category
                                     HStack(spacing: 12) {
                                         Image(systemName: result.paraCategory.icon)
                                             .foregroundColor(.blue)
@@ -1291,99 +1533,100 @@ struct ProcessingConfirmationView: View {
                                         
                                         ConfidenceIndicator(confidence: result.confidence)
                                     }
-                                }
-                                
-                                // Extracted Tasks
-                                if !result.extractedTasks.isEmpty {
+                                    
+                                    // Tasks section
                                     VStack(alignment: .leading, spacing: 8) {
-                                        Text("Tasks (\(result.extractedTasks.count)):")
+                                        Text("Tasks:")
                                             .font(.subheadline)
                                             .fontWeight(.medium)
                                         
-                                        ForEach(result.extractedTasks.prefix(5)) { task in
-                                            HStack(spacing: 8) {
-                                                Circle()
-                                                    .fill(priorityColor(task.priority))
-                                                    .frame(width: 8, height: 8)
-                                                
-                                                VStack(alignment: .leading, spacing: 2) {
-                                                    Text(task.title)
-                                                        .font(.body)
-                                                        .fixedSize(horizontal: false, vertical: true)
+                                        if !result.extractedTasks.isEmpty {
+                                            ForEach(result.extractedTasks.prefix(5)) { task in
+                                                HStack(spacing: 8) {
+                                                    Circle()
+                                                        .fill(priorityColor(task.priority))
+                                                        .frame(width: 8, height: 8)
                                                     
-                                                    if let description = task.description {
-                                                        Text(description)
-                                                            .font(.caption)
-                                                            .foregroundColor(.secondary)
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(task.title)
+                                                            .font(.body)
                                                             .fixedSize(horizontal: false, vertical: true)
+                                                        
+                                                        if let description = task.description {
+                                                            Text(description)
+                                                                .font(.caption)
+                                                                .foregroundColor(.secondary)
+                                                                .fixedSize(horizontal: false, vertical: true)
+                                                        }
                                                     }
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Text(task.priority.displayName)
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
                                                 }
-                                                
-                                                Spacer()
-                                                
-                                                Text(task.priority.displayName)
+                                                .padding(.vertical, 2)
+                                            }
+                                            
+                                            if result.extractedTasks.count > 5 {
+                                                Text("+ \(result.extractedTasks.count - 5) more tasks")
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                             }
-                                        }
-                                        
-                                        if result.extractedTasks.count > 5 {
-                                            Text("+ \(result.extractedTasks.count - 5) more tasks")
-                                                .font(.caption)
+                                        } else {
+                                            Text("No tasks extracted")
+                                                .font(.body)
                                                 .foregroundColor(.secondary)
                                         }
                                     }
-                                } else {
-                                    Text("No tasks extracted")
-                                        .font(.body)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                // Tags
-                                if !result.autoTags.isEmpty {
+                                    
+                                    // Tags section
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("Tags:")
                                             .font(.subheadline)
                                             .fontWeight(.medium)
                                         
-                                        LazyVGrid(columns: [
-                                            GridItem(.adaptive(minimum: 60, maximum: 120))
-                                        ], spacing: 8) {
-                                            ForEach(result.autoTags.prefix(10), id: \.self) { tag in
-                                                Text(tag)
-                                                    .font(.caption)
-                                                    .padding(.horizontal, 8)
-                                                    .padding(.vertical, 4)
-                                                    .background(Color.blue.opacity(0.2))
-                                                    .foregroundColor(.blue)
-                                                    .cornerRadius(4)
-                                                    .fixedSize()
+                                        if !result.autoTags.isEmpty {
+                                            LazyVGrid(columns: [
+                                                GridItem(.adaptive(minimum: 60, maximum: 120))
+                                            ], spacing: 8) {
+                                                ForEach(result.autoTags.prefix(10), id: \.self) { tag in
+                                                    Text(tag)
+                                                        .font(.caption)
+                                                        .padding(.horizontal, 8)
+                                                        .padding(.vertical, 4)
+                                                        .background(Color.blue.opacity(0.2))
+                                                        .foregroundColor(.blue)
+                                                        .cornerRadius(4)
+                                                        .fixedSize()
+                                                }
                                             }
-                                        }
-                                        
-                                        if result.autoTags.count > 10 {
-                                            Text("+ \(result.autoTags.count - 10) more tags")
-                                                .font(.caption)
+                                            
+                                            if result.autoTags.count > 10 {
+                                                Text("+ \(result.autoTags.count - 10) more tags")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        } else {
+                                            Text("No tags suggested")
+                                                .font(.body)
                                                 .foregroundColor(.secondary)
                                         }
                                     }
-                                } else {
-                                    Text("No tags suggested")
-                                        .font(.body)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                // Summary if available
-                                if let summary = result.summary, !summary.isEmpty {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Summary:")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                        
-                                        Text(summary)
-                                            .font(.body)
-                                            .foregroundColor(.secondary)
-                                            .fixedSize(horizontal: false, vertical: true)
+                                    
+                                    // Summary if available
+                                    if let summary = result.summary, !summary.isEmpty {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Summary:")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            
+                                            Text(summary)
+                                                .font(.body)
+                                                .foregroundColor(.secondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
                                     }
                                 }
                             }
@@ -1393,11 +1636,12 @@ struct ProcessingConfirmationView: View {
                             .cornerRadius(12)
                             .padding(.horizontal, 20)
                             
-                            // Add some bottom padding
+                            // Add bottom padding for fixed buttons
                             Rectangle()
                                 .fill(Color.clear)
                                 .frame(height: 120)
                         }
+                        .padding(.top, 20)
                     }
                     
                     // Fixed bottom action buttons
@@ -1441,21 +1685,33 @@ struct ProcessingConfirmationView: View {
                     }
                     .background(Color(NSColor.windowBackgroundColor))
                 }
+            } else {
+                VStack {
+                    Text("No items to review")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    Button("Close") {
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding()
             }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Skip All") {
-                        Task {
-                            for result in viewModel.pendingConfirmations {
-                                await viewModel.confirmProcessing(for: result, approved: false)
-                            }
-                            dismiss()
+        }
+        .frame(minWidth: 800, minHeight: 700)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Skip All") {
+                    Task {
+                        for result in viewModel.pendingConfirmations {
+                            await viewModel.confirmProcessing(for: result, approved: false)
                         }
+                        dismiss()
                     }
                 }
             }
         }
-        .frame(minWidth: 800, minHeight: 700)
     }
     
     private func priorityColor(_ priority: TaskPriority) -> Color {
