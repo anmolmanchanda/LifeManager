@@ -7,26 +7,26 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .library(
-            name: "LifeManagerLib",
-            targets: ["LifeManagerLib"]
+        .executable(
+            name: "LifeManager",
+            targets: ["LifeManager"]
         ),
     ],
     dependencies: [
         .package(url: "https://github.com/supabase/supabase-swift", from: "2.0.0"),
     ],
     targets: [
-        .target(
-            name: "LifeManagerLib",
+        .executableTarget(
+            name: "LifeManager",
             dependencies: [
                 .product(name: "Supabase", package: "supabase-swift"),
             ],
-            path: "Sources"
+            path: "Sources/LifeManager"
         ),
         .testTarget(
             name: "LifeManagerTests",
-            dependencies: ["LifeManagerLib"],
-            path: "Tests"
+            dependencies: ["LifeManager"],
+            path: "Tests/LifeManagerTests"
         ),
     ]
 ) 
