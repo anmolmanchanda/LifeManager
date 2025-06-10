@@ -206,14 +206,14 @@ class MainViewModel: ObservableObject {
             async let projectsTask = ProjectRepository().fetchAllProjects()
             async let resourcesTask = ResourceRepository().fetchAllResources()
             async let archivesTask = ArchiveRepository().fetchAllArchives()
-            async let blobsTask = BlobRepository().fetchRecentBlobs(days: 7)
+            async let unprocessedBlobsTask = BlobRepository().fetchUnprocessedBlobs() // Only unprocessed for inbox
             async let focusTasksTask = TaskRepository().fetchFocusTasks()
             
             let loadedAreas = try await areasTask
             let loadedProjects = try await projectsTask
             let loadedResources = try await resourcesTask
             let loadedArchives = try await archivesTask
-            let loadedBlobs = try await blobsTask
+            let loadedUnprocessedBlobs = try await unprocessedBlobsTask
             let loadedFocusTasks = try await focusTasksTask
             
             await MainActor.run {
@@ -221,11 +221,11 @@ class MainViewModel: ObservableObject {
                 self.projects = loadedProjects
                 self.resources = loadedResources
                 self.archives = loadedArchives
-                self.recentBlobs = loadedBlobs
+                self.recentBlobs = loadedUnprocessedBlobs // Only unprocessed blobs in inbox
                 self.focusTasks = loadedFocusTasks
             }
             
-            print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Blobs: \(loadedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
+            print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
             
         } catch {
             print("🔧 LOAD DATA: ❌ Error loading data - \(error)")
@@ -277,7 +277,7 @@ class MainViewModel: ObservableObject {
             self.isLoading = true
         }
         
-        // Step 1: Create blob and add to UI immediately for instant feedback
+        // Step 1: Create blob
         let blob = Blob(
             content: content,
             sourceType: .note,
@@ -286,21 +286,16 @@ class MainViewModel: ObservableObject {
         
         print("🔧 ADD NOTE: Created blob with ID: \(blob.id)")
         
-        // Immediately add to UI for instant feedback
-        await MainActor.run {
-            self.blobProcessingStates[blob.id] = .unprocessed
-            self.recentBlobs.insert(blob, at: 0)
-            self.successMessage = "✅ Note added - saving..."
-        }
-        
-        // Step 2: Save to database
+        // Step 2: Save to database first
         var savedBlob: Blob? = nil
         do {
             savedBlob = try await blobRepository().createBlob(blob)
             print("🔧 ADD NOTE: ✅ Successfully saved blob with ID: \(savedBlob!.id)")
             
-            // Update success message
+            // Add to UI after successful save
             await MainActor.run {
+                self.blobProcessingStates[blob.id] = .unprocessed
+                self.recentBlobs.insert(savedBlob!, at: 0)
                 self.successMessage = "✅ Note saved - starting AI processing..."
             }
             
@@ -313,8 +308,6 @@ class MainViewModel: ObservableObject {
                     self.successMessage = "⚠️ Note saved (basic format - AI processing may be limited)"
                 } else {
                     self.errorMessage = "Failed to save note: \(error.localizedDescription)"
-                    // Remove from UI if save failed
-                    self.recentBlobs.removeAll { $0.id == blob.id }
                 }
             }
             return
@@ -336,19 +329,21 @@ class MainViewModel: ObservableObject {
                         self.showingConfirmationDialog = true
                     } else {
                         self.successMessage = "🤖 Note processed → \(result.paraCategory.displayName)"
+                        // Remove from inbox if processed successfully
+                        self.recentBlobs.removeAll { $0.id == blob.id }
                     }
                 } else {
                     self.successMessage = "✅ Note saved and processed"
                 }
             }
             
-            // Refresh data to ensure consistency (in background)
-            Task.detached {
-                do {
-                    try await self.loadRecentBlobs()
-                    print("🔧 ADD NOTE: ✅ Background refresh completed")
-                } catch {
-                    print("🔧 ADD NOTE: ⚠️ Background refresh failed - \(error)")
+            // Clear success message after delay
+            Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                await MainActor.run {
+                    if self.successMessage?.contains("processed") == true {
+                        self.successMessage = nil
+                    }
                 }
             }
             
@@ -619,17 +614,6 @@ class MainViewModel: ObservableObject {
         }
     }
     
-    private func loadRecentBlobs() async throws {
-        do {
-            self.recentBlobs = try await blobRepository().fetchRecentBlobs(days: 7)
-        } catch {
-            await MainActor.run {
-                self.errorMessage = "Failed to load recent blobs: \(error.localizedDescription)"
-            }
-            throw error
-        }
-    }
-    
     func refreshData() async {
         print("🔧 REFRESH: Starting comprehensive data refresh...")
         
@@ -647,17 +631,17 @@ class MainViewModel: ObservableObject {
             async let projectsTask = ProjectRepository().fetchAllProjects()
             async let resourcesTask = ResourceRepository().fetchAllResources()
             async let archivesTask = ArchiveRepository().fetchAllArchives()
-            async let blobsTask = BlobRepository().fetchRecentBlobs(days: 7)
+            async let unprocessedBlobsTask = BlobRepository().fetchUnprocessedBlobs() // Only unprocessed
             async let focusTasksTask = TaskRepository().fetchFocusTasks()
             
             let loadedAreas = try await areasTask
             let loadedProjects = try await projectsTask
             let loadedResources = try await resourcesTask
             let loadedArchives = try await archivesTask
-            let loadedBlobs = try await blobsTask
+            let loadedUnprocessedBlobs = try await unprocessedBlobsTask
             let loadedFocusTasks = try await focusTasksTask
             
-            print("🔧 REFRESH: ✅ All data loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Blobs: \(loadedBlobs.count), Tasks: \(loadedFocusTasks.count)")
+            print("🔧 REFRESH: ✅ All data loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Tasks: \(loadedFocusTasks.count)")
             
             // Update all state at once on main thread
             await MainActor.run {
@@ -665,13 +649,23 @@ class MainViewModel: ObservableObject {
                 self.projects = loadedProjects
                 self.resources = loadedResources
                 self.archives = loadedArchives
-                self.recentBlobs = loadedBlobs
+                self.recentBlobs = loadedUnprocessedBlobs // Only unprocessed blobs
                 self.focusTasks = loadedFocusTasks
                 self.isLoading = false
                 self.successMessage = "✅ Data refreshed successfully"
             }
             
             print("🔧 REFRESH: ✅ UI updated with fresh data")
+            
+            // Clear success message after delay
+            Task {
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                await MainActor.run {
+                    if self.successMessage == "✅ Data refreshed successfully" {
+                        self.successMessage = nil
+                    }
+                }
+            }
             
         } catch {
             print("🔧 REFRESH: ❌ Error during refresh - \(error)")
@@ -747,7 +741,7 @@ class MainViewModel: ObservableObject {
             }
             
             // Refresh the data to ensure consistency
-            try await loadRecentBlobs()
+            await loadInitialData()
             print("🔧 DELETE BLOB: ✅ Refreshed recent blobs list")
             
         } catch {
@@ -985,7 +979,6 @@ class MainViewModel: ObservableObject {
             }
             
             // Refresh data
-            try await loadRecentBlobs()
             await loadInitialData()
             
             print("🔧 BULK PROCESS: ✅ Comprehensive processing complete")
@@ -1027,6 +1020,12 @@ class MainViewModel: ObservableObject {
         
         // 6. Log to audit trail
         try await logProcessingToAudit(blob: blob, result: result)
+        
+        // 7. Update local state to remove processed blob from inbox
+        await MainActor.run {
+            self.recentBlobs.removeAll { $0.id == blob.id }
+            self.blobProcessingStates[blob.id] = .processed(result)
+        }
         
         print("🔧 EXECUTE ACTIONS: ✅ All actions completed for blob: \(blob.id)")
     }
