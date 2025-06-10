@@ -6,8 +6,8 @@ import Foundation
 
 struct Config {
     // MARK: - Supabase Configuration
-    static let supabaseURL = "https://your-project-id.supabase.co"
-    static let supabaseAnonKey = "your-supabase-anon-key-here"
+    static let supabaseURL = "https://cwxvmyqzhuskjwvttlbu.supabase.co"
+    static let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3eHZteXF6aHVza2p3dnR0bGJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MjA1MTcsImV4cCI6MjA2NTA5NjUxN30.RJn7qOhY4_GghBTux8O74VvEpgv9IPSZavAEH0L61U4"
     
     // MARK: - LLM API Configuration
     static let openAIKey = "your-openai-api-key-here"
