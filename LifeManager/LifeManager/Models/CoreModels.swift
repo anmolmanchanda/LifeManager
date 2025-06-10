@@ -2,15 +2,19 @@ import Foundation
 
 // MARK: - Core Data Models
 
-struct Blob: Codable, Identifiable {
+struct Blob: Codable, Identifiable, PARAContent {
     let id: UUID
     let content: String
     let sourceType: SourceType
     let context: [String: AnyCodableValue]
     let workPersonal: WorkPersonalType
     let processed: Bool
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -19,8 +23,12 @@ struct Blob: Codable, Identifiable {
         case context
         case workPersonal = "work_personal"
         case processed
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -30,8 +38,12 @@ struct Blob: Codable, Identifiable {
         context: [String: AnyCodableValue] = [:],
         workPersonal: WorkPersonalType = .personal,
         processed: Bool = false,
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.content = content
@@ -39,8 +51,12 @@ struct Blob: Codable, Identifiable {
         self.context = context
         self.workPersonal = workPersonal
         self.processed = processed
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 
@@ -96,14 +112,17 @@ struct Tag: Codable, Identifiable {
     }
 }
 
-struct Project: Codable, Identifiable {
+struct Project: Codable, Identifiable, PARAContent {
     let id: UUID
     let name: String
     let description: String?
     let status: ProjectStatus
     let workPersonal: WorkPersonalType
+    let areaId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -111,9 +130,15 @@ struct Project: Codable, Identifiable {
         case description
         case status
         case workPersonal = "work_personal"
+        case areaId = "area_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
+    
+    // For PARAContent protocol compliance
+    var projectId: UUID? { return nil } // Projects don't belong to other projects
     
     init(
         id: UUID = UUID(),
@@ -121,16 +146,22 @@ struct Project: Codable, Identifiable {
         description: String? = nil,
         status: ProjectStatus = .active,
         workPersonal: WorkPersonalType = .personal,
+        areaId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.name = name
         self.description = description
         self.status = status
         self.workPersonal = workPersonal
+        self.areaId = areaId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 

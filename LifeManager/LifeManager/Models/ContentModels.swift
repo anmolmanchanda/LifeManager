@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Content Type Models
 
-struct Task: Codable, Identifiable {
+struct Task: Codable, Identifiable, PARAContent {
     let id: UUID
     let blobId: UUID?
     let title: String
@@ -13,9 +13,13 @@ struct Task: Codable, Identifiable {
     let estimatedDuration: Int?
     let workPersonal: WorkPersonalType
     let projectId: UUID?
+    let areaId: UUID?
+    let resourceId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
     let completedAt: String?
+    let archivedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -28,9 +32,13 @@ struct Task: Codable, Identifiable {
         case estimatedDuration = "estimated_duration"
         case workPersonal = "work_personal"
         case projectId = "project_id"
+        case areaId = "area_id"
+        case resourceId = "resource_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case completedAt = "completed_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -44,9 +52,13 @@ struct Task: Codable, Identifiable {
         estimatedDuration: Int? = nil,
         workPersonal: WorkPersonalType = .personal,
         projectId: UUID? = nil,
+        areaId: UUID? = nil,
+        resourceId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
         updatedAt: String = ISO8601DateFormatter().string(from: Date()),
-        completedAt: String? = nil
+        completedAt: String? = nil,
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -58,27 +70,42 @@ struct Task: Codable, Identifiable {
         self.estimatedDuration = estimatedDuration
         self.workPersonal = workPersonal
         self.projectId = projectId
+        self.areaId = areaId
+        self.resourceId = resourceId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.completedAt = completedAt
+        self.archivedAt = archivedAt
     }
 }
 
-struct JournalEntry: Codable, Identifiable {
+struct JournalEntry: Codable, Identifiable, PARAContent {
     let id: UUID
     let blobId: UUID
     let summary: String?
     let mood: String?
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
+    
+    // For PARAContent protocol compliance
+    var workPersonal: WorkPersonalType { return .personal } // Journal entries are always personal
     
     enum CodingKeys: String, CodingKey {
         case id
         case blobId = "blob_id"
         case summary
         case mood
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -86,27 +113,42 @@ struct JournalEntry: Codable, Identifiable {
         blobId: UUID,
         summary: String? = nil,
         mood: String? = nil,
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
         self.summary = summary
         self.mood = mood
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 
-struct TherapySession: Codable, Identifiable {
+struct TherapySession: Codable, Identifiable, PARAContent {
     let id: UUID
     let blobId: UUID
     let sessionDate: String?
     let therapist: String?
     let summary: String?
     let insights: String?
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
+    
+    // For PARAContent protocol compliance
+    var workPersonal: WorkPersonalType { return .personal } // Therapy sessions are always personal
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -115,8 +157,12 @@ struct TherapySession: Codable, Identifiable {
         case therapist
         case summary
         case insights
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -126,8 +172,12 @@ struct TherapySession: Codable, Identifiable {
         therapist: String? = nil,
         summary: String? = nil,
         insights: String? = nil,
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -135,12 +185,16 @@ struct TherapySession: Codable, Identifiable {
         self.therapist = therapist
         self.summary = summary
         self.insights = insights
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 
-struct FinancialEntry: Codable, Identifiable {
+struct FinancialEntry: Codable, Identifiable, PARAContent {
     let id: UUID
     let blobId: UUID
     let amount: Double
@@ -148,8 +202,15 @@ struct FinancialEntry: Codable, Identifiable {
     let category: FinancialCategory
     let description: String?
     let transactionDate: String
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
+    
+    // For PARAContent protocol compliance
+    var workPersonal: WorkPersonalType { return .both } // Financial entries can be work or personal
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -159,8 +220,12 @@ struct FinancialEntry: Codable, Identifiable {
         case category
         case description
         case transactionDate = "transaction_date"
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -171,8 +236,12 @@ struct FinancialEntry: Codable, Identifiable {
         category: FinancialCategory,
         description: String? = nil,
         transactionDate: String,
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -181,20 +250,31 @@ struct FinancialEntry: Codable, Identifiable {
         self.category = category
         self.description = description
         self.transactionDate = transactionDate
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 
-struct KnowledgeEntry: Codable, Identifiable {
+struct KnowledgeEntry: Codable, Identifiable, PARAContent {
     let id: UUID
     let blobId: UUID
     let title: String
     let summary: String?
     let topic: String?
     let sourceUrl: String?
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
+    
+    // For PARAContent protocol compliance
+    var workPersonal: WorkPersonalType { return .both } // Knowledge can be work or personal
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -203,8 +283,12 @@ struct KnowledgeEntry: Codable, Identifiable {
         case summary
         case topic
         case sourceUrl = "source_url"
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -214,8 +298,12 @@ struct KnowledgeEntry: Codable, Identifiable {
         summary: String? = nil,
         topic: String? = nil,
         sourceUrl: String? = nil,
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -223,12 +311,16 @@ struct KnowledgeEntry: Codable, Identifiable {
         self.summary = summary
         self.topic = topic
         self.sourceUrl = sourceUrl
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 
-struct Recipe: Codable, Identifiable {
+struct Recipe: Codable, Identifiable, PARAContent {
     let id: UUID
     let blobId: UUID
     let title: String
@@ -236,19 +328,25 @@ struct Recipe: Codable, Identifiable {
     let instructions: String?
     let sourceUrl: String?
     let nutrition: [String: AnyCodableValue]
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
+    
+    var workPersonal: WorkPersonalType { return .personal }
     
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, title, ingredients, instructions, nutrition
         case blobId = "blob_id"
-        case title
-        case ingredients
-        case instructions
         case sourceUrl = "source_url"
-        case nutrition
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -259,8 +357,12 @@ struct Recipe: Codable, Identifiable {
         instructions: String? = nil,
         sourceUrl: String? = nil,
         nutrition: [String: AnyCodableValue] = [:],
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -269,12 +371,16 @@ struct Recipe: Codable, Identifiable {
         self.instructions = instructions
         self.sourceUrl = sourceUrl
         self.nutrition = nutrition
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 
-struct Diet: Codable, Identifiable {
+struct Diet: Codable, Identifiable, PARAContent {
     let id: UUID
     let blobId: UUID
     let title: String
@@ -282,19 +388,26 @@ struct Diet: Codable, Identifiable {
     let notes: String?
     let startDate: String?
     let endDate: String?
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
     let createdAt: String
     let updatedAt: String
+    let archivedAt: String?
+    
+    var workPersonal: WorkPersonalType { return .personal }
     
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, title, meals, notes
         case blobId = "blob_id"
-        case title
-        case meals
-        case notes
         case startDate = "start_date"
         case endDate = "end_date"
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
     }
     
     init(
@@ -305,8 +418,12 @@ struct Diet: Codable, Identifiable {
         notes: String? = nil,
         startDate: String? = nil,
         endDate: String? = nil,
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -315,8 +432,74 @@ struct Diet: Codable, Identifiable {
         self.notes = notes
         self.startDate = startDate
         self.endDate = endDate
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
+    }
+}
+
+struct Show: Codable, Identifiable, PARAContent {
+    let id: UUID
+    let blobId: UUID
+    let title: String
+    let season: Int?
+    let episode: Int?
+    let status: ShowStatus
+    let platform: String?
+    let notes: String?
+    let areaId: UUID?
+    let projectId: UUID?
+    let isArchived: Bool
+    let createdAt: String
+    let updatedAt: String
+    let archivedAt: String?
+    
+    var workPersonal: WorkPersonalType { return .personal }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, season, episode, status, platform, notes
+        case blobId = "blob_id"
+        case areaId = "area_id"
+        case projectId = "project_id"
+        case isArchived = "is_archived"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case archivedAt = "archived_at"
+    }
+    
+    init(
+        id: UUID = UUID(),
+        blobId: UUID,
+        title: String,
+        season: Int? = nil,
+        episode: Int? = nil,
+        status: ShowStatus = .watching,
+        platform: String? = nil,
+        notes: String? = nil,
+        areaId: UUID? = nil,
+        projectId: UUID? = nil,
+        isArchived: Bool = false,
+        createdAt: String = ISO8601DateFormatter().string(from: Date()),
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        archivedAt: String? = nil
+    ) {
+        self.id = id
+        self.blobId = blobId
+        self.title = title
+        self.season = season
+        self.episode = episode
+        self.status = status
+        self.platform = platform
+        self.notes = notes
+        self.areaId = areaId
+        self.projectId = projectId
+        self.isArchived = isArchived
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.archivedAt = archivedAt
     }
 }
 
@@ -361,56 +544,6 @@ struct Inventory: Codable, Identifiable {
         self.quantity = quantity
         self.location = location
         self.expirationDate = expirationDate
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-}
-
-struct Show: Codable, Identifiable {
-    let id: UUID
-    let blobId: UUID
-    let title: String
-    let season: Int?
-    let episode: Int?
-    let status: ShowStatus
-    let platform: String?
-    let notes: String?
-    let createdAt: String
-    let updatedAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case blobId = "blob_id"
-        case title
-        case season
-        case episode
-        case status
-        case platform
-        case notes
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-    }
-    
-    init(
-        id: UUID = UUID(),
-        blobId: UUID,
-        title: String,
-        season: Int? = nil,
-        episode: Int? = nil,
-        status: ShowStatus = .watching,
-        platform: String? = nil,
-        notes: String? = nil,
-        createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
-    ) {
-        self.id = id
-        self.blobId = blobId
-        self.title = title
-        self.season = season
-        self.episode = episode
-        self.status = status
-        self.platform = platform
-        self.notes = notes
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

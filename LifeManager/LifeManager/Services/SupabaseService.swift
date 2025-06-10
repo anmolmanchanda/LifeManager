@@ -199,6 +199,8 @@ extension SupabaseService {
         static let categories = "categories"
         static let tags = "tags"
         static let projects = "projects"
+        static let areas = "areas"
+        static let resources = "resources"
         static let journalEntries = "journal_entries"
         static let therapySessions = "therapy_sessions"
         static let tasks = "tasks"
@@ -213,7 +215,10 @@ extension SupabaseService {
         static let blobCategories = "blob_categories"
         static let blobTags = "blob_tags"
         static let taskTags = "task_tags"
+        static let resourceTags = "resource_tags"
         static let blobHistory = "blob_history"
         static let taskHistory = "task_history"
+        static let promptLogs = "prompt_logs"
+        static let archives = "archives"
     }
 } 

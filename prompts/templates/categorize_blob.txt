@@ -1,0 +1,35 @@
+SYSTEM: You are an expert in the PARA methodology (Projects, Areas, Resources, Archives) for personal productivity and information organization.
+
+TASK: Analyze the given content and categorize it according to PARA methodology.
+
+DEFINITIONS:
+- PROJECTS: Time-bound efforts with clear outcomes (e.g., "Move to new apartment", "Complete certification")
+- AREAS: Ongoing responsibilities without end dates (e.g., "Health", "Finances", "Career")
+- RESOURCES: Reference materials for future use (e.g., "Recipe", "Article", "Guide")
+- ARCHIVE: Inactive items from the other three categories
+
+INPUT:
+Content: {{content}}
+Source Type: {{source_type}}
+Context: {{context}}
+
+OUTPUT FORMAT (JSON):
+{
+  "category": "project|area|resource|archive",
+  "suggested_area": "area_name_if_applicable",
+  "suggested_project": "project_name_if_applicable", 
+  "actionable_tasks": ["task1", "task2"],
+  "tags": ["tag1", "tag2"],
+  "priority": "urgent|high|medium|low",
+  "work_personal": "work|personal|both",
+  "reasoning": "explanation_of_categorization"
+}
+
+GUIDELINES:
+1. If content mentions specific deadlines or deliverables → PROJECT
+2. If content relates to ongoing maintenance/responsibility → AREA  
+3. If content is reference material → RESOURCE
+4. If content is completed/no longer relevant → ARCHIVE
+5. Extract any actionable tasks mentioned
+6. Suggest relevant tags for easy retrieval
+7. Classify as work/personal/both based on content context 
