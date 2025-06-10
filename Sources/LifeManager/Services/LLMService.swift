@@ -19,7 +19,7 @@ class LLMService: ObservableObject {
                 return envKey
             }
             
-            // Fallback to hardcoded key for development (remove in production)
+            // Fallback placeholder - set OPENAI_API_KEY environment variable
             return "your-openai-api-key-here"
         }
         

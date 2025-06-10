@@ -1,5 +1,61 @@
 # LLM Setup Guide for LifeManager
 
+This guide explains how to configure LLM (Large Language Model) services for AI-powered content processing in LifeManager.
+
+## Overview
+
+LifeManager uses AI/LLM services to:
+- Automatically categorize content into PARA methodology (Projects, Areas, Resources, Archives)
+- Extract actionable tasks from natural language input
+- Suggest priorities and due dates
+- Generate tags and cross-references
+- Provide content summaries
+
+## Supported Providers
+
+### OpenAI (Recommended)
+- **Model**: GPT-4 or GPT-3.5-turbo
+- **Use Case**: Primary AI processing, categorization, task extraction
+- **Setup**: Requires OpenAI API key
+
+### Anthropic Claude (Future)
+- **Model**: Claude-3 family
+- **Use Case**: Alternative/backup AI processing
+- **Setup**: Requires Anthropic API key
+
+## Setup Instructions
+
+### Environment Variables (Recommended)
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY="your-actual-openai-api-key-here"
+export CLAUDE_API_KEY="your-actual-claude-api-key-here"
+```
+
+### Configuration File (Alternative)
+
+Create a configuration file in your home directory:
+
+```bash
+# Create config file
+echo "your-actual-openai-api-key-here" > ~/.lifemanager_config
+```
+
+### Hardcoded Config (Development Only)
+
+For development only, you can set the key directly in the code:
+
+```swift
+// In Config.swift (not Config.example.swift)
+static let openAIKey = "your-actual-openai-api-key-here"
+```
+
+## Getting API Keys
+
+### OpenAI API Key
+
 ## Current Status
 - ✅ **Notes save successfully** to database
 - ⚠️ **LLM processing temporarily disabled** (no API keys configured)
