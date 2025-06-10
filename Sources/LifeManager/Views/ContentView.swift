@@ -245,80 +245,96 @@ struct InboxView: View {
     @EnvironmentObject var viewModel: MainViewModel
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Natural Language Input Bar
-            NaturalLanguageInputView()
-                .environmentObject(viewModel)
-            
-            // Bulk actions toolbar
-            if !viewModel.recentBlobs.isEmpty {
-                HStack {
-                    Text("\(viewModel.recentBlobs.count) notes in inbox")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    // Show processing stats if available
-                    if !viewModel.processingResults.isEmpty {
-                        let processedCount = viewModel.recentBlobs.filter { blob in
-                            viewModel.getProcessingState(for: blob.id).isProcessed
-                        }.count
-                        
-                        Text("• \(processedCount) processed")
+        VStack(spacing: 0) {
+            // Natural Language Input Area - Takes up significant space
+            VStack(spacing: 20) {
+                NaturalLanguageInputView()
+                    .environmentObject(viewModel)
+                    .frame(maxHeight: .infinity) // Let input take up as much space as possible
+                
+                // Bulk actions toolbar
+                if !viewModel.recentBlobs.isEmpty {
+                    HStack {
+                        Text("\(viewModel.recentBlobs.count) notes in inbox")
                             .font(.caption)
-                            .foregroundColor(.green)
-                    }
-                    
-                    Spacer()
-                    
-                    Button("🤖 Process All with AI") {
-                        Task {
-                            await viewModel.processAllUnprocessedBlobs()
+                            .foregroundColor(.secondary)
+                        
+                        // Show processing stats if available
+                        if !viewModel.processingResults.isEmpty {
+                            let processedCount = viewModel.recentBlobs.filter { blob in
+                                viewModel.getProcessingState(for: blob.id).isProcessed
+                            }.count
+                            
+                            Text("• \(processedCount) processed")
+                                .font(.caption)
+                                .foregroundColor(.green)
                         }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isLoading)
-                    
-                    Button("🔄 Refresh") {
-                        Task {
-                            await viewModel.refreshData()
+                        
+                        Spacer()
+                        
+                        Button("🤖 Process All with AI") {
+                            Task {
+                                await viewModel.processAllUnprocessedBlobs()
+                            }
                         }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.isLoading)
+                        
+                        Button("🔄 Refresh") {
+                            Task {
+                                await viewModel.refreshData()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(viewModel.isLoading)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.isLoading)
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
             }
+            .frame(minHeight: 300) // Minimum height for input area
+            .padding()
             
-            // Recent unprocessed blobs
-            if viewModel.recentBlobs.isEmpty {
-                if #available(macOS 14.0, *) {
-                ContentUnavailableView(
-                    "No recent content",
-                    systemImage: "tray",
-                        description: Text("Add some content using the input field above")
-                    )
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "tray")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No recent content")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        Text("Add some content using the input field above")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+            Divider()
+            
+            // Recent notes list - Takes up remaining space
+            Group {
+                if viewModel.recentBlobs.isEmpty {
+                    if #available(macOS 14.0, *) {
+                        ContentUnavailableView(
+                            "No recent content",
+                            systemImage: "tray",
+                            description: Text("Add some content using the input field above")
+                        )
+                    } else {
+                        VStack(spacing: 16) {
+                            Image(systemName: "tray")
+                                .font(.system(size: 48))
+                                .foregroundColor(.secondary)
+                            
+                            Text("No recent content")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("Add some content using the input field above")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
                     }
-                    .padding()
-                }
-            } else {
-                List(viewModel.recentBlobs) { blob in
-                    BlobRowView(blob: blob)
-                        .environmentObject(viewModel)
+                } else {
+                    ScrollView {
+                        LazyVStack {
+                            ForEach(viewModel.recentBlobs) { blob in
+                                BlobRowView(blob: blob)
+                                    .environmentObject(viewModel)
+                                    .padding(.horizontal)
+                                Divider()
+                            }
+                        }
+                    }
                 }
             }
+            .frame(maxHeight: .infinity) // Let list take remaining space
             
             // Show loading state
             if viewModel.isLoading {
@@ -328,15 +344,11 @@ struct InboxView: View {
                     Text("Processing notes with AI...")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+                .padding()
+            }
         }
-        .padding()
-    }
-            
-            Spacer()
-        }
-        .padding()
         .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(12)
         .sheet(isPresented: $viewModel.showingConfirmationDialog) {
             ProcessingConfirmationView()
                 .environmentObject(viewModel)
@@ -357,18 +369,42 @@ struct NaturalLanguageInputView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                TextField("What's on your mind? (e.g., 'Buy groceries tomorrow', 'Research Swift async/await')", text: $inputText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onSubmit {
-                        submitInput()
-                    }
-                    .disabled(isProcessing)
+                Text("What's on your mind?")
+                    .font(.headline)
+                    .fontWeight(.semibold)
                 
-                Button(isProcessing ? "Processing..." : "Add") {
+                Spacer()
+                
+                Button(isProcessing ? "Processing..." : "Add & Process") {
                     submitInput()
                 }
                 .disabled(inputText.isEmpty || isProcessing)
                 .buttonStyle(.borderedProminent)
+            }
+            
+            // Large text editor taking up significant vertical space
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $inputText)
+                    .font(.body)
+                    .padding(12)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+                    .frame(minHeight: 200, maxHeight: .infinity)
+                    .disabled(isProcessing)
+                
+                // Placeholder text
+                if inputText.isEmpty {
+                    Text("Type anything here... Examples:\n• 'Buy groceries tomorrow'\n• 'Research Swift async/await for project'\n• 'Call mom about vacation plans'\n• 'Review Q1 budget numbers'\n\nI'll automatically categorize it and extract any tasks!")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .allowsHitTesting(false)
+                }
             }
             
             if isProcessing {
@@ -2086,6 +2122,12 @@ struct ToastView: View {
         .cornerRadius(8)
         .shadow(radius: 4)
         .padding(.horizontal, 20)
+        .onAppear {
+            // Auto-dismiss after 10 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                onDismiss()
+            }
+        }
     }
 }
 

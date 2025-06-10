@@ -605,6 +605,7 @@ class LLMService: ObservableObject {
     
     /// Create comprehensive processing prompt
     private func createComprehensivePrompt(for blob: Blob, availableAreas: [String], availableProjects: [String], confidenceThreshold: Double) -> String {
+        let currentDate = ISO8601DateFormatter().string(from: Date())
         return """
         You are an AI assistant specialized in the PARA methodology (Projects, Areas, Resources, Archives) for personal knowledge management.
         
@@ -614,6 +615,7 @@ class LLMService: ObservableObject {
         Content: "\(blob.content)"
         Source Type: \(blob.sourceType.rawValue)
         Work/Personal: \(blob.workPersonal.rawValue)
+        Current Date/Time: \(currentDate)
         
         **Available Context:**
         Existing Areas: \(availableAreas.isEmpty ? "None" : availableAreas.joined(separator: ", "))
@@ -621,7 +623,17 @@ class LLMService: ObservableObject {
         
         **Instructions:**
         1. PARA Categorization: Determine if this is a Project, Area, Resource, or Archive
-        2. Task Extraction: Find any actionable items with priorities and time estimates
+           - For Projects: Suggest which existing project it belongs to, or create a new project name
+           - For Areas: Suggest which existing area it belongs to, or create a new area name
+           - Be specific about sub-categorization within Projects/Areas
+        
+        2. Task Extraction: Find any actionable items with smart date/time analysis
+           - Analyze temporal language ("tomorrow", "next week", "Monday", "in 2 hours")
+           - Infer urgency from context ("ASAP", "urgent", "deadline")
+           - Estimate realistic durations based on task complexity
+           - Consider work hours vs personal time
+           - Set intelligent priorities based on urgency and importance
+        
         3. Auto-Tagging: Generate relevant tags for searchability
         4. Summarization: Create a 1-2 sentence summary if content is lengthy (>100 words)
         5. Cross-Links: Identify connections to existing or suggested new PARA items
@@ -631,59 +643,69 @@ class LLMService: ObservableObject {
         {
           "para_category": "project|area|resource|archive",
           "confidence": 0.85,
-          "reasoning": "Brief explanation for categorization",
-          "suggested_area": "area_name_or_null",
-          "suggested_project": "project_name_or_null",
           "requires_confirmation": false,
-          
+          "suggested_area": "Health & Fitness" or null,
+          "suggested_project": "Q1 Planning" or null,
+          "sub_category": "Specific sub-category within the area/project",
           "extracted_tasks": [
             {
-              "title": "Clear actionable task",
+              "title": "Clear, actionable task title",
               "description": "Additional context",
               "priority": "urgent|high|medium|low",
               "estimated_duration": 30,
-              "suggested_due_date": "2024-01-15",
-              "suggested_area": "area_name",
-              "suggested_project": "project_name",
-              "tags": ["context", "energy"],
+              "suggested_due_date": "2024-01-15T14:00:00Z",
+              "suggested_due_reason": "Based on 'tomorrow afternoon' in content",
+              "area": "Health & Fitness",
+              "project": "Q1 Planning",
+              "tags": ["workout", "planning"],
+              "is_focus": true,
               "confidence": 0.9
             }
           ],
-          
-          "auto_tags": ["keyword1", "keyword2", "context"],
-          
-          "summary": "Brief 1-2 sentence summary (if content >100 words)",
-          
+          "auto_tags": ["tag1", "tag2", "tag3"],
+          "summary": "Brief summary of content if lengthy",
           "cross_links": [
             {
-              "type": "project|area|resource|person|location",
-              "target_name": "Existing item name",
-              "is_new_suggestion": false,
+              "type": "area|project|resource",
+              "target_name": "Related item name",
               "confidence": 0.8,
-              "pre_filled_details": {
-                "description": "Suggested description for new item"
-              }
+              "reason": "Why this connection makes sense"
             }
           ],
-          
-          "actions_taken": [
-            {
-              "type": "categorized|task_extracted|tagged|summarized|cross_linked",
-              "description": "What was done",
-              "success": true
-            }
-          ]
+          "reasoning": "Brief explanation of categorization decision"
         }
         
-        **Guidelines:**
-        - Projects: Have specific outcomes and deadlines
-        - Areas: Ongoing responsibilities to maintain standards
-        - Resources: Reference materials for future use
-        - Archives: Inactive items from other categories
-        - Set requires_confirmation=true if confidence < \(confidenceThreshold)
-        - Extract only genuinely actionable tasks
+        **Date/Time Analysis Guidelines:**
+        - "tomorrow" = next day at reasonable time (9 AM for work, 10 AM for personal)
+        - "next week" = following Monday at 9 AM
+        - "this weekend" = upcoming Saturday at 10 AM
+        - "Monday" = next occurrence of that day at 9 AM
+        - "in 2 hours" = current time + 2 hours
+        - "tonight" = today at 7 PM
+        - "ASAP" or "urgent" = today within 2 hours, priority = urgent
+        - No time mentioned = suggest reasonable default based on task type
+        
+        **Duration Estimation Guidelines:**
+        - Quick tasks (calls, emails): 15-30 minutes
+        - Planning/research tasks: 60-120 minutes
+        - Shopping/errands: 30-60 minutes
+        - Deep work tasks: 120-240 minutes
+        - Meetings: 30-60 minutes (unless specified)
+        
+        **Priority Guidelines:**
+        - Urgent: Time-sensitive with consequences (deadlines, ASAP)
+        - High: Important but flexible timing (health, key projects)
+        - Medium: Regular maintenance and development (most tasks)
+        - Low: Nice-to-have, no time pressure (research, optimization)
+        
+        IMPORTANT RULES:
+        - Always suggest sub-categorization for Projects and Areas
+        - Be smart about date/time inference using current context
+        - Duration should be realistic and actionable
+        - Tasks should be specific and actionable
         - Tags should be helpful for search and context
         - Cross-links should be meaningful connections
+        - If confidence < 0.7, set requires_confirmation = true
         """
     }
     
@@ -721,25 +743,57 @@ class LLMService: ObservableObject {
         
         // Parse extracted tasks
         let tasksJson = json["extracted_tasks"] as? [[String: Any]] ?? []
-        print("🔧 LLM PARSE: Found \(tasksJson.count) tasks in JSON")
+        print("🔧 LLM PARSE: Found \(tasksJson.count) task(s) to parse")
         
-        let extractedTasks = tasksJson.compactMap { taskJson -> TaskExtractionInfo? in
-            guard let title = taskJson["title"] as? String else { 
-                print("🔧 LLM PARSE: ⚠️ Skipping task without title")
-                return nil 
+        let extractedTasks = tasksJson.compactMap { taskData -> TaskExtractionInfo? in
+            guard let title = taskData["title"] as? String else {
+                print("🔧 LLM PARSE: ❌ Task missing title")
+                return nil
             }
             
-            print("🔧 LLM PARSE: Parsing task: \(title)")
+            let description = taskData["description"] as? String
+            let priorityString = taskData["priority"] as? String ?? "medium"
+            let priority = TaskPriority(rawValue: priorityString) ?? .medium
+            let estimatedDuration = taskData["estimated_duration"] as? Int
+            
+            // Enhanced date parsing with fallback
+            var suggestedDueDate: String? = nil
+            if let dueDateString = taskData["suggested_due_date"] as? String {
+                // Try to parse and validate the date
+                let isoFormatter = ISO8601DateFormatter()
+                if let parsedDate = isoFormatter.date(from: dueDateString) {
+                    suggestedDueDate = dueDateString
+                    print("🔧 LLM PARSE: ✅ Parsed due date: \(dueDateString)")
+                } else {
+                    // Try basic date format as fallback
+                    let basicFormatter = DateFormatter()
+                    basicFormatter.dateFormat = "yyyy-MM-dd"
+                    if let basicDate = basicFormatter.date(from: dueDateString) {
+                        suggestedDueDate = isoFormatter.string(from: basicDate)
+                        print("🔧 LLM PARSE: ✅ Converted basic date: \(dueDateString) -> \(suggestedDueDate!)")
+                    } else {
+                        print("🔧 LLM PARSE: ⚠️ Invalid date format: \(dueDateString)")
+                    }
+                }
+            }
+            
+            let suggestedArea = taskData["area"] as? String ?? taskData["suggested_area"] as? String
+            let suggestedProject = taskData["project"] as? String ?? taskData["suggested_project"] as? String
+            let taskTags = taskData["tags"] as? [String] ?? []
+            let taskConfidence = taskData["confidence"] as? Double ?? 0.8
+            
+            print("🔧 LLM PARSE: ✅ Parsed task: \(title) (\(priority.rawValue), \(estimatedDuration ?? 0)min)")
+            
             return TaskExtractionInfo(
                 title: title,
-                description: taskJson["description"] as? String,
-                priority: TaskPriority(rawValue: taskJson["priority"] as? String ?? "medium") ?? .medium,
-                estimatedDuration: taskJson["estimated_duration"] as? Int,
-                suggestedDueDate: taskJson["suggested_due_date"] as? String,
-                suggestedArea: taskJson["suggested_area"] as? String,
-                suggestedProject: taskJson["suggested_project"] as? String,
-                tags: taskJson["tags"] as? [String] ?? [],
-                confidence: taskJson["confidence"] as? Double ?? 0.8
+                description: description,
+                priority: priority,
+                estimatedDuration: estimatedDuration,
+                suggestedDueDate: suggestedDueDate,
+                suggestedArea: suggestedArea,
+                suggestedProject: suggestedProject,
+                tags: taskTags,
+                confidence: taskConfidence
             )
         }
         print("🔧 LLM PARSE: Successfully parsed \(extractedTasks.count) tasks")

@@ -201,20 +201,75 @@ class MainViewModel: ObservableObject {
         print("🔧 LOAD DATA: Starting initial data load...")
     
         do {
-            // Load all data in parallel for better performance
-            async let areasTask = AreaRepository().fetchAllAreas()
-            async let projectsTask = ProjectRepository().fetchAllProjects()
-            async let resourcesTask = ResourceRepository().fetchAllResources()
-            async let archivesTask = ArchiveRepository().fetchAllArchives()
-            async let unprocessedBlobsTask = BlobRepository().fetchUnprocessedBlobs() // Only unprocessed for inbox
-            async let focusTasksTask = TaskRepository().fetchFocusTasks()
+            // Load all data in parallel for better performance with individual error handling
+            print("🔧 LOAD DATA: Starting parallel data fetch...")
             
-            let loadedAreas = try await areasTask
-            let loadedProjects = try await projectsTask
-            let loadedResources = try await resourcesTask
-            let loadedArchives = try await archivesTask
-            let loadedUnprocessedBlobs = try await unprocessedBlobsTask
-            let loadedFocusTasks = try await focusTasksTask
+            var loadedAreas: [Area] = []
+            var loadedProjects: [Project] = []
+            var loadedResources: [Resource] = []
+            var loadedArchives: [Archive] = []
+            var loadedUnprocessedBlobs: [Blob] = []
+            var loadedFocusTasks: [LifeTask] = []
+            
+            // Fetch Areas with individual error handling
+            do {
+                print("🔧 LOAD DATA: Fetching areas...")
+                loadedAreas = try await AreaRepository().fetchAllAreas()
+                print("🔧 LOAD DATA: ✅ Areas loaded: \(loadedAreas.count)")
+            } catch {
+                print("🔧 LOAD DATA: ❌ Areas fetch failed: \(error)")
+                print("🔧 LOAD DATA: ❌ Areas error type: \(type(of: error))")
+            }
+            
+            // Fetch Projects with individual error handling
+            do {
+                print("🔧 LOAD DATA: Fetching projects...")
+                loadedProjects = try await ProjectRepository().fetchAllProjects()
+                print("🔧 LOAD DATA: ✅ Projects loaded: \(loadedProjects.count)")
+            } catch {
+                print("🔧 LOAD DATA: ❌ Projects fetch failed: \(error)")
+                print("🔧 LOAD DATA: ❌ Projects error type: \(type(of: error))")
+            }
+            
+            // Fetch Resources with individual error handling
+            do {
+                print("🔧 LOAD DATA: Fetching resources...")
+                loadedResources = try await ResourceRepository().fetchAllResources()
+                print("🔧 LOAD DATA: ✅ Resources loaded: \(loadedResources.count)")
+            } catch {
+                print("🔧 LOAD DATA: ❌ Resources fetch failed: \(error)")
+                print("🔧 LOAD DATA: ❌ Resources error type: \(type(of: error))")
+            }
+            
+            // Fetch Archives with individual error handling
+            do {
+                print("🔧 LOAD DATA: Fetching archives...")
+                loadedArchives = try await ArchiveRepository().fetchAllArchives()
+                print("🔧 LOAD DATA: ✅ Archives loaded: \(loadedArchives.count)")
+            } catch {
+                print("🔧 LOAD DATA: ❌ Archives fetch failed: \(error)")
+                print("🔧 LOAD DATA: ❌ Archives error type: \(type(of: error))")
+            }
+            
+            // Fetch Unprocessed Blobs with individual error handling
+            do {
+                print("🔧 LOAD DATA: Fetching unprocessed blobs...")
+                loadedUnprocessedBlobs = try await BlobRepository().fetchUnprocessedBlobs()
+                print("🔧 LOAD DATA: ✅ Unprocessed blobs loaded: \(loadedUnprocessedBlobs.count)")
+            } catch {
+                print("🔧 LOAD DATA: ❌ Unprocessed blobs fetch failed: \(error)")
+                print("🔧 LOAD DATA: ❌ Unprocessed blobs error type: \(type(of: error))")
+            }
+            
+            // Fetch Focus Tasks with individual error handling
+            do {
+                print("🔧 LOAD DATA: Fetching focus tasks...")
+                loadedFocusTasks = try await TaskRepository().fetchFocusTasks()
+                print("🔧 LOAD DATA: ✅ Focus tasks loaded: \(loadedFocusTasks.count)")
+            } catch {
+                print("🔧 LOAD DATA: ❌ Focus tasks fetch failed: \(error)")
+                print("🔧 LOAD DATA: ❌ Focus tasks error type: \(type(of: error))")
+            }
             
             await MainActor.run {
                 self.areas = loadedAreas
@@ -227,10 +282,78 @@ class MainViewModel: ObservableObject {
             
             print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
             
+            // If some data is empty, let's create some sample data for development
+            if loadedAreas.isEmpty && loadedProjects.isEmpty {
+                print("🔧 LOAD DATA: No PARA data found, creating sample data...")
+                await createSampleParaData()
+            }
+            
         } catch {
-            print("🔧 LOAD DATA: ❌ Error loading data - \(error)")
+            print("🔧 LOAD DATA: ❌ General error loading data - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to load data: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Create sample PARA data for development
+    private func createSampleParaData() async {
+        print("🔧 SAMPLE DATA: Creating sample PARA data...")
+        
+        do {
+            // Create sample areas
+            let healthArea = Area(
+                name: "Health & Fitness",
+                description: "Physical and mental well-being",
+                icon: "heart.fill",
+                color: "#FF6B6B",
+                workPersonal: .personal
+            )
+            
+            let careerArea = Area(
+                name: "Career Development",
+                description: "Professional growth and skills",
+                icon: "briefcase.fill",
+                color: "#4ECDC4",
+                workPersonal: .work
+            )
+            
+            let savedHealthArea = try await AreaRepository().createArea(healthArea)
+            let savedCareerArea = try await AreaRepository().createArea(careerArea)
+            
+            print("🔧 SAMPLE DATA: ✅ Created sample areas")
+            
+            // Create sample projects
+            let q1Project = Project(
+                name: "Q1 Planning",
+                description: "Quarterly planning and goal setting",
+                workPersonal: .work,
+                areaId: savedCareerArea.id
+            )
+            
+            let workoutProject = Project(
+                name: "Home Workout Routine",
+                description: "Establish consistent exercise habits",
+                workPersonal: .personal,
+                areaId: savedHealthArea.id
+            )
+            
+            let savedQ1Project = try await ProjectRepository().createProject(q1Project)
+            let savedWorkoutProject = try await ProjectRepository().createProject(workoutProject)
+            
+            print("🔧 SAMPLE DATA: ✅ Created sample projects")
+            
+            // Update local state
+            await MainActor.run {
+                self.areas = [savedHealthArea, savedCareerArea]
+                self.projects = [savedQ1Project, savedWorkoutProject]
+                self.successMessage = "✅ Created sample PARA data"
+            }
+            
+        } catch {
+            print("🔧 SAMPLE DATA: ❌ Failed to create sample data: \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to create sample data: \(error.localizedDescription)"
             }
         }
     }
