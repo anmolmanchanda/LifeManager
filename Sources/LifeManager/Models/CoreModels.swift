@@ -305,6 +305,8 @@ enum PARAView: String, CaseIterable {
     case mindmap = "mindmap"
     case calendar = "calendar"
     case timeline = "timeline"
+    case personal = "personal"
+    case work = "work"
     
     var displayName: String {
         switch self {
@@ -320,6 +322,8 @@ enum PARAView: String, CaseIterable {
         case .mindmap: return "Mind Map"
         case .calendar: return "Calendar"
         case .timeline: return "Timeline"
+        case .personal: return "Personal"
+        case .work: return "Work"
         }
     }
 }

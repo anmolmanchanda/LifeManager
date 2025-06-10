@@ -192,8 +192,8 @@ class SupabaseService: ObservableObject {
             
             // Make the request with better error handling
             let response = try await client
-                .from(table)
-                .insert(record)
+            .from(table)
+            .insert(record)
                 .select() // Ensure we get the response back
                 .execute()
             
@@ -235,9 +235,9 @@ class SupabaseService: ObservableObject {
             guard let insertedRecord = decodedResponse.first else {
                 print("🔧 SUPABASE INSERT: No records in response - returning original")
                 return record
-            }
-            
-            return insertedRecord
+        }
+        
+        return insertedRecord
             
         } catch {
             print("🔧 SUPABASE INSERT: Error - \(error)")

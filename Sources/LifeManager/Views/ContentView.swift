@@ -159,6 +159,18 @@ struct PARANavigation: View {
                 .tag(PARAView.archives)
             }
             
+            Section("Modes") {
+                NavigationLink(destination: PersonalView().environmentObject(viewModel)) {
+                    Label("Personal", systemImage: "person")
+                }
+                .tag(PARAView.personal)
+                
+                NavigationLink(destination: WorkView().environmentObject(viewModel)) {
+                    Label("Work", systemImage: "briefcase")
+                }
+                .tag(PARAView.work)
+            }
+            
             Section("Views") {
                 NavigationLink(destination: FocusView().environmentObject(viewModel)) {
                     Label("Focus", systemImage: "scope")
@@ -233,6 +245,10 @@ struct PARADetailView: View {
                 CalendarView()
             case .timeline:
                 TimelineView()
+            case .personal:
+                PersonalView()
+            case .work:
+                WorkView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -550,7 +566,16 @@ struct BlobRowView: View {
         case .note: return "note.text"
         case .journal: return "book"
         case .email: return "envelope"
-        case .knowledge: return "lightbulb"
+        case .meeting: return "person.2"
+        case .idea: return "lightbulb"
+        case .research: return "magnifyingglass"
+        case .recipe: return "fork.knife"
+        case .financial: return "dollarsign.circle"
+        case .inventory: return "list.clipboard"
+        case .knowledge: return "brain"
+        case .therapy: return "heart"
+        case .media: return "play.rectangle"
+        case .grocery: return "cart"
         default: return "doc.text"
         }
     }
@@ -857,57 +882,190 @@ struct ProjectsView: View {
     @EnvironmentObject var viewModel: MainViewModel
     
     var body: some View {
-        List(viewModel.projects) { project in
-            ProjectRowView(project: project)
-                .environmentObject(viewModel)
+        VStack(spacing: 0) {
+            // Header with AI processing info
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Projects")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    // AI processing status
+                    if !viewModel.projectBlobs.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "brain")
+                                .foregroundColor(.blue)
+                            
+                            let totalProjectBlobs = viewModel.projectBlobs.values.flatMap { $0 }.count
+                            Text("AI organized \(totalProjectBlobs) notes")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                
+                // Quick stats
+                if !viewModel.projects.isEmpty {
+                    HStack(spacing: 20) {
+                        StatView(
+                            title: "Active Projects", 
+                            value: "\(viewModel.projects.filter { $0.status == .active }.count)",
+                            color: .green
+                        )
+                        StatView(
+                            title: "Total Notes", 
+                            value: "\(viewModel.projectBlobs.values.flatMap { $0 }.count)",
+                            color: .blue
+                        )
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .padding(.vertical)
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            // Projects list with expandable sections
+            if viewModel.projects.isEmpty {
+                if #available(macOS 14.0, *) {
+                    ContentUnavailableView(
+                        "No projects yet",
+                        systemImage: "target",
+                        description: Text("AI will create projects from your notes automatically")
+                    )
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "target")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No projects yet")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("AI will create projects from your notes automatically")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                }
+            } else {
+                List {
+                    ForEach(viewModel.projects) { project in
+                        ProjectSectionView(project: project)
+                            .environmentObject(viewModel)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                await viewModel.refreshData()
+            }
         }
     }
 }
 
-struct ProjectRowView: View {
+/// Expandable project section showing project info and its blobs
+struct ProjectSectionView: View {
     let project: Project
     @EnvironmentObject var viewModel: MainViewModel
     @State private var showingDeleteConfirmation = false
+    @State private var isExpanded = false
+    
+    private var projectBlobs: [Blob] {
+        return viewModel.projectBlobs[project.id] ?? []
+    }
     
     var body: some View {
-        HStack {
-            Image(systemName: "folder")
-                .foregroundColor(.blue)
-            
-            VStack(alignment: .leading) {
-                Text(project.name)
-                    .font(.headline)
-                
-                if let description = project.description {
-                    Text(description)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+        DisclosureGroup(
+            isExpanded: $isExpanded,
+            content: {
+                // Project content - blobs assigned to this project
+                if projectBlobs.isEmpty {
+                    HStack {
+                        Image(systemName: "tray")
+                            .foregroundColor(.secondary)
+                        Text("No content yet - AI will organize relevant notes here")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    LazyVStack(spacing: 8) {
+                        ForEach(projectBlobs) { blob in
+                            ProjectBlobRowView(blob: blob, project: project)
+                                .environmentObject(viewModel)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            },
+            label: {
+                HStack {
+                    // Project icon and info
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "folder")
+                                .foregroundColor(.blue)
+                            
+                            Text(project.name)
+                                .font(.headline)
+                            
+                            // Status badge
+                            Text(project.status.rawValue.capitalized)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(project.status == .active ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
+                                .foregroundColor(project.status == .active ? .green : .gray)
+                                .cornerRadius(8)
+                        }
+                        
+                        if let description = project.description {
+                            Text(description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                        
+                        // AI insights
+                        if !projectBlobs.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .foregroundColor(.blue)
+                                    .font(.caption)
+                                
+                                Text("\(projectBlobs.count) AI-organized notes")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Delete button
+                    Button(action: {
+                        showingDeleteConfirmation = true
+                    }) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Delete this project")
                 }
             }
-            
-            Spacer()
-            
-            // Delete button
-            Button(action: {
-                showingDeleteConfirmation = true
-            }) {
-                Image(systemName: "trash")
-                    .foregroundColor(.red)
-            }
-            .buttonStyle(.plain)
-            .help("Delete this project")
-            
-            // Status badge
-            Text(project.status.rawValue.capitalized)
-                .font(.caption)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(project.status == .active ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
-                .foregroundColor(project.status == .active ? .green : .gray)
-                .cornerRadius(8)
-        }
-        .padding(.vertical, 4)
+        )
         .alert("Delete Project", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -921,66 +1079,273 @@ struct ProjectRowView: View {
     }
 }
 
+/// Individual blob row within a project with AI transparency
+struct ProjectBlobRowView: View {
+    let blob: Blob
+    let project: Project
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingAIDetails = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Content preview
+            VStack(alignment: .leading, spacing: 4) {
+                Text(blob.content)
+                    .font(.body)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                HStack(spacing: 8) {
+                    // Source type
+                    Label(blob.sourceType.rawValue.capitalized, systemImage: sourceTypeIcon(blob.sourceType))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    // Work/Personal
+                    Text(blob.workPersonal.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(blob.workPersonal == .work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                        .foregroundColor(blob.workPersonal == .work ? .blue : .green)
+                        .cornerRadius(4)
+                    
+                    // AI assignment indicator
+                    Button(action: {
+                        showingAIDetails = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "brain")
+                            Text("AI assigned")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
+                    .help("See why AI assigned this to \(project.name)")
+                    
+                    Spacer()
+                    
+                    // Timestamp
+                    Text(formatRelativeDate(blob.createdAt))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+        .sheet(isPresented: $showingAIDetails) {
+            AITransparencyView(blob: blob, project: project)
+                .environmentObject(viewModel)
+        }
+    }
+    
+    private func sourceTypeIcon(_ sourceType: SourceType) -> String {
+        switch sourceType {
+        case .note: return "note.text"
+        case .journal: return "book"
+        case .email: return "envelope"
+        case .meeting: return "person.2"
+        case .idea: return "lightbulb"
+        case .research: return "magnifyingglass"
+        case .recipe: return "fork.knife"
+        case .financial: return "dollarsign.circle"
+        case .inventory: return "list.clipboard"
+        case .knowledge: return "brain"
+        case .therapy: return "heart"
+        case .media: return "play.rectangle"
+        case .grocery: return "cart"
+        default: return "doc.text"
+        }
+    }
+}
+
 /// Resources view
 struct ResourcesView: View {
     @EnvironmentObject var viewModel: MainViewModel
     
+    private let resourceCategories = [
+        "Research Papers", "Articles", "Videos", "Books", 
+        "Guides", "Recipes", "Insights", "References"
+    ]
+    
     var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            HStack {
-                Text("Resources")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Button("+ Add Resource") {
-                    // TODO: Add resource creation
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(.horizontal)
-            
-            // Resources list
-            if viewModel.resources.isEmpty {
-                if #available(macOS 14.0, *) {
-                    ContentUnavailableView(
-                        "No resources yet",
-                        systemImage: "books.vertical",
-                        description: Text("Add reference materials, documents, and knowledge items")
-                    )
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "books.vertical")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No resources yet")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        Text("Add reference materials, documents, and knowledge items")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+        VStack(spacing: 0) {
+            // Header with AI transparency
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Resources")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    // AI processing status
+                    if !viewModel.resourceBlobs.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(.purple)
+                            
+                            Text("AI organized \(viewModel.resourceBlobs.count) references")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.purple.opacity(0.1))
+                        .cornerRadius(8)
                     }
-                    .padding()
                 }
-            } else {
-                List(viewModel.resources) { resource in
-                    ResourceRowView(resource: resource)
-                        .environmentObject(viewModel)
+                .padding(.horizontal)
+                
+                // Quick stats
+                HStack(spacing: 20) {
+                    StatView(
+                        title: "Resource Types", 
+                        value: "\(viewModel.resources.count)",
+                        color: .purple
+                    )
+                    StatView(
+                        title: "AI References", 
+                        value: "\(viewModel.resourceBlobs.count)",
+                        color: .blue
+                    )
+                    Spacer()
                 }
+                .padding(.horizontal)
             }
+            .padding(.vertical)
+            .background(Color(NSColor.controlBackgroundColor))
             
-            Spacer()
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    // Formal Resources (created by user/system)
+                    if !viewModel.resources.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "books.vertical")
+                                    .foregroundColor(.purple)
+                                Text("Curated Resources")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            ForEach(viewModel.resources) { resource in
+                                ResourceRowView(resource: resource)
+                                    .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // AI-Organized References by Category
+                    if !viewModel.resourceBlobs.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "brain")
+                                    .foregroundColor(.blue)
+                                Text("AI-Organized References")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            // Group resource blobs by inferred category
+                            ForEach(resourceCategories, id: \.self) { category in
+                                let categoryBlobs = getCategoryBlobs(category: category)
+                                if !categoryBlobs.isEmpty {
+                                    ResourceCategorySection(
+                                        category: category,
+                                        blobs: categoryBlobs
+                                    )
+                                    .environmentObject(viewModel)
+                                }
+                            }
+                            
+                            // Uncategorized resources
+                            let uncategorizedBlobs = viewModel.resourceBlobs.filter { blob in
+                                !resourceCategories.contains { category in
+                                    blobMatchesCategory(blob: blob, category: category)
+                                }
+                            }
+                            
+                            if !uncategorizedBlobs.isEmpty {
+                                ResourceCategorySection(
+                                    category: "General References",
+                                    blobs: uncategorizedBlobs
+                                )
+                                .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // Empty state
+                    if viewModel.resources.isEmpty && viewModel.resourceBlobs.isEmpty {
+                        if #available(macOS 14.0, *) {
+                            ContentUnavailableView(
+                                "No resources yet",
+                                systemImage: "books.vertical",
+                                description: Text("AI will organize reference materials and knowledge items here")
+                            )
+                        } else {
+                            VStack(spacing: 16) {
+                                Image(systemName: "books.vertical")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("No resources yet")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("AI will organize reference materials and knowledge items here")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding()
+                        }
+                    }
+                }
+                .padding()
+            }
         }
-        .padding()
         .onAppear {
             Task {
                 await viewModel.refreshData()
             }
+        }
+    }
+    
+    private func getCategoryBlobs(category: String) -> [Blob] {
+        return viewModel.resourceBlobs.filter { blob in
+            blobMatchesCategory(blob: blob, category: category)
+        }
+    }
+    
+    private func blobMatchesCategory(blob: Blob, category: String) -> Bool {
+        let content = blob.content.lowercased()
+        switch category {
+        case "Research Papers":
+            return content.contains("research") || content.contains("paper") || content.contains("study")
+        case "Articles":
+            return content.contains("article") || content.contains("blog") || content.contains("post")
+        case "Videos":
+            return content.contains("video") || content.contains("youtube") || content.contains("watch")
+        case "Books":
+            return content.contains("book") || content.contains("read") || content.contains("chapter")
+        case "Guides":
+            return content.contains("guide") || content.contains("tutorial") || content.contains("how to")
+        case "Recipes":
+            return content.contains("recipe") || content.contains("cook") || content.contains("ingredient")
+        case "Insights":
+            return content.contains("insight") || content.contains("learning") || content.contains("takeaway")
+        case "References":
+            return content.contains("reference") || content.contains("link") || content.contains("source")
+        default:
+            return false
         }
     }
 }
@@ -1046,61 +1411,195 @@ struct ResourceRowView: View {
 struct ArchivesView: View {
     @EnvironmentObject var viewModel: MainViewModel
     
+    private let archiveCategories = [
+        "Completed Projects", "Inactive Areas", "Old Resources", 
+        "Past Notes", "Outdated References", "Historical Data"
+    ]
+    
     var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            HStack {
-                Text("Archives")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+        VStack(spacing: 0) {
+            // Header with AI transparency
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Archives")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    // AI processing status
+                    if !viewModel.archivedBlobs.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(.gray)
+                            
+                            Text("AI archived \(viewModel.archivedBlobs.count) items")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
                 
-                Spacer()
-                
+                // Description
                 Text("Inactive items from Projects, Areas, and Resources")
                     .font(.caption)
                     .foregroundColor(.secondary)
-            }
-            .padding(.horizontal)
-            
-            // Archives list
-            if viewModel.archives.isEmpty {
-                if #available(macOS 14.0, *) {
-                    ContentUnavailableView(
-                        "No archived items",
-                        systemImage: "archivebox",
-                        description: Text("Completed projects and inactive items will appear here")
+                    .padding(.horizontal)
+                
+                // Quick stats
+                HStack(spacing: 20) {
+                    StatView(
+                        title: "Formal Archives", 
+                        value: "\(viewModel.archives.count)",
+                        color: .gray
                     )
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "archivebox")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No archived items")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        Text("Completed projects and inactive items will appear here")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
+                    StatView(
+                        title: "AI Archived", 
+                        value: "\(viewModel.archivedBlobs.count)",
+                        color: .blue
+                    )
+                    Spacer()
                 }
-            } else {
-                List(viewModel.archives) { archive in
-                    ArchiveRowView(archive: archive)
-                        .environmentObject(viewModel)
-                }
+                .padding(.horizontal)
             }
+            .padding(.vertical)
+            .background(Color(NSColor.controlBackgroundColor))
             
-            Spacer()
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    // Formal Archives (created by user/system)
+                    if !viewModel.archives.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "archivebox")
+                                    .foregroundColor(.gray)
+                                Text("Formal Archives")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            ForEach(viewModel.archives) { archive in
+                                ArchiveRowView(archive: archive)
+                                    .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // AI-Archived Content by Category
+                    if !viewModel.archivedBlobs.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "brain")
+                                    .foregroundColor(.blue)
+                                Text("AI-Archived Content")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            // Group archived blobs by inferred category
+                            ForEach(archiveCategories, id: \.self) { category in
+                                let categoryBlobs = getArchiveCategoryBlobs(category: category)
+                                if !categoryBlobs.isEmpty {
+                                    ArchiveCategorySection(
+                                        category: category,
+                                        blobs: categoryBlobs
+                                    )
+                                    .environmentObject(viewModel)
+                                }
+                            }
+                            
+                            // Uncategorized archived items
+                            let uncategorizedBlobs = viewModel.archivedBlobs.filter { blob in
+                                !archiveCategories.contains { category in
+                                    archiveBlobMatchesCategory(blob: blob, category: category)
+                                }
+                            }
+                            
+                            if !uncategorizedBlobs.isEmpty {
+                                ArchiveCategorySection(
+                                    category: "General Archives",
+                                    blobs: uncategorizedBlobs
+                                )
+                                .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // Empty state
+                    if viewModel.archives.isEmpty && viewModel.archivedBlobs.isEmpty {
+                        if #available(macOS 14.0, *) {
+                            ContentUnavailableView(
+                                "No archived items",
+                                systemImage: "archivebox",
+                                description: Text("Completed projects and inactive items will appear here")
+                            )
+                        } else {
+                            VStack(spacing: 16) {
+                                Image(systemName: "archivebox")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("No archived items")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Completed projects and inactive items will appear here")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding()
+                        }
+                    }
+                }
+                .padding()
+            }
         }
-        .padding()
         .onAppear {
             Task {
                 await viewModel.refreshData()
             }
+        }
+    }
+    
+    private func getArchiveCategoryBlobs(category: String) -> [Blob] {
+        return viewModel.archivedBlobs.filter { blob in
+            archiveBlobMatchesCategory(blob: blob, category: category)
+        }
+    }
+    
+    private func archiveBlobMatchesCategory(blob: Blob, category: String) -> Bool {
+        let content = blob.content.lowercased()
+        let createdDateString = blob.createdAt
+        
+        // Parse the date string to Date object
+        let formatter = ISO8601DateFormatter()
+        let createdDate = formatter.date(from: createdDateString) ?? Date()
+        
+        let isOld = Calendar.current.dateInterval(of: .month, for: createdDate)?.start ?? Date() < Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
+        
+        switch category {
+        case "Completed Projects":
+            return content.contains("completed") || content.contains("finished") || content.contains("done")
+        case "Inactive Areas":
+            return content.contains("stopped") || content.contains("paused") || content.contains("inactive")
+        case "Old Resources":
+            return isOld && (content.contains("reference") || content.contains("resource"))
+        case "Past Notes":
+            return isOld && blob.sourceType == .note
+        case "Outdated References":
+            return isOld && (content.contains("link") || content.contains("url") || content.contains("http"))
+        case "Historical Data":
+            return isOld
+        default:
+            return false
         }
     }
 }
@@ -1516,300 +2015,11 @@ struct ProcessingConfirmationView: View {
     
     var body: some View {
         NavigationView {
-            if !viewModel.pendingConfirmations.isEmpty && currentIndex < viewModel.pendingConfirmations.count {
-                let result = viewModel.pendingConfirmations[currentIndex]
-                
-                VStack(spacing: 0) {
-                    // Fixed header
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Review AI Processing")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                            
-                            Spacer()
-                            
-                            Text("\(currentIndex + 1) of \(viewModel.pendingConfirmations.count)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.top, 24)
-                        
-                        Divider()
-                    }
-                    .background(Color(NSColor.windowBackgroundColor))
-                    
-                    // Scrollable content area
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            // Original content preview
-                            if let blob = viewModel.recentBlobs.first(where: { $0.id == result.blobId }) {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    HStack {
-                                        Text("Original Note")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Spacer()
-                                    }
-                                    
-                                    Text(blob.content)
-                                        .font(.body)
-                                        .padding(16)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .background(Color(NSColor.controlBackgroundColor))
-                                        .cornerRadius(8)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                        )
-                                }
-                                .padding(.horizontal, 24)
-                            }
-                            
-                            // AI Analysis results
-                            VStack(alignment: .leading, spacing: 20) {
-                                HStack {
-                                    Text("AI Analysis Results")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Spacer()
-                                }
-                                
-                                // Category and confidence
-                                VStack(alignment: .leading, spacing: 16) {
-                                    HStack(spacing: 16) {
-                                        Image(systemName: result.paraCategory.icon)
-                                            .foregroundColor(.blue)
-                                            .font(.title2)
-                                            .frame(width: 32)
-                                        
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text("Category: \(result.paraCategory.displayName)")
-                                                .font(.body)
-                                                .fontWeight(.medium)
-                                            
-                                            if let area = result.suggestedArea {
-                                                HStack(spacing: 6) {
-                                                    Image(systemName: "square.stack.3d.up")
-                                                        .foregroundColor(.green)
-                                                        .font(.caption)
-                                                    Text("Area: \(area)")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            }
-                                            
-                                            if let project = result.suggestedProject {
-                                                HStack(spacing: 6) {
-                                                    Image(systemName: "target")
-                                                        .foregroundColor(.orange)
-                                                        .font(.caption)
-                                                    Text("Project: \(project)")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            }
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        VStack(alignment: .trailing, spacing: 4) {
-                                            ConfidenceIndicator(confidence: result.confidence)
-                                            Text("Confidence")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-                                    
-                                    // Extracted tasks section
-                                    VStack(alignment: .leading, spacing: 12) {
-                                        HStack {
-                                            Text("Extracted Tasks")
-                                                .font(.subheadline)
-                                                .fontWeight(.medium)
-                                            
-                                            Spacer()
-                                            
-                                            Text("\(result.extractedTasks.count) task\(result.extractedTasks.count == 1 ? "" : "s")")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        
-                                        if !result.extractedTasks.isEmpty {
-                                            VStack(spacing: 10) {
-                                                ForEach(result.extractedTasks.prefix(5)) { task in
-                                                    HStack(alignment: .top, spacing: 12) {
-                                                        Circle()
-                                                            .fill(priorityColor(task.priority))
-                                                            .frame(width: 10, height: 10)
-                                                            .padding(.top, 6)
-                                                        
-                                                        VStack(alignment: .leading, spacing: 4) {
-                                                            Text(task.title)
-                                                                .font(.body)
-                                                                .multilineTextAlignment(.leading)
-                                                            
-                                                            if let description = task.description, !description.isEmpty {
-                                                                Text(description)
-                                                                    .font(.caption)
-                                                                    .foregroundColor(.secondary)
-                                                                    .multilineTextAlignment(.leading)
-                                                            }
-                                                        }
-                                                        
-                                                        Spacer()
-                                                        
-                                                        Text(task.priority.displayName)
-                                                            .font(.caption)
-                                                            .padding(.horizontal, 8)
-                                                            .padding(.vertical, 4)
-                                                            .background(priorityColor(task.priority).opacity(0.2))
-                                                            .foregroundColor(priorityColor(task.priority))
-                                                            .cornerRadius(4)
-                                                    }
-                                                    .padding(.vertical, 2)
-                                                }
-                                                
-                                                if result.extractedTasks.count > 5 {
-                                                    Text("+ \(result.extractedTasks.count - 5) more tasks will be created")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                        .padding(.horizontal, 12)
-                                                }
-                                            }
-                                        } else {
-                                            Text("No tasks detected in this note")
-                                                .font(.body)
-                                                .foregroundColor(.secondary)
-                                                .padding(.horizontal, 12)
-                                        }
-                                    }
-                                    
-                                    // Auto tags section
-                                    VStack(alignment: .leading, spacing: 12) {
-                                        HStack {
-                                            Text("Suggested Tags")
-                                                .font(.subheadline)
-                                                .fontWeight(.medium)
-                                            
-                                            Spacer()
-                                            
-                                            Text("\(result.autoTags.count) tag\(result.autoTags.count == 1 ? "" : "s")")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        
-                                        if !result.autoTags.isEmpty {
-                                            LazyVGrid(columns: [
-                                                GridItem(.adaptive(minimum: 70, maximum: 140))
-                                            ], alignment: .leading, spacing: 8) {
-                                                ForEach(result.autoTags.prefix(12), id: \.self) { tag in
-                                                    Text(tag)
-                                                        .font(.caption)
-                                                        .padding(.horizontal, 10)
-                                                        .padding(.vertical, 6)
-                                                        .background(Color.blue.opacity(0.2))
-                                                        .foregroundColor(.blue)
-                                                        .cornerRadius(6)
-                                                        .fixedSize()
-                                                }
-                                            }
-                                            
-                                            if result.autoTags.count > 12 {
-                                                Text("+ \(result.autoTags.count - 12) more tags will be applied")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                                    .padding(.horizontal, 12)
-                                            }
-                                        } else {
-                                            Text("No tags suggested for this note")
-                                                .font(.body)
-                                                .foregroundColor(.secondary)
-                                                .padding(.horizontal, 12)
-                                        }
-                                    }
-                                    
-                                    // Summary if available
-                                    if let summary = result.summary, !summary.isEmpty {
-                                        VStack(alignment: .leading, spacing: 12) {
-                                            Text("AI Summary")
-                                                .font(.subheadline)
-                                                .fontWeight(.medium)
-                                            
-                                            Text(summary)
-                                                .font(.body)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(20)
-                            .background(Color(NSColor.controlBackgroundColor))
-                            .cornerRadius(12)
-                            .padding(.horizontal, 24)
-                            
-                            // Bottom spacer for fixed buttons
-                            Rectangle()
-                                .fill(Color.clear)
-                                .frame(height: 100)
-                        }
-                        .padding(.top, 24)
-                    }
-                    
-                    // Fixed bottom action buttons
-                    VStack(spacing: 0) {
-                        Divider()
-                        
-                        HStack(spacing: 16) {
-                            Button("Skip This Note") {
-                                Task {
-                                    await viewModel.confirmProcessing(for: result, approved: false)
-                                    moveToNext()
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            
-                            Button("Approve & Process") {
-                                Task {
-                                    await viewModel.confirmProcessing(for: result, approved: true)
-                                    moveToNext()
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            
-                            if viewModel.pendingConfirmations.count > 1 {
-                                if currentIndex < viewModel.pendingConfirmations.count - 1 {
-                                    Button("Next →") {
-                                        currentIndex += 1
-                                    }
-                                    .buttonStyle(.bordered)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 20)
-                    }
-                    .background(Color(NSColor.windowBackgroundColor))
-                }
-            } else {
-                // No items to review
-                VStack(spacing: 20) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.green)
-                    
-                    Text("All items reviewed!")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                    
-                    Button("Close") {
-                        dismiss()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(40)
-            }
+            ProcessingConfirmationContent(
+                viewModel: viewModel,
+                currentIndex: $currentIndex,
+                dismiss: dismiss
+            )
         }
         .frame(minWidth: 900, minHeight: 800)
         .toolbar {
@@ -1825,6 +2035,28 @@ struct ProcessingConfirmationView: View {
             }
         }
     }
+}
+
+struct ProcessingConfirmationContent: View {
+    @ObservedObject var viewModel: MainViewModel
+    @Binding var currentIndex: Int
+    let dismiss: DismissAction
+    
+    var body: some View {
+        if !viewModel.pendingConfirmations.isEmpty && currentIndex < viewModel.pendingConfirmations.count {
+            let result = viewModel.pendingConfirmations[currentIndex]
+            ProcessingConfirmationDetail(
+                result: result,
+                currentIndex: currentIndex,
+                totalCount: viewModel.pendingConfirmations.count,
+                viewModel: viewModel,
+                onNext: { moveToNext() },
+                onDismiss: { dismiss() }
+            )
+        } else {
+            ProcessingConfirmationEmpty(onDismiss: { dismiss() })
+        }
+    }
     
     private func moveToNext() {
         if currentIndex < viewModel.pendingConfirmations.count - 1 {
@@ -1832,6 +2064,269 @@ struct ProcessingConfirmationView: View {
         } else {
             dismiss()
         }
+    }
+}
+
+struct ProcessingConfirmationDetail: View {
+    let result: ProcessingResult
+    let currentIndex: Int
+    let totalCount: Int
+    @ObservedObject var viewModel: MainViewModel
+    let onNext: () -> Void
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            ProcessingConfirmationHeader(
+                currentIndex: currentIndex,
+                totalCount: totalCount
+            )
+            
+            ScrollView {
+                ProcessingConfirmationBody(
+                    result: result,
+                    viewModel: viewModel
+                )
+            }
+            
+            ProcessingConfirmationFooter(
+                result: result,
+                currentIndex: currentIndex,
+                totalCount: totalCount,
+                viewModel: viewModel,
+                onNext: onNext,
+                onDismiss: onDismiss
+            )
+        }
+    }
+}
+
+struct ProcessingConfirmationHeader: View {
+    let currentIndex: Int
+    let totalCount: Int
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Review AI Processing")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Text("\(currentIndex + 1) of \(totalCount)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            
+            Divider()
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
+struct ProcessingConfirmationBody: View {
+    let result: ProcessingResult
+    @ObservedObject var viewModel: MainViewModel
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            if let blob = viewModel.recentBlobs.first(where: { $0.id == result.blobId }) {
+                ProcessingOriginalNote(blob: blob)
+            }
+            
+            ProcessingAIAnalysis(result: result)
+            
+            Rectangle()
+                .fill(Color.clear)
+                .frame(height: 100)
+        }
+        .padding(.top, 24)
+    }
+}
+
+struct ProcessingOriginalNote: View {
+    let blob: Blob
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Original Note")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            
+            Text(blob.content)
+                .font(.body)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, 24)
+    }
+}
+
+struct ProcessingAIAnalysis: View {
+    let result: ProcessingResult
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Text("AI Analysis Results")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+            }
+            
+            ProcessingCategoryInfo(result: result)
+            ProcessingTasksInfo(result: result)
+            ProcessingTagsInfo(result: result)
+            
+            if let summary = result.summary, !summary.isEmpty {
+                ProcessingSummaryInfo(summary: summary)
+            }
+        }
+        .padding(20)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(12)
+        .padding(.horizontal, 24)
+    }
+}
+
+struct ProcessingCategoryInfo: View {
+    let result: ProcessingResult
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 16) {
+                Image(systemName: result.paraCategory.icon)
+                    .foregroundColor(.blue)
+                    .font(.title2)
+                    .frame(width: 32)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Category: \(result.paraCategory.displayName)")
+                        .font(.body)
+                        .fontWeight(.medium)
+                    
+                    if let area = result.suggestedArea {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.stack.3d.up")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                            Text("Area: \(area)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    if let project = result.suggestedProject {
+                        HStack(spacing: 6) {
+                            Image(systemName: "target")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Project: \(project)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    ConfidenceIndicator(confidence: result.confidence)
+                    Text("Confidence")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}
+
+struct ProcessingTasksInfo: View {
+    let result: ProcessingResult
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Extracted Tasks")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+                
+                Text("\(result.extractedTasks.count) task\(result.extractedTasks.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            if !result.extractedTasks.isEmpty {
+                VStack(spacing: 10) {
+                    ForEach(result.extractedTasks.prefix(5)) { task in
+                        ProcessingTaskRow(task: task)
+                    }
+                    
+                    if result.extractedTasks.count > 5 {
+                        Text("+ \(result.extractedTasks.count - 5) more tasks will be created")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 12)
+                    }
+                }
+            } else {
+                Text("No tasks detected in this note")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 12)
+            }
+        }
+    }
+}
+
+struct ProcessingTaskRow: View {
+    let task: TaskExtractionInfo
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Circle()
+                .fill(priorityColor(task.priority))
+                .frame(width: 10, height: 10)
+                .padding(.top, 6)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title)
+                    .font(.body)
+                    .multilineTextAlignment(.leading)
+                
+                if let description = task.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            
+            Spacer()
+            
+            Text(task.priority.displayName)
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(priorityColor(task.priority).opacity(0.2))
+                .foregroundColor(priorityColor(task.priority))
+                .cornerRadius(4)
+        }
+        .padding(.vertical, 2)
     }
     
     private func priorityColor(_ priority: TaskPriority) -> Color {
@@ -1841,6 +2336,138 @@ struct ProcessingConfirmationView: View {
         case .medium: return .blue
         case .low: return .green
         }
+    }
+}
+
+struct ProcessingTagsInfo: View {
+    let result: ProcessingResult
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Suggested Tags")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+                
+                Text("\(result.autoTags.count) tag\(result.autoTags.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            if !result.autoTags.isEmpty {
+                LazyVGrid(columns: [
+                    GridItem(.adaptive(minimum: 70, maximum: 140))
+                ], alignment: .leading, spacing: 8) {
+                    ForEach(result.autoTags.prefix(12), id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.blue.opacity(0.2))
+                            .foregroundColor(.blue)
+                            .cornerRadius(6)
+                            .fixedSize()
+                    }
+                }
+                
+                if result.autoTags.count > 12 {
+                    Text("+ \(result.autoTags.count - 12) more tags will be applied")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 12)
+                }
+            } else {
+                Text("No tags suggested for this note")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 12)
+            }
+        }
+    }
+}
+
+struct ProcessingSummaryInfo: View {
+    let summary: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("AI Summary")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            
+            Text(summary)
+                .font(.body)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+struct ProcessingConfirmationFooter: View {
+    let result: ProcessingResult
+    let currentIndex: Int
+    let totalCount: Int
+    @ObservedObject var viewModel: MainViewModel
+    let onNext: () -> Void
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            
+            HStack(spacing: 16) {
+                Button("Skip This Note") {
+                    Task {
+                        await viewModel.confirmProcessing(for: result, approved: false)
+                        onNext()
+                    }
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Approve & Process") {
+                    Task {
+                        await viewModel.confirmProcessing(for: result, approved: true)
+                        onNext()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                
+                if totalCount > 1 {
+                    if currentIndex < totalCount - 1 {
+                        Button("Next →") {
+                            onNext()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
+struct ProcessingConfirmationEmpty: View {
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.green)
+            
+            Text("All items reviewed!")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            Button("Close") {
+                onDismiss()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(40)
     }
 }
 
@@ -2131,6 +2758,268 @@ struct ToastView: View {
     }
 }
 
+/// Quick stat display component
+struct StatView: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+/// AI Transparency view showing what AI did and why
+struct AITransparencyView: View {
+    let blob: Blob
+    let project: Project?
+    let area: Area?
+    @EnvironmentObject var viewModel: MainViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    init(blob: Blob, project: Project? = nil, area: Area? = nil) {
+        self.blob = blob
+        self.project = project
+        self.area = area
+    }
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                AITransparencyContent(
+                    blob: blob,
+                    project: project,
+                    area: area,
+                    dismiss: dismiss
+                )
+            }
+            .navigationTitle("AI Processing Details")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .frame(minWidth: 500, minHeight: 600)
+    }
+}
+
+struct AITransparencyContent: View {
+    let blob: Blob
+    let project: Project?
+    let area: Area?
+    let dismiss: DismissAction
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            AITransparencyOriginalNote(blob: blob)
+            AITransparencyAnalysis(blob: blob, project: project, area: area)
+            AITransparencyMetadata(blob: blob)
+            AITransparencyActions(dismiss: dismiss)
+        }
+        .padding()
+    }
+}
+
+struct AITransparencyOriginalNote: View {
+    let blob: Blob
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Your Original Note")
+                .font(.headline)
+            
+            Text(blob.content)
+                .padding()
+                .background(Color(NSColor.textBackgroundColor))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                )
+        }
+    }
+}
+
+struct AITransparencyAnalysis: View {
+    let blob: Blob
+    let project: Project?
+    let area: Area?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "brain")
+                    .foregroundColor(.blue)
+                Text("AI Analysis")
+                    .font(.headline)
+            }
+            
+            if let project = project {
+                AITransparencyProjectAssignment(blob: blob, project: project)
+            }
+            
+            if let area = area {
+                AITransparencyAreaAssignment(blob: blob, area: area)
+            }
+        }
+    }
+}
+
+struct AITransparencyProjectAssignment: View {
+    let blob: Blob
+    let project: Project
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Assigned to Project: **\(project.name)**")
+            
+            if let description = project.description {
+                Text("Project Description: \(description)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text("**Why this assignment:**")
+                .font(.subheadline)
+                .padding(.top, 8)
+            
+            Text("• Content mentions actionable items related to \(project.name.lowercased())")
+            Text("• Timeline and deliverables suggest project-based work")
+            Text("• Keywords match project scope and objectives")
+            
+            if blob.workPersonal == .work {
+                Text("• Classified as work-related content")
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
+struct AITransparencyAreaAssignment: View {
+    let blob: Blob
+    let area: Area
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Assigned to Area: **\(area.name)**")
+            
+            if let description = area.description {
+                Text("Area Description: \(description)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text("**Why this assignment:**")
+                .font(.subheadline)
+                .padding(.top, 8)
+            
+            Text("• Content relates to ongoing responsibilities in \(area.name.lowercased())")
+            Text("• No specific project timeline identified")
+            Text("• Maintenance or improvement-focused content")
+        }
+        .padding()
+        .background(Color.green.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
+struct AITransparencyMetadata: View {
+    let blob: Blob
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Processing Details")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Source:")
+                    Spacer()
+                    Text(blob.sourceType.rawValue.capitalized)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    Text("Category:")
+                    Spacer()
+                    Text(blob.workPersonal.rawValue.capitalized)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    Text("Processed:")
+                    Spacer()
+                    Text(formatRelativeDate(blob.createdAt))
+                        .foregroundColor(.secondary)
+                }
+                
+                if blob.processed {
+                    HStack {
+                        Text("Status:")
+                        Spacer()
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Processed")
+                                .foregroundColor(.green)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(8)
+        }
+    }
+}
+
+struct AITransparencyActions: View {
+    let dismiss: DismissAction
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Don't agree with this assignment?")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 12) {
+                Button("Move to Different Project") {
+                    // TODO: Implement reassignment
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Move to Area") {
+                    // TODO: Implement reassignment
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Move to Resources") {
+                    // TODO: Implement reassignment
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.top)
+    }
+}
+
 // MARK: - Helper Extensions
 
 extension Color {
@@ -2158,6 +3047,15 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
+}
+
+// Helper function for formatting relative dates
+func formatRelativeDate(_ dateString: String) -> String {
+    let formatter = ISO8601DateFormatter()
+    if let date = formatter.date(from: dateString) {
+        return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
+    }
+    return dateString
 }
 
 // MARK: - New Feature Views (Stubs)
@@ -2295,6 +3193,635 @@ struct TimelineView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.controlBackgroundColor))
         .padding()
+    }
+}
+
+/// Expandable resource category section
+struct ResourceCategorySection: View {
+    let category: String
+    let blobs: [Blob]
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var isExpanded = false
+    
+    var body: some View {
+        DisclosureGroup(
+            isExpanded: $isExpanded,
+            content: {
+                LazyVStack(spacing: 8) {
+                    ForEach(blobs) { blob in
+                        ResourceBlobRowView(blob: blob)
+                            .environmentObject(viewModel)
+                    }
+                }
+                .padding(.top, 8)
+            },
+            label: {
+                HStack {
+                    Image(systemName: categoryIcon(category))
+                        .foregroundColor(.purple)
+                        .frame(width: 24)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(category)
+                            .font(.headline)
+                        
+                        Text("\(blobs.count) AI-organized references")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // AI indicator
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                        Text("AI")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(6)
+                }
+            }
+        )
+        .padding(.horizontal)
+    }
+    
+    private func categoryIcon(_ category: String) -> String {
+        switch category {
+        case "Research Papers": return "doc.text.magnifyingglass"
+        case "Articles": return "newspaper"
+        case "Videos": return "play.rectangle"
+        case "Books": return "book.closed"
+        case "Guides": return "map"
+        case "Recipes": return "fork.knife"
+        case "Insights": return "lightbulb"
+        case "References": return "link"
+        default: return "doc.text"
+        }
+    }
+}
+
+/// Resource blob row view for AI-organized references
+struct ResourceBlobRowView: View {
+    let blob: Blob
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingAIDetails = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Resource type icon
+            Image(systemName: "doc.text")
+                .foregroundColor(.purple)
+                .font(.title2)
+                .frame(width: 32)
+            
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(blob.content)
+                    .font(.body)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                HStack(spacing: 8) {
+                    // Source type
+                    Label(blob.sourceType.rawValue.capitalized, systemImage: sourceTypeIcon(blob.sourceType))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    // Work/Personal
+                    Text(blob.workPersonal.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(blob.workPersonal == .work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                        .foregroundColor(blob.workPersonal == .work ? .blue : .green)
+                        .cornerRadius(4)
+                    
+                    // AI assignment indicator
+                    Button(action: {
+                        showingAIDetails = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "brain")
+                            Text("AI categorized")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.purple)
+                    }
+                    .buttonStyle(.plain)
+                    .help("See why AI categorized this as a resource")
+                    
+                    Spacer()
+                    
+                    // Timestamp
+                    Text(formatRelativeDate(blob.createdAt))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+        .sheet(isPresented: $showingAIDetails) {
+            AITransparencyView(blob: blob)
+                .environmentObject(viewModel)
+        }
+    }
+    
+    private func sourceTypeIcon(_ sourceType: SourceType) -> String {
+        switch sourceType {
+        case .note: return "note.text"
+        case .journal: return "book"
+        case .email: return "envelope"
+        case .meeting: return "person.2"
+        case .idea: return "lightbulb"
+        case .research: return "magnifyingglass"
+        case .recipe: return "fork.knife"
+        case .financial: return "dollarsign.circle"
+        case .inventory: return "list.clipboard"
+        case .knowledge: return "brain"
+        case .therapy: return "heart"
+        case .media: return "play.rectangle"
+        case .grocery: return "cart"
+        default: return "doc.text"
+        }
+    }
+}
+
+/// Expandable archive category section
+struct ArchiveCategorySection: View {
+    let category: String
+    let blobs: [Blob]
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var isExpanded = false
+    
+    var body: some View {
+        DisclosureGroup(
+            isExpanded: $isExpanded,
+            content: {
+                LazyVStack(spacing: 8) {
+                    ForEach(blobs) { blob in
+                        ArchiveBlobRowView(blob: blob)
+                            .environmentObject(viewModel)
+                    }
+                }
+                .padding(.top, 8)
+            },
+            label: {
+                HStack {
+                    Image(systemName: categoryIcon(category))
+                        .foregroundColor(.gray)
+                        .frame(width: 24)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(category)
+                            .font(.headline)
+                        
+                        Text("\(blobs.count) AI-archived items")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // AI indicator
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                        Text("AI")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(6)
+                }
+            }
+        )
+        .padding(.horizontal)
+    }
+    
+    private func categoryIcon(_ category: String) -> String {
+        switch category {
+        case "Completed Projects": return "checkmark.circle"
+        case "Inactive Areas": return "pause.circle"
+        case "Old Resources": return "clock.arrow.circlepath"
+        case "Past Notes": return "note.text.badge.plus"
+        case "Outdated References": return "link.badge.plus"
+        case "Historical Data": return "calendar.badge.clock"
+        default: return "archivebox"
+        }
+    }
+}
+
+/// Archive blob row view for AI-archived content
+struct ArchiveBlobRowView: View {
+    let blob: Blob
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingAIDetails = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Archive type icon
+            Image(systemName: "archivebox")
+                .foregroundColor(.gray)
+                .font(.title2)
+                .frame(width: 32)
+            
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(blob.content)
+                    .font(.body)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .foregroundColor(.secondary) // Muted for archived content
+                
+                HStack(spacing: 8) {
+                    // Source type
+                    Label(blob.sourceType.rawValue.capitalized, systemImage: sourceTypeIcon(blob.sourceType))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    // Work/Personal
+                    Text(blob.workPersonal.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.gray.opacity(0.2))
+                        .foregroundColor(.secondary)
+                        .cornerRadius(4)
+                    
+                    // AI assignment indicator
+                    Button(action: {
+                        showingAIDetails = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "brain")
+                            Text("AI archived")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    }
+                    .buttonStyle(.plain)
+                    .help("See why AI archived this content")
+                    
+                    Spacer()
+                    
+                    // Timestamp
+                    Text(formatRelativeDate(blob.createdAt))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Restore button
+            Button(action: {
+                Task {
+                    await viewModel.restoreBlobFromArchive(blob)
+                }
+            }) {
+                Image(systemName: "arrow.uturn.backward")
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .help("Restore from archive")
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .cornerRadius(8)
+        .sheet(isPresented: $showingAIDetails) {
+            AITransparencyView(blob: blob)
+                .environmentObject(viewModel)
+        }
+    }
+    
+    private func sourceTypeIcon(_ sourceType: SourceType) -> String {
+        switch sourceType {
+        case .note: return "note.text"
+        case .journal: return "book"
+        case .email: return "envelope"
+        case .meeting: return "person.2"
+        case .idea: return "lightbulb"
+        case .research: return "magnifyingglass"
+        case .recipe: return "fork.knife"
+        case .financial: return "dollarsign.circle"
+        case .inventory: return "list.clipboard"
+        case .knowledge: return "brain"
+        case .therapy: return "heart"
+        case .media: return "play.rectangle"
+        case .grocery: return "cart"
+        default: return "doc.text"
+        }
+    }
+}
+
+/// Personal mode view showing all personal content
+struct PersonalView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var personalBlobs: [Blob] = []
+    @State private var personalTasks: [LifeTask] = []
+    @State private var isLoading = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with stats
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Personal")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    // Stats
+                    if !personalBlobs.isEmpty || !personalTasks.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "person")
+                                .foregroundColor(.green)
+                            
+                            Text("\(personalBlobs.count) notes • \(personalTasks.count) tasks")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                
+                // Quick stats
+                HStack(spacing: 20) {
+                    StatView(
+                        title: "Personal Notes", 
+                        value: "\(personalBlobs.count)",
+                        color: .green
+                    )
+                    StatView(
+                        title: "Personal Tasks", 
+                        value: "\(personalTasks.count)",
+                        color: .blue
+                    )
+                    Spacer()
+                }
+                .padding(.horizontal)
+            }
+            .padding(.vertical)
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    // Personal Tasks
+                    if !personalTasks.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundColor(.blue)
+                                Text("Personal Tasks")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            ForEach(personalTasks) { task in
+                                TaskRowView(task: task)
+                                    .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // Personal Notes
+                    if !personalBlobs.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "note.text")
+                                    .foregroundColor(.green)
+                                Text("Personal Notes")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            ForEach(personalBlobs) { blob in
+                                BlobRowView(blob: blob)
+                                    .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // Empty state
+                    if personalBlobs.isEmpty && personalTasks.isEmpty {
+                        if #available(macOS 14.0, *) {
+                            ContentUnavailableView(
+                                "No personal content yet",
+                                systemImage: "person",
+                                description: Text("Add some personal notes or tasks")
+                            )
+                        } else {
+                            VStack(spacing: 16) {
+                                Image(systemName: "person")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("No personal content yet")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Add some personal notes or tasks")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding()
+                        }
+                    }
+                }
+                .padding()
+            }
+        }
+        .onAppear {
+            Task {
+                await loadPersonalContent()
+            }
+        }
+    }
+    
+    private func loadPersonalContent() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            async let blobsTask = BlobRepository().fetchBlobs(workPersonal: .personal)
+            async let tasksTask = TaskRepository().fetchTasks(workPersonal: .personal)
+            
+            let (blobs, tasks) = try await (blobsTask, tasksTask)
+            
+            await MainActor.run {
+                self.personalBlobs = blobs
+                self.personalTasks = tasks
+            }
+        } catch {
+            print("Error loading personal content: \(error)")
+        }
+    }
+}
+
+/// Work mode view showing all work content
+struct WorkView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var workBlobs: [Blob] = []
+    @State private var workTasks: [LifeTask] = []
+    @State private var isLoading = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with stats
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Work")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    // Stats
+                    if !workBlobs.isEmpty || !workTasks.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "briefcase")
+                                .foregroundColor(.blue)
+                            
+                            Text("\(workBlobs.count) notes • \(workTasks.count) tasks")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                
+                // Quick stats
+                HStack(spacing: 20) {
+                    StatView(
+                        title: "Work Notes", 
+                        value: "\(workBlobs.count)",
+                        color: .blue
+                    )
+                    StatView(
+                        title: "Work Tasks", 
+                        value: "\(workTasks.count)",
+                        color: .purple
+                    )
+                    Spacer()
+                }
+                .padding(.horizontal)
+            }
+            .padding(.vertical)
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    // Work Tasks
+                    if !workTasks.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundColor(.purple)
+                                Text("Work Tasks")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            ForEach(workTasks) { task in
+                                TaskRowView(task: task)
+                                    .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // Work Notes
+                    if !workBlobs.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "note.text")
+                                    .foregroundColor(.blue)
+                                Text("Work Notes")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            
+                            ForEach(workBlobs) { blob in
+                                BlobRowView(blob: blob)
+                                    .environmentObject(viewModel)
+                            }
+                        }
+                    }
+                    
+                    // Empty state
+                    if workBlobs.isEmpty && workTasks.isEmpty {
+                        if #available(macOS 14.0, *) {
+                            ContentUnavailableView(
+                                "No work content yet",
+                                systemImage: "briefcase",
+                                description: Text("Add some work notes or tasks")
+                            )
+                        } else {
+                            VStack(spacing: 16) {
+                                Image(systemName: "briefcase")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("No work content yet")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Add some work notes or tasks")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding()
+                        }
+                    }
+                }
+                .padding()
+            }
+        }
+        .onAppear {
+            Task {
+                await loadWorkContent()
+            }
+        }
+    }
+    
+    private func loadWorkContent() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            async let blobsTask = BlobRepository().fetchBlobs(workPersonal: .work)
+            async let tasksTask = TaskRepository().fetchTasks(workPersonal: .work)
+            
+            let (blobs, tasks) = try await (blobsTask, tasksTask)
+            
+            await MainActor.run {
+                self.workBlobs = blobs
+                self.workTasks = tasks
+            }
+        } catch {
+            print("Error loading work content: \(error)")
+        }
     }
 }
 

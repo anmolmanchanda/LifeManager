@@ -58,6 +58,19 @@ class BlobRepository: ObservableObject {
         return response
     }
     
+    /// Fetch processed blobs (for PARA categorization)
+    func fetchProcessedBlobs() async throws -> [Blob] {
+        let response: [Blob] = try await supabaseService.client
+            .from(SupabaseService.TableName.blobs.rawValue)
+            .select()
+            .eq("processed", value: true)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        
+        return response
+    }
+    
     /// Fetch blobs by source type
     func fetchBlobs(sourceType: SourceType) async throws -> [Blob] {
         let response: [Blob] = try await supabaseService.client

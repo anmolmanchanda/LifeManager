@@ -39,6 +39,20 @@ class MainViewModel: ObservableObject {
     @Published var recentBlobs: [Blob] = []
     @Published var focusTasks: [LifeTask] = []
     
+    // MARK: - PARA Content (Blobs assigned to categories)
+    
+    @Published var projectBlobs: [UUID: [Blob]] = [:] // projectId -> blobs
+    @Published var areaBlobs: [UUID: [Blob]] = [:] // areaId -> blobs
+    @Published var resourceBlobs: [Blob] = [] // All resource-categorized blobs
+    @Published var archivedBlobs: [Blob] = [] // All archived blobs
+    
+    // MARK: - Navigation State for Sub-categories
+    
+    @Published var selectedProject: Project?
+    @Published var selectedArea: Area?
+    @Published var selectedResourceCategory: String?
+    @Published var selectedArchiveCategory: String?
+    
     // MARK: - UI State
     
     @Published var showingAddContent = false
@@ -171,7 +185,7 @@ class MainViewModel: ObservableObject {
                 self.authError = "Failed to send magic link: \(error.localizedDescription)"
                 self.authSuccess = nil
                 self.isLoading = false
-            }
+        }
         }
     }
     
@@ -236,7 +250,7 @@ class MainViewModel: ObservableObject {
                 print("🔧 LOAD DATA: Fetching resources...")
                 loadedResources = try await ResourceRepository().fetchAllResources()
                 print("🔧 LOAD DATA: ✅ Resources loaded: \(loadedResources.count)")
-            } catch {
+        } catch {
                 print("🔧 LOAD DATA: ❌ Resources fetch failed: \(error)")
                 print("🔧 LOAD DATA: ❌ Resources error type: \(type(of: error))")
             }
@@ -271,6 +285,45 @@ class MainViewModel: ObservableObject {
                 print("🔧 LOAD DATA: ❌ Focus tasks error type: \(type(of: error))")
             }
             
+            // Fetch PARA-categorized blobs
+            var loadedProjectBlobs: [UUID: [Blob]] = [:]
+            var loadedAreaBlobs: [UUID: [Blob]] = [:]
+            var loadedResourceBlobs: [Blob] = []
+            var loadedArchivedBlobs: [Blob] = []
+            
+            do {
+                print("🔧 LOAD DATA: Fetching PARA-categorized blobs...")
+                
+                // Fetch all processed blobs
+                let allProcessedBlobs = try await BlobRepository().fetchProcessedBlobs()
+                print("🔧 LOAD DATA: ✅ Found \(allProcessedBlobs.count) processed blobs")
+                
+                // Categorize blobs by their PARA assignment
+                for blob in allProcessedBlobs {
+                    if let projectId = blob.projectId {
+                        if loadedProjectBlobs[projectId] == nil {
+                            loadedProjectBlobs[projectId] = []
+                        }
+                        loadedProjectBlobs[projectId]?.append(blob)
+                    } else if let areaId = blob.areaId {
+                        if loadedAreaBlobs[areaId] == nil {
+                            loadedAreaBlobs[areaId] = []
+                        }
+                        loadedAreaBlobs[areaId]?.append(blob)
+                    } else if blob.isArchived {
+                        loadedArchivedBlobs.append(blob)
+                    } else {
+                        // Default to resources if processed but no specific assignment
+                        loadedResourceBlobs.append(blob)
+                    }
+                }
+                
+                print("🔧 LOAD DATA: ✅ Categorized blobs - Projects: \(loadedProjectBlobs.keys.count), Areas: \(loadedAreaBlobs.keys.count), Resources: \(loadedResourceBlobs.count), Archives: \(loadedArchivedBlobs.count)")
+                
+            } catch {
+                print("🔧 LOAD DATA: ❌ PARA blobs fetch failed: \(error)")
+            }
+            
             await MainActor.run {
                 self.areas = loadedAreas
                 self.projects = loadedProjects
@@ -278,6 +331,12 @@ class MainViewModel: ObservableObject {
                 self.archives = loadedArchives
                 self.recentBlobs = loadedUnprocessedBlobs // Only unprocessed blobs in inbox
                 self.focusTasks = loadedFocusTasks
+                
+                // Update PARA blob assignments
+                self.projectBlobs = loadedProjectBlobs
+                self.areaBlobs = loadedAreaBlobs
+                self.resourceBlobs = loadedResourceBlobs
+                self.archivedBlobs = loadedArchivedBlobs
             }
             
             print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
@@ -401,12 +460,12 @@ class MainViewModel: ObservableObject {
         }
         
         // Step 1: Create blob
-        let blob = Blob(
-            content: content,
-            sourceType: .note,
-            workPersonal: .personal
-        )
-        
+            let blob = Blob(
+                content: content,
+                sourceType: .note,
+                workPersonal: .personal
+            )
+            
         print("🔧 ADD NOTE: Created blob with ID: \(blob.id)")
         
         // Step 2: Save to database first
@@ -744,6 +803,42 @@ class MainViewModel: ObservableObject {
             
             print("🔧 REFRESH: ✅ All data loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Tasks: \(loadedFocusTasks.count)")
             
+            // Also fetch PARA-categorized blobs
+            var loadedProjectBlobs: [UUID: [Blob]] = [:]
+            var loadedAreaBlobs: [UUID: [Blob]] = [:]
+            var loadedResourceBlobs: [Blob] = []
+            var loadedArchivedBlobs: [Blob] = []
+            
+            do {
+                let allProcessedBlobs = try await BlobRepository().fetchProcessedBlobs()
+                print("🔧 REFRESH: ✅ Found \(allProcessedBlobs.count) processed blobs")
+                
+                // Categorize blobs by their PARA assignment
+                for blob in allProcessedBlobs {
+                    if let projectId = blob.projectId {
+                        if loadedProjectBlobs[projectId] == nil {
+                            loadedProjectBlobs[projectId] = []
+                        }
+                        loadedProjectBlobs[projectId]?.append(blob)
+                    } else if let areaId = blob.areaId {
+                        if loadedAreaBlobs[areaId] == nil {
+                            loadedAreaBlobs[areaId] = []
+                        }
+                        loadedAreaBlobs[areaId]?.append(blob)
+                    } else if blob.isArchived {
+                        loadedArchivedBlobs.append(blob)
+                    } else {
+                        // Default to resources if processed but no specific assignment
+                        loadedResourceBlobs.append(blob)
+                    }
+                }
+                
+                print("🔧 REFRESH: ✅ Categorized blobs - Projects: \(loadedProjectBlobs.keys.count), Areas: \(loadedAreaBlobs.keys.count), Resources: \(loadedResourceBlobs.count), Archives: \(loadedArchivedBlobs.count)")
+                
+            } catch {
+                print("🔧 REFRESH: ❌ PARA blobs refresh failed: \(error)")
+            }
+            
             // Update all state at once on main thread
             await MainActor.run {
                 self.areas = loadedAreas
@@ -752,6 +847,13 @@ class MainViewModel: ObservableObject {
                 self.archives = loadedArchives
                 self.recentBlobs = loadedUnprocessedBlobs // Only unprocessed blobs
                 self.focusTasks = loadedFocusTasks
+                
+                // Update PARA blob assignments
+                self.projectBlobs = loadedProjectBlobs
+                self.areaBlobs = loadedAreaBlobs
+                self.resourceBlobs = loadedResourceBlobs
+                self.archivedBlobs = loadedArchivedBlobs
+                
                 self.isLoading = false
                 self.successMessage = "✅ Data refreshed successfully"
             }
@@ -1383,5 +1485,55 @@ class MainViewModel: ObservableObject {
         // For now, just add a small delay to simulate work
         try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         print("🔧 UNDO: Simulated undo operations complete")
+    }
+    
+    /// Restore blob from archive
+    func restoreBlobFromArchive(_ blob: Blob) async {
+        do {
+            // Create a new blob instance with isArchived = false
+            let restoredBlob = Blob(
+                id: blob.id,
+                content: blob.content,
+                sourceType: blob.sourceType,
+                workPersonal: blob.workPersonal,
+                processed: blob.processed,
+                projectId: blob.projectId,
+                areaId: blob.areaId,
+                isArchived: false
+            )
+            
+            let updatedBlob = try await BlobRepository().updateBlob(restoredBlob)
+            
+            await MainActor.run {
+                // Remove from archived blobs
+                self.archivedBlobs.removeAll { $0.id == blob.id }
+                
+                // Add back to appropriate PARA category
+                if let projectId = updatedBlob.projectId {
+                    if self.projectBlobs[projectId] == nil {
+                        self.projectBlobs[projectId] = []
+                    }
+                    self.projectBlobs[projectId]?.append(updatedBlob)
+                } else if let areaId = updatedBlob.areaId {
+                    if self.areaBlobs[areaId] == nil {
+                        self.areaBlobs[areaId] = []
+                    }
+                    self.areaBlobs[areaId]?.append(updatedBlob)
+                } else {
+                    // Default to resources if no specific assignment
+                    self.resourceBlobs.append(updatedBlob)
+                }
+                
+                self.successMessage = "✅ Restored from archive"
+            }
+            
+            print("🔧 RESTORE: ✅ Blob restored from archive: \(blob.id)")
+            
+        } catch {
+            print("🔧 RESTORE: ❌ Failed to restore blob from archive: \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to restore from archive: \(error.localizedDescription)"
+            }
+        }
     }
 }
