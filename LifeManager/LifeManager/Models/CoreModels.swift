@@ -80,6 +80,7 @@ struct Project: Codable, Identifiable, PARAContent {
         case workPersonal = "work_personal"
         case dueDate = "due_date"
         case areaId = "area_id"
+        case projectId = "project_id"
         case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
