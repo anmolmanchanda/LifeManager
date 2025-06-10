@@ -12,11 +12,14 @@ class SupabaseService: ObservableObject {
     /// Supabase client instance
     let client: SupabaseClient
     
+    /// Authentication state
+    @Published var isAuthenticated = false
+    @Published var currentUser: User?
+    
     /// Configuration for Supabase connection
     private struct SupabaseConfig {
-        // TODO: Replace with your actual Supabase URL and anon key
-        static let url = "https://your-project-id.supabase.co"
-        static let anonKey = "your-anon-key-here"
+        static let url = ProcessInfo.processInfo.environment["SUPABASE_URL"] ?? "https://cwxvmyqzhuskjwvttlbu.supabase.co"
+        static let anonKey = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3eHZteXF6aHVza2p3dnR0bGJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MjA1MTcsImV4cCI6MjA2NTA5NjUxN30.RJn7qOhY4_GghBTux8O74VvEpgv9IPSZavAEH0L61U4"
     }
     
     // MARK: - Initialization
@@ -27,35 +30,63 @@ class SupabaseService: ObservableObject {
             supabaseURL: URL(string: SupabaseConfig.url)!,
             supabaseKey: SupabaseConfig.anonKey
         )
+        
+        // Check initial authentication state
+        Task {
+            await checkAuthState()
+        }
     }
     
     // MARK: - Authentication
     
-    /// Check if user is currently authenticated
-    var isAuthenticated: Bool {
-        return client.auth.session != nil
-    }
-    
-    /// Get current user session
-    var currentSession: Session? {
-        return client.auth.session
+    /// Check current authentication state
+    func checkAuthState() async {
+        do {
+            let session = try await client.auth.session
+            await MainActor.run {
+                self.isAuthenticated = session.user != nil
+                self.currentUser = session.user
+            }
+        } catch {
+            await MainActor.run {
+                self.isAuthenticated = false
+                self.currentUser = nil
+            }
+        }
     }
     
     /// Sign in with email and password
     func signIn(email: String, password: String) async throws -> Session {
         let session = try await client.auth.signIn(email: email, password: password)
+        await MainActor.run {
+            self.isAuthenticated = true
+            self.currentUser = session.user
+        }
         return session
+    }
+    
+    /// Sign in with magic link (passwordless)
+    func signInWithMagicLink(email: String) async throws {
+        try await client.auth.signInWithOTP(email: email)
     }
     
     /// Sign up with email and password
     func signUp(email: String, password: String) async throws -> Session {
         let session = try await client.auth.signUp(email: email, password: password)
+        await MainActor.run {
+            self.isAuthenticated = true
+            self.currentUser = session.user
+        }
         return session
     }
     
     /// Sign out current user
     func signOut() async throws {
         try await client.auth.signOut()
+        await MainActor.run {
+            self.isAuthenticated = false
+            self.currentUser = nil
+        }
     }
     
     // MARK: - Database Operations
@@ -123,32 +154,6 @@ class SupabaseService: ObservableObject {
         return response.first
     }
     
-    // MARK: - Real-time Subscriptions
-    
-    /// Subscribe to changes in a specific table
-    func subscribeToTable(_ table: String, callback: @escaping (RealtimeMessage) -> Void) async throws {
-        let subscription = await client
-            .channel("public:\(table)")
-            .on(.all) { message in
-                callback(message)
-            }
-            .subscribe()
-    }
-    
-    // MARK: - Search Operations
-    
-    /// Full-text search in blobs content
-    func searchBlobs(query: String) async throws -> [Blob] {
-        let response: [Blob] = try await client
-            .from("blobs")
-            .select()
-            .textSearch("content", query: query)
-            .execute()
-            .value
-        
-        return response
-    }
-    
     /// Filter records by work/personal type
     func fetchByWorkPersonal<T: Codable>(_ type: T.Type, from table: String, workPersonal: WorkPersonalType) async throws -> [T] {
         let response: [T] = try await client
@@ -159,6 +164,69 @@ class SupabaseService: ObservableObject {
             .value
         
         return response
+    }
+    
+    // MARK: - Search Operations
+    
+    /// Full-text search in blobs content
+    func searchBlobs(query: String) async throws -> [Blob] {
+        let response: [Blob] = try await client
+            .from(TableName.blobs)
+            .select()
+            .textSearch("content", query: query)
+            .execute()
+            .value
+        
+        return response
+    }
+    
+    /// Search across multiple content types
+    func searchAll(query: String) async throws -> (blobs: [Blob], tasks: [Task], resources: [Resource]) {
+        async let blobsSearch = searchBlobs(query: query)
+        async let tasksSearch = searchTasks(query: query)
+        async let resourcesSearch = searchResources(query: query)
+        
+        let blobs = try await blobsSearch
+        let tasks = try await tasksSearch
+        let resources = try await resourcesSearch
+        
+        return (blobs: blobs, tasks: tasks, resources: resources)
+    }
+    
+    /// Search tasks by title and description
+    func searchTasks(query: String) async throws -> [Task] {
+        let response: [Task] = try await client
+            .from(TableName.tasks)
+            .select()
+            .textSearch("title,description", query: query)
+            .execute()
+            .value
+        
+        return response
+    }
+    
+    /// Search resources by title and summary
+    func searchResources(query: String) async throws -> [Resource] {
+        let response: [Resource] = try await client
+            .from(TableName.resources)
+            .select()
+            .textSearch("title,summary", query: query)
+            .execute()
+            .value
+        
+        return response
+    }
+    
+    // MARK: - Real-time Subscriptions
+    
+    /// Subscribe to changes in a specific table
+    func subscribeToTable(_ table: String, callback: @escaping (RealtimeMessage) -> Void) async {
+        let subscription = await client
+            .channel("public:\(table)")
+            .on(.all) { message in
+                callback(message)
+            }
+            .subscribe()
     }
 }
 
@@ -171,6 +239,7 @@ enum SupabaseError: Error, LocalizedError {
     case fetchFailed
     case notFound
     case invalidConfiguration
+    case authenticationRequired
     
     var errorDescription: String? {
         switch self {
@@ -186,6 +255,8 @@ enum SupabaseError: Error, LocalizedError {
             return "Record not found"
         case .invalidConfiguration:
             return "Invalid Supabase configuration"
+        case .authenticationRequired:
+            return "Authentication required"
         }
     }
 }
