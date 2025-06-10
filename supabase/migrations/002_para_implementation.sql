@@ -41,6 +41,7 @@ ALTER TABLE projects ADD COLUMN archived_at TIMESTAMP WITH TIME ZONE;
 -- Add archiving capabilities to all content tables
 ALTER TABLE tasks ADD COLUMN area_id UUID REFERENCES areas(id) ON DELETE SET NULL;
 ALTER TABLE tasks ADD COLUMN resource_id UUID REFERENCES resources(id) ON DELETE SET NULL;
+ALTER TABLE tasks ADD COLUMN is_focus BOOLEAN DEFAULT false; -- Manual focus flag for v1.0
 ALTER TABLE tasks ADD COLUMN is_archived BOOLEAN DEFAULT false;
 ALTER TABLE tasks ADD COLUMN archived_at TIMESTAMP WITH TIME ZONE;
 
@@ -143,6 +144,7 @@ CREATE INDEX idx_projects_is_archived ON projects(is_archived);
 -- Add indexes for new PARA relationships
 CREATE INDEX idx_tasks_area_id ON tasks(area_id);
 CREATE INDEX idx_tasks_resource_id ON tasks(resource_id);
+CREATE INDEX idx_tasks_is_focus ON tasks(is_focus);
 CREATE INDEX idx_tasks_is_archived ON tasks(is_archived);
 
 CREATE INDEX idx_blobs_area_id ON blobs(area_id);

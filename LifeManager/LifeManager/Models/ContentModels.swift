@@ -15,6 +15,7 @@ struct Task: Codable, Identifiable, PARAContent {
     let projectId: UUID?
     let areaId: UUID?
     let resourceId: UUID?
+    let isFocus: Bool
     let isArchived: Bool
     let createdAt: String
     let updatedAt: String
@@ -34,6 +35,7 @@ struct Task: Codable, Identifiable, PARAContent {
         case projectId = "project_id"
         case areaId = "area_id"
         case resourceId = "resource_id"
+        case isFocus = "is_focus"
         case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
@@ -54,6 +56,7 @@ struct Task: Codable, Identifiable, PARAContent {
         projectId: UUID? = nil,
         areaId: UUID? = nil,
         resourceId: UUID? = nil,
+        isFocus: Bool = false,
         isArchived: Bool = false,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
         updatedAt: String = ISO8601DateFormatter().string(from: Date()),
@@ -72,6 +75,7 @@ struct Task: Codable, Identifiable, PARAContent {
         self.projectId = projectId
         self.areaId = areaId
         self.resourceId = resourceId
+        self.isFocus = isFocus
         self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt

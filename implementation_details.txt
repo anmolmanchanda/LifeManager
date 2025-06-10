@@ -251,6 +251,67 @@ Establish remote repository connection and prepare for code collaboration and ve
 
 ---
 
+### Feature Roadmap Implementation - Version Discipline (June 9, 2024)
+
+**Files Updated:**
+- PROJECT.md - Added comprehensive feature roadmap at the top with strict version control guidelines
+- LifeManager/LifeManager/Models/ContentModels.swift - Added manual focus flag (is_focus) to Task model
+- supabase/migrations/002_para_implementation.sql - Added is_focus field and index to tasks table
+
+**Purpose:**
+Implement strict version discipline following Motion AI best practices to prevent feature creep and maintain focused development scope. Clearly define what features belong to v1.0, v1.5, and v2.0.
+
+**Version 1.0 Scope (Current Development):**
+- Natural language task input and parsing with date/time extraction
+- AI/LLM-powered task prioritization, scoring, and suggested due dates
+- Core PARA structure: Projects, Areas, Resources, Archives organization
+- Central knowledge base for all content types
+- Full-text and semantic search across all content
+- Smart (manual) task bump/reschedule option
+- Manual "focus" flag on tasks (added to Task model)
+- Version history/audit for all changes
+- NO automated calendar scheduling, recurring tasks, team/collab, or real calendar sync
+
+**Version 1.5 Scope (Future):**
+- Smart (semi-automated) task rescheduling
+- Manual "focus mode" with UI filtering
+- Recurring tasks
+- Early PARA view/filter in UI
+
+**Version 2.0 Scope (Future):**
+- Automated AI-powered scheduling
+- Two-way sync with external calendars
+- Automated focus time blocking
+- Task dependencies
+- Collaboration/Shared tasks and projects
+- Automated re-scheduling
+
+**Implementation Details:**
+1. **Manual Focus Flag**: Added `is_focus` boolean field to Task model and database schema
+2. **Version Boundaries**: Clear exclusion of v1.5 and v2.0 features from current development
+3. **Roadmap Visibility**: Feature roadmap placed at top of PROJECT.md for maximum visibility
+4. **Database Schema**: Updated tasks table with focus flag and appropriate indexing
+
+**Design Decisions:**
+1. **Strict Version Control**: Explicit feature boundaries prevent scope creep and maintain development focus
+2. **Manual Focus in v1.0**: Simple boolean flag prepares for advanced focus mode in v1.5
+3. **Progressive Enhancement**: Features build naturally from v1.0 → v1.5 → v2.0
+4. **Clear Exclusions**: Explicitly marked forbidden features with version references
+
+**Benefits Achieved:**
+1. **Development Focus**: Clear scope prevents building advanced features prematurely
+2. **Progressive Roadmap**: Natural feature progression from manual → semi-automated → fully automated
+3. **Feature Discipline**: Explicit guidelines for what NOT to build in each version
+4. **Foundation Building**: v1.0 builds solid foundation for advanced features in later versions
+
+**Next Steps:**
+- Continue v1.0 implementation within defined scope
+- Resist temptation to implement v1.5/v2.0 features
+- Build comprehensive natural language parsing and AI task processing
+- Focus on PARA organization and manual productivity features only
+
+---
+
 ## Template for Future Entries
 
 ### [Feature/Change Name] - [Brief Description] ([Date])

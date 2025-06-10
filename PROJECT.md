@@ -1,3 +1,52 @@
+# LIFE MANAGER — FEATURE ROADMAP AND VERSION CONTROL
+
+This document specifies the feature set for each major version of LifeManager, inspired by best practices from Motion AI and productivity software.  
+**Claude/Cursor: Only implement the features listed for the current version being developed. Do NOT build or add features marked for later versions. Maintain strict version discipline!**
+
+---
+
+## Version 1.0 — Core LLM Productivity + Knowledge Base
+
+- Natural language task input and parsing (e.g., "Lunch with Sarah tomorrow at noon" creates the right task with date/time/priority).
+- AI/LLM-powered task prioritization, scoring, and suggested due dates.
+- Core PARA structure: Projects, Areas, Resources, Archives organization for all info.
+- Central knowledge base: Journals, resources, recipes, finances, shows, YouTube, inventory, grocery lists, research papers, therapy notes, etc.
+- Full-text and semantic search across all content.
+- Smart (manual) task bump/reschedule option (user can nudge overdue tasks, but not yet auto-rescheduled).
+- Manual "focus" flag on tasks for future focus mode.
+- Version history/audit for all changes.
+- NO automated calendar scheduling, recurring tasks, team/collab, or real calendar sync in this version.
+
+---
+
+## Version 1.5 — Productivity Enhancements
+
+- Smart (semi-automated) task rescheduling: If a task is overdue, suggest bumping or reassigning a new date/time.
+- Manual "focus mode": User can mark times or blocks as "focus," and see filtered views of only focus tasks.
+- Recurring tasks: User can define repeating routines (e.g., "Pay rent monthly," "Weekly review").
+- Early PARA view/filter in UI (filter by Project, Area, Resource, Archive).
+
+---
+
+## Version 2.0 — Motion AI-Level Automation
+
+- Automated AI-powered scheduling: Tasks are auto-assigned to calendar slots by AI, based on priorities, deadlines, duration, and calendar availability.
+- Two-way sync with external calendars (Apple/Google/Outlook): Pull meetings/events, avoid conflicts, update when schedule changes.
+- Automated focus time blocking: AI blocks out time for deep work around meetings and other events.
+- Task dependencies: User can define dependencies (e.g., Task B cannot start until Task A is completed).
+- Collaboration/Shared tasks and projects: Support for team projects, shared lists, and multi-user features.
+- Automated re-scheduling: Missed/overdue tasks are auto-bumped and rescheduled intelligently.
+
+---
+
+**IMPORTANT:**
+- Claude/Cursor:  
+    - When developing or generating code/features, only build for the current version (v1.0, v1.5, or v2.0) as specified in the active branch/ticket.  
+    - Do NOT implement features planned for later versions until that version is actively being built.
+    - Any new tickets or features must specify their intended version and dependencies.
+
+---
+
 # LifeManager - AI-Powered Personal Productivity System with PARA Framework
 
 ## Project Summary and Goals
@@ -150,6 +199,7 @@ LifeManager is a native macOS productivity application designed for productivity
 - `project_id` (UUID, FOREIGN KEY → projects.id)
 - `area_id` (UUID, FOREIGN KEY → areas.id) - **PARA Enhancement**
 - `resource_id` (UUID, FOREIGN KEY → resources.id) - **PARA Enhancement**
+- `is_focus` (BOOLEAN) - **Manual focus flag for v1.0**
 - `is_archived` (BOOLEAN) - **PARA Enhancement**
 - `created_at`, `updated_at`, `completed_at`, `archived_at` (TIMESTAMP)
 
@@ -262,30 +312,36 @@ LifeManager/
 - **Author**: manchandaanmol@icloud.com
 - **Branch Strategy**: dev for all AI-generated code, main for releases
 
-## Version 1.0 Scope - STRICTLY DEFINED
+## Version 1.0 Scope - STRICTLY DEFINED (Core LLM Productivity + Knowledge Base)
 
-### INCLUDED Features:
-- Manual text input only (natural language bar, text fields)
-- **PARA Framework**: Complete Projects, Areas, Resources, Archives organization
-- Automatic categorization and tagging with PARA context
-- Task extraction and prioritization with area/project assignment
-- Work/personal distinction within PARA structure
-- Complete history and audit trail with prompt logging
-- Summarization of long content for resource library
-- Supabase PostgreSQL storage with PARA schema
-- Search and retrieval with PARA-aware filtering
-- Multiple view modes (PARA dashboard, task list, calendar, timeline)
-- Inbox processing workflow with PARA routing
-- Resource library management with metadata and archiving
-- Native macOS SwiftUI interface with PARA navigation
+### INCLUDED Features (v1.0 ONLY):
+- **Natural language task input and parsing** (e.g., "Lunch with Sarah tomorrow at noon" creates the right task with date/time/priority)
+- **AI/LLM-powered task prioritization, scoring, and suggested due dates**
+- **Core PARA structure**: Complete Projects, Areas, Resources, Archives organization for all info
+- **Central knowledge base**: Journals, resources, recipes, finances, shows, YouTube, inventory, grocery lists, research papers, therapy notes, etc.
+- **Full-text and semantic search** across all content
+- **Smart (manual) task bump/reschedule option** (user can nudge overdue tasks, but not yet auto-rescheduled)
+- **Manual "focus" flag on tasks** for future focus mode
+- **Version history/audit for all changes** with prompt logging
+- **Supabase PostgreSQL storage** with PARA schema
+- **Native macOS SwiftUI interface** with PARA navigation
+- **Work/personal distinction** within PARA structure
+- **Inbox processing workflow** with PARA routing
 
 ### EXCLUDED Features (Must NOT be present in v1.0):
-- Voice/audio input or output
-- Drag-and-drop, file, or image handling
-- Direct integration with email, messages, or other apps
-- Watch app or mobile device companion
-- Auto-categorization from external data sources
-- Attachment storage (references only if necessary)
+- ❌ **NO automated calendar scheduling** (v2.0 feature)
+- ❌ **NO recurring tasks** (v1.5 feature)
+- ❌ **NO team/collaboration features** (v2.0 feature)
+- ❌ **NO real calendar sync** (v2.0 feature)
+- ❌ **NO automated rescheduling** (v2.0 feature)
+- ❌ **NO focus mode UI/filtering** (v1.5 feature)
+- ❌ **NO task dependencies** (v2.0 feature)
+- ❌ Voice/audio input or output
+- ❌ Drag-and-drop, file, or image handling
+- ❌ Direct integration with email, messages, or other apps
+- ❌ Watch app or mobile device companion
+- ❌ Auto-categorization from external data sources
+- ❌ Attachment storage (references only if necessary)
 
 ## Current Status
 
