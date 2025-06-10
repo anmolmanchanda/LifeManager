@@ -1456,7 +1456,7 @@ struct ProcessingConfirmationView: View {
                 let result = viewModel.pendingConfirmations[currentIndex]
                 
                 VStack(spacing: 0) {
-                    // Header
+                    // Fixed header
                     VStack(spacing: 12) {
                         HStack {
                             Text("Review AI Processing")
@@ -1469,179 +1469,231 @@ struct ProcessingConfirmationView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 24)
                         
                         Divider()
                     }
+                    .background(Color(NSColor.windowBackgroundColor))
                     
-                    // Scrollable content
+                    // Scrollable content area
                     ScrollView {
-                        VStack(spacing: 20) {
-                            // Content preview
+                        VStack(spacing: 24) {
+                            // Original content preview
                             if let blob = viewModel.recentBlobs.first(where: { $0.id == result.blobId }) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Original Note:")
-                                        .font(.headline)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Text("Original Note")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Spacer()
+                                    }
                                     
                                     Text(blob.content)
                                         .font(.body)
-                                        .padding(12)
+                                        .padding(16)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .background(Color(NSColor.controlBackgroundColor))
                                         .cornerRadius(8)
-                                        .fixedSize(horizontal: false, vertical: true)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                        )
                                 }
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 24)
                             }
                             
-                            // AI Suggestions section
-                            VStack(alignment: .leading, spacing: 16) {
-                                Text("AI Suggestions:")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            // AI Analysis results
+                            VStack(alignment: .leading, spacing: 20) {
+                                HStack {
+                                    Text("AI Analysis Results")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
                                 
-                                // Category section
-                                VStack(alignment: .leading, spacing: 12) {
-                                    // PARA Category
-                                    HStack(spacing: 12) {
+                                // Category and confidence
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack(spacing: 16) {
                                         Image(systemName: result.paraCategory.icon)
                                             .foregroundColor(.blue)
-                                            .font(.title3)
-                                            .frame(width: 24)
+                                            .font(.title2)
+                                            .frame(width: 32)
                                         
-                                        VStack(alignment: .leading, spacing: 4) {
+                                        VStack(alignment: .leading, spacing: 6) {
                                             Text("Category: \(result.paraCategory.displayName)")
                                                 .font(.body)
                                                 .fontWeight(.medium)
                                             
                                             if let area = result.suggestedArea {
-                                                Text("→ Area: \(area)")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: "square.stack.3d.up")
+                                                        .foregroundColor(.green)
+                                                        .font(.caption)
+                                                    Text("Area: \(area)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
                                             }
                                             
                                             if let project = result.suggestedProject {
-                                                Text("→ Project: \(project)")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: "target")
+                                                        .foregroundColor(.orange)
+                                                        .font(.caption)
+                                                    Text("Project: \(project)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
                                             }
                                         }
                                         
                                         Spacer()
                                         
-                                        ConfidenceIndicator(confidence: result.confidence)
-                                    }
-                                    
-                                    // Tasks section
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Tasks:")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                        
-                                        if !result.extractedTasks.isEmpty {
-                                            ForEach(result.extractedTasks.prefix(5)) { task in
-                                                HStack(spacing: 8) {
-                                                    Circle()
-                                                        .fill(priorityColor(task.priority))
-                                                        .frame(width: 8, height: 8)
-                                                    
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        Text(task.title)
-                                                            .font(.body)
-                                                            .fixedSize(horizontal: false, vertical: true)
-                                                        
-                                                        if let description = task.description {
-                                                            Text(description)
-                                                                .font(.caption)
-                                                                .foregroundColor(.secondary)
-                                                                .fixedSize(horizontal: false, vertical: true)
-                                                        }
-                                                    }
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Text(task.priority.displayName)
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                                .padding(.vertical, 2)
-                                            }
-                                            
-                                            if result.extractedTasks.count > 5 {
-                                                Text("+ \(result.extractedTasks.count - 5) more tasks")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                        } else {
-                                            Text("No tasks extracted")
-                                                .font(.body)
+                                        VStack(alignment: .trailing, spacing: 4) {
+                                            ConfidenceIndicator(confidence: result.confidence)
+                                            Text("Confidence")
+                                                .font(.caption2)
                                                 .foregroundColor(.secondary)
                                         }
                                     }
                                     
-                                    // Tags section
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("Tags:")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
+                                    // Extracted tasks section
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        HStack {
+                                            Text("Extracted Tasks")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(result.extractedTasks.count) task\(result.extractedTasks.count == 1 ? "" : "s")")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        if !result.extractedTasks.isEmpty {
+                                            VStack(spacing: 10) {
+                                                ForEach(result.extractedTasks.prefix(5)) { task in
+                                                    HStack(alignment: .top, spacing: 12) {
+                                                        Circle()
+                                                            .fill(priorityColor(task.priority))
+                                                            .frame(width: 10, height: 10)
+                                                            .padding(.top, 6)
+                                                        
+                                                        VStack(alignment: .leading, spacing: 4) {
+                                                            Text(task.title)
+                                                                .font(.body)
+                                                                .multilineTextAlignment(.leading)
+                                                            
+                                                            if let description = task.description, !description.isEmpty {
+                                                                Text(description)
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.secondary)
+                                                                    .multilineTextAlignment(.leading)
+                                                            }
+                                                        }
+                                                        
+                                                        Spacer()
+                                                        
+                                                        Text(task.priority.displayName)
+                                                            .font(.caption)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 4)
+                                                            .background(priorityColor(task.priority).opacity(0.2))
+                                                            .foregroundColor(priorityColor(task.priority))
+                                                            .cornerRadius(4)
+                                                    }
+                                                    .padding(.vertical, 2)
+                                                }
+                                                
+                                                if result.extractedTasks.count > 5 {
+                                                    Text("+ \(result.extractedTasks.count - 5) more tasks will be created")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                        .padding(.horizontal, 12)
+                                                }
+                                            }
+                                        } else {
+                                            Text("No tasks detected in this note")
+                                                .font(.body)
+                                                .foregroundColor(.secondary)
+                                                .padding(.horizontal, 12)
+                                        }
+                                    }
+                                    
+                                    // Auto tags section
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        HStack {
+                                            Text("Suggested Tags")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(result.autoTags.count) tag\(result.autoTags.count == 1 ? "" : "s")")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
                                         
                                         if !result.autoTags.isEmpty {
                                             LazyVGrid(columns: [
-                                                GridItem(.adaptive(minimum: 60, maximum: 120))
-                                            ], spacing: 8) {
-                                                ForEach(result.autoTags.prefix(10), id: \.self) { tag in
+                                                GridItem(.adaptive(minimum: 70, maximum: 140))
+                                            ], alignment: .leading, spacing: 8) {
+                                                ForEach(result.autoTags.prefix(12), id: \.self) { tag in
                                                     Text(tag)
                                                         .font(.caption)
-                                                        .padding(.horizontal, 8)
-                                                        .padding(.vertical, 4)
+                                                        .padding(.horizontal, 10)
+                                                        .padding(.vertical, 6)
                                                         .background(Color.blue.opacity(0.2))
                                                         .foregroundColor(.blue)
-                                                        .cornerRadius(4)
+                                                        .cornerRadius(6)
                                                         .fixedSize()
                                                 }
                                             }
                                             
-                                            if result.autoTags.count > 10 {
-                                                Text("+ \(result.autoTags.count - 10) more tags")
+                                            if result.autoTags.count > 12 {
+                                                Text("+ \(result.autoTags.count - 12) more tags will be applied")
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
+                                                    .padding(.horizontal, 12)
                                             }
                                         } else {
-                                            Text("No tags suggested")
+                                            Text("No tags suggested for this note")
                                                 .font(.body)
                                                 .foregroundColor(.secondary)
+                                                .padding(.horizontal, 12)
                                         }
                                     }
                                     
                                     // Summary if available
                                     if let summary = result.summary, !summary.isEmpty {
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text("Summary:")
+                                        VStack(alignment: .leading, spacing: 12) {
+                                            Text("AI Summary")
                                                 .font(.subheadline)
                                                 .fontWeight(.medium)
                                             
                                             Text(summary)
                                                 .font(.body)
                                                 .foregroundColor(.secondary)
-                                                .fixedSize(horizontal: false, vertical: true)
+                                                .padding(12)
+                                                .background(Color(NSColor.controlBackgroundColor))
+                                                .cornerRadius(6)
                                         }
                                     }
                                 }
                             }
-                            .padding(.horizontal, 20)
-                            .padding(16)
+                            .padding(20)
                             .background(Color(NSColor.controlBackgroundColor))
                             .cornerRadius(12)
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 24)
                             
-                            // Add bottom padding for fixed buttons
+                            // Bottom spacer for fixed buttons
                             Rectangle()
                                 .fill(Color.clear)
-                                .frame(height: 120)
+                                .frame(height: 100)
                         }
-                        .padding(.top, 20)
+                        .padding(.top, 24)
                     }
                     
                     // Fixed bottom action buttons
@@ -1649,45 +1701,44 @@ struct ProcessingConfirmationView: View {
                         Divider()
                         
                         HStack(spacing: 16) {
-                            Button("Skip") {
+                            Button("Skip This Note") {
                                 Task {
                                     await viewModel.confirmProcessing(for: result, approved: false)
-                                    if currentIndex < viewModel.pendingConfirmations.count - 1 {
-                                        currentIndex += 1
-                                    } else {
-                                        dismiss()
-                                    }
+                                    moveToNext()
                                 }
                             }
                             .buttonStyle(.bordered)
                             
-                            Button("Approve") {
+                            Button("Approve & Process") {
                                 Task {
                                     await viewModel.confirmProcessing(for: result, approved: true)
-                                    if currentIndex < viewModel.pendingConfirmations.count - 1 {
-                                        currentIndex += 1
-                                    } else {
-                                        dismiss()
-                                    }
+                                    moveToNext()
                                 }
                             }
                             .buttonStyle(.borderedProminent)
                             
-                            if currentIndex < viewModel.pendingConfirmations.count - 1 {
-                                Button("Next") {
-                                    currentIndex += 1
+                            if viewModel.pendingConfirmations.count > 1 {
+                                if currentIndex < viewModel.pendingConfirmations.count - 1 {
+                                    Button("Next →") {
+                                        currentIndex += 1
+                                    }
+                                    .buttonStyle(.bordered)
                                 }
-                                .buttonStyle(.bordered)
                             }
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 20)
                     }
                     .background(Color(NSColor.windowBackgroundColor))
                 }
             } else {
-                VStack {
-                    Text("No items to review")
+                // No items to review
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.green)
+                    
+                    Text("All items reviewed!")
                         .font(.headline)
                         .foregroundColor(.secondary)
                     
@@ -1696,10 +1747,10 @@ struct ProcessingConfirmationView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                .padding()
+                .padding(40)
             }
         }
-        .frame(minWidth: 800, minHeight: 700)
+        .frame(minWidth: 900, minHeight: 800)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Skip All") {
@@ -1711,6 +1762,14 @@ struct ProcessingConfirmationView: View {
                     }
                 }
             }
+        }
+    }
+    
+    private func moveToNext() {
+        if currentIndex < viewModel.pendingConfirmations.count - 1 {
+            currentIndex += 1
+        } else {
+            dismiss()
         }
     }
     

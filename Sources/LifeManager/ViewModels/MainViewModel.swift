@@ -277,29 +277,29 @@ class MainViewModel: ObservableObject {
             self.isLoading = true
         }
         
-        var savedBlob: Blob? = nil
+        // Step 1: Create blob and add to UI immediately for instant feedback
+        let blob = Blob(
+            content: content,
+            sourceType: .note,
+            workPersonal: .personal
+        )
         
-        // Step 1: Save the blob
+        print("🔧 ADD NOTE: Created blob with ID: \(blob.id)")
+        
+        // Immediately add to UI for instant feedback
+        await MainActor.run {
+            self.blobProcessingStates[blob.id] = .unprocessed
+            self.recentBlobs.insert(blob, at: 0)
+            self.successMessage = "✅ Note added - saving..."
+        }
+        
+        // Step 2: Save to database
+        var savedBlob: Blob? = nil
         do {
-            let blob = Blob(
-                content: content,
-                sourceType: .note,
-                workPersonal: .personal
-            )
-            
-            print("🔧 ADD NOTE: Created blob with ID: \(blob.id)")
-            
-            // Set initial processing state and add to UI immediately
-            await MainActor.run {
-                self.blobProcessingStates[blob.id] = .unprocessed
-                // Add to the beginning of recent blobs for immediate visibility
-                self.recentBlobs.insert(blob, at: 0)
-            }
-            
             savedBlob = try await blobRepository().createBlob(blob)
             print("🔧 ADD NOTE: ✅ Successfully saved blob with ID: \(savedBlob!.id)")
             
-            // Show initial success message immediately
+            // Update success message
             await MainActor.run {
                 self.successMessage = "✅ Note saved - starting AI processing..."
             }
@@ -314,48 +314,44 @@ class MainViewModel: ObservableObject {
                 } else {
                     self.errorMessage = "Failed to save note: \(error.localizedDescription)"
                     // Remove from UI if save failed
-                    if let blob = savedBlob {
-                        self.recentBlobs.removeAll { $0.id == blob.id }
-                    }
+                    self.recentBlobs.removeAll { $0.id == blob.id }
                 }
             }
             return
         }
         
-        // Step 2: Immediately start AI processing (don't wait for UI refresh)
+        // Step 3: Start AI processing immediately (no delays)
         if let blob = savedBlob {
             print("🔧 ADD NOTE: Starting immediate AI processing...")
             
-            // Start processing in background while updating UI
-            await processBlobIndividually(blob)
+            // Start processing immediately
+            await processImmediately(blob)
             
-            // Final refresh and update
-            do {
-                try await loadRecentBlobs()
-                print("🔧 ADD NOTE: ✅ List refreshed after processing")
-                
-                // Update success message based on processing result
-                await MainActor.run {
-                    if let result = self.processingResults[blob.id] {
-                        if result.requiresConfirmation {
-                            self.successMessage = "🤖 Note processed - review needed"
-                            self.showingConfirmationDialog = true
-                        } else {
-                            self.successMessage = "🤖 Note processed → \(result.paraCategory.displayName)"
-                        }
+            // Final state update
+            await MainActor.run {
+                self.isLoading = false
+                if let result = self.processingResults[blob.id] {
+                    if result.requiresConfirmation {
+                        self.successMessage = "🤖 Note processed - review needed"
+                        self.showingConfirmationDialog = true
                     } else {
-                        self.successMessage = "✅ Note saved and processed"
+                        self.successMessage = "🤖 Note processed → \(result.paraCategory.displayName)"
                     }
-                    self.isLoading = false
-                }
-                
-            } catch {
-                print("🔧 ADD NOTE: ⚠️ REFRESH ERROR after processing - \(error)")
-                await MainActor.run {
-                    self.isLoading = false
-                    self.successMessage = "✅ Note saved and processed (refresh manually to see updates)"
+                } else {
+                    self.successMessage = "✅ Note saved and processed"
                 }
             }
+            
+            // Refresh data to ensure consistency (in background)
+            Task.detached {
+                do {
+                    try await self.loadRecentBlobs()
+                    print("🔧 ADD NOTE: ✅ Background refresh completed")
+                } catch {
+                    print("🔧 ADD NOTE: ⚠️ Background refresh failed - \(error)")
+                }
+            }
+            
         } else {
             await MainActor.run {
                 self.isLoading = false
@@ -363,6 +359,64 @@ class MainViewModel: ObservableObject {
         }
         
         print("🔧 ADD NOTE: ✅ Completed successfully with immediate processing")
+    }
+    
+    /// Process a blob immediately without delays
+    private func processImmediately(_ blob: Blob) async {
+        print("🔧 IMMEDIATE PROCESS: Starting for blob: \(blob.id)")
+        
+        await MainActor.run {
+            self.blobProcessingStates[blob.id] = .processing
+            self.successMessage = "🤖 Processing with AI..."
+        }
+        
+        do {
+            print("🔧 IMMEDIATE PROCESS: Calling LLM service...")
+            let result = try await llmService.processComprehensively(
+                blob: blob,
+                availableAreas: areas,
+                availableProjects: projects,
+                confidenceThreshold: 0.7
+            )
+            
+            print("🔧 IMMEDIATE PROCESS: ✅ LLM processing completed")
+            print("🔧 IMMEDIATE PROCESS: Result category: \(result.paraCategory.displayName)")
+            print("🔧 IMMEDIATE PROCESS: Result confidence: \(result.confidence)")
+            
+            // Store result immediately
+            await MainActor.run {
+                self.processingResults[blob.id] = result
+                
+                if result.requiresConfirmation {
+                    self.blobProcessingStates[blob.id] = .needsConfirmation(result)
+                    self.pendingConfirmations.append(result)
+                } else {
+                    self.blobProcessingStates[blob.id] = .processed(result)
+                }
+            }
+            
+            // Execute actions if high confidence
+            if !result.requiresConfirmation {
+                print("🔧 IMMEDIATE PROCESS: Executing processing actions...")
+                do {
+                    try await executeProcessingActions(for: blob, with: result)
+                    print("🔧 IMMEDIATE PROCESS: ✅ Actions executed successfully")
+                } catch {
+                    print("🔧 IMMEDIATE PROCESS: ❌ Action execution failed: \(error)")
+                    await MainActor.run {
+                        self.blobProcessingStates[blob.id] = .error("Action execution failed: \(error.localizedDescription)")
+                    }
+                }
+            }
+            
+        } catch {
+            print("🔧 IMMEDIATE PROCESS: ❌ LLM Processing failed: \(error)")
+            
+            await MainActor.run {
+                self.blobProcessingStates[blob.id] = .error(error.localizedDescription)
+                self.successMessage = "✅ Note saved (AI processing failed)"
+            }
+        }
     }
     
     /// Process a single blob with comprehensive AI analysis
@@ -577,19 +631,54 @@ class MainViewModel: ObservableObject {
     }
     
     func refreshData() async {
-        print("🔧 REFRESH: Starting data refresh...")
+        print("🔧 REFRESH: Starting comprehensive data refresh...")
         
         await MainActor.run {
             self.isLoading = true
             self.errorMessage = nil
+            self.successMessage = "🔄 Refreshing data..."
         }
         
-        await loadInitialData()
-        print("🔧 REFRESH: ✅ Data refresh completed successfully")
-        
-        await MainActor.run {
-            self.isLoading = false
-            self.successMessage = "✅ Data refreshed"
+        do {
+            // Force reload all data in parallel with timeout protection
+            print("🔧 REFRESH: Loading all data repositories...")
+            
+            async let areasTask = AreaRepository().fetchAllAreas()
+            async let projectsTask = ProjectRepository().fetchAllProjects()
+            async let resourcesTask = ResourceRepository().fetchAllResources()
+            async let archivesTask = ArchiveRepository().fetchAllArchives()
+            async let blobsTask = BlobRepository().fetchRecentBlobs(days: 7)
+            async let focusTasksTask = TaskRepository().fetchFocusTasks()
+            
+            let loadedAreas = try await areasTask
+            let loadedProjects = try await projectsTask
+            let loadedResources = try await resourcesTask
+            let loadedArchives = try await archivesTask
+            let loadedBlobs = try await blobsTask
+            let loadedFocusTasks = try await focusTasksTask
+            
+            print("🔧 REFRESH: ✅ All data loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Blobs: \(loadedBlobs.count), Tasks: \(loadedFocusTasks.count)")
+            
+            // Update all state at once on main thread
+            await MainActor.run {
+                self.areas = loadedAreas
+                self.projects = loadedProjects
+                self.resources = loadedResources
+                self.archives = loadedArchives
+                self.recentBlobs = loadedBlobs
+                self.focusTasks = loadedFocusTasks
+                self.isLoading = false
+                self.successMessage = "✅ Data refreshed successfully"
+            }
+            
+            print("🔧 REFRESH: ✅ UI updated with fresh data")
+            
+        } catch {
+            print("🔧 REFRESH: ❌ Error during refresh - \(error)")
+            await MainActor.run {
+                self.isLoading = false
+                self.errorMessage = "Failed to refresh data: \(error.localizedDescription)"
+            }
         }
     }
     
