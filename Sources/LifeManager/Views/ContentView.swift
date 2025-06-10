@@ -164,6 +164,26 @@ struct PARANavigation: View {
                     Label("Focus", systemImage: "scope")
                 }
                 .tag(PARAView.focus)
+                
+                NavigationLink(destination: TagsView().environmentObject(viewModel)) {
+                    Label("Tags", systemImage: "tag")
+                }
+                .tag(PARAView.tags)
+                
+                NavigationLink(destination: MindmapView().environmentObject(viewModel)) {
+                    Label("Mind Map", systemImage: "brain.head.profile")
+                }
+                .tag(PARAView.mindmap)
+                
+                NavigationLink(destination: CalendarView().environmentObject(viewModel)) {
+                    Label("Calendar", systemImage: "calendar")
+                }
+                .tag(PARAView.calendar)
+                
+                NavigationLink(destination: TimelineView().environmentObject(viewModel)) {
+                    Label("Timeline", systemImage: "timeline.selection")
+                }
+                .tag(PARAView.timeline)
             }
             
             Section("Search & History") {
@@ -205,6 +225,14 @@ struct PARADetailView: View {
                 SearchView()
             case .history:
                 HistoryView()
+            case .tags:
+                TagsView()
+            case .mindmap:
+                MindmapView()
+            case .calendar:
+                CalendarView()
+            case .timeline:
+                TimelineView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1676,9 +1704,6 @@ struct ProcessingConfirmationView: View {
                                             Text(summary)
                                                 .font(.body)
                                                 .foregroundColor(.secondary)
-                                                .padding(12)
-                                                .background(Color(NSColor.controlBackgroundColor))
-                                                .cornerRadius(6)
                                         }
                                     }
                                 }
@@ -2090,6 +2115,144 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+
+// MARK: - New Feature Views (Stubs)
+
+/// Tags view for managing and visualizing tags
+struct TagsView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Tags")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            VStack(spacing: 16) {
+                Image(systemName: "tag")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondary)
+                
+                Text("Tag Management")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                
+                Text("View and organize all tags across your content. Coming soon!")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.controlBackgroundColor))
+        .padding()
+    }
+}
+
+/// Mind map view for visual content organization
+struct MindmapView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Mind Map")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            VStack(spacing: 16) {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondary)
+                
+                Text("Visual Organization")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                
+                Text("Explore your content connections in a visual mind map format. Coming soon!")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.controlBackgroundColor))
+        .padding()
+    }
+}
+
+/// Calendar view for time-based content organization
+struct CalendarView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Calendar")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            VStack(spacing: 16) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondary)
+                
+                Text("Time-Based View")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                
+                Text("View your tasks, projects, and content organized by time. Coming soon!")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.controlBackgroundColor))
+        .padding()
+    }
+}
+
+/// Timeline view for chronological content organization
+struct TimelineView: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Timeline")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            VStack(spacing: 16) {
+                Image(systemName: "timeline.selection")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondary)
+                
+                Text("Chronological View")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                
+                Text("See your content evolution over time in a timeline format. Coming soon!")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.controlBackgroundColor))
+        .padding()
     }
 }
 

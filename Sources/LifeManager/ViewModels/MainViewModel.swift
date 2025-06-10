@@ -337,16 +337,6 @@ class MainViewModel: ObservableObject {
                 }
             }
             
-            // Clear success message after delay
-            Task {
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-                await MainActor.run {
-                    if self.successMessage?.contains("processed") == true {
-                        self.successMessage = nil
-                    }
-                }
-            }
-            
         } else {
             await MainActor.run {
                 self.isLoading = false
@@ -488,18 +478,6 @@ class MainViewModel: ObservableObject {
     /// Get processing state for a blob
     func getProcessingState(for blobId: UUID) -> BlobProcessingState {
         return blobProcessingStates[blobId] ?? .unprocessed
-    }
-    
-    /// Clear success message after delay
-    func clearSuccessMessage() {
-        Task {
-            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-            await MainActor.run {
-                if self.successMessage != nil {
-                    self.successMessage = nil
-                }
-            }
-        }
     }
     
     /// Show processing details for a blob
@@ -656,16 +634,6 @@ class MainViewModel: ObservableObject {
             }
             
             print("🔧 REFRESH: ✅ UI updated with fresh data")
-            
-            // Clear success message after delay
-            Task {
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-                await MainActor.run {
-                    if self.successMessage == "✅ Data refreshed successfully" {
-                        self.successMessage = nil
-                    }
-                }
-            }
             
         } catch {
             print("🔧 REFRESH: ❌ Error during refresh - \(error)")
@@ -1034,30 +1002,93 @@ class MainViewModel: ObservableObject {
     private func moveToParaCategory(blob: Blob, category: PARACategory, result: ProcessingResult) async throws {
         print("🔧 MOVE PARA: Moving blob \(blob.id) to category: \(category.displayName)")
         
-        // Find or create area/project if suggested
-        if let suggestedArea = result.suggestedArea {
-            if let existingArea = areas.first(where: { $0.name.lowercased() == suggestedArea.lowercased() }) {
-                // Link to existing area
-                print("🔧 MOVE PARA: Linking to existing area: \(existingArea.name)")
-            } else {
-                // Create new area if confidence is high
-                if result.confidence > 0.8 {
-                    print("🔧 MOVE PARA: Creating new area: \(suggestedArea)")
-                    // Area creation would be implemented here
+        var updatedBlob = blob
+        var targetProjectId: UUID? = nil
+        var targetAreaId: UUID? = nil
+        
+        // Handle project assignment
+        if category == .project {
+            if let suggestedProject = result.suggestedProject {
+                if let existingProject = projects.first(where: { $0.name.lowercased() == suggestedProject.lowercased() }) {
+                    // Link to existing project
+                    targetProjectId = existingProject.id
+                    print("🔧 MOVE PARA: Linking to existing project: \(existingProject.name)")
+                } else if result.confidence > 0.8 {
+                    // Create new project if confidence is high
+                    print("🔧 MOVE PARA: Creating new project: \(suggestedProject)")
+                    do {
+                        let newProject = Project(
+                            name: suggestedProject,
+                            description: "Auto-created from AI processing",
+                            workPersonal: blob.workPersonal
+                        )
+                        let createdProject = try await ProjectRepository().createProject(newProject)
+                        targetProjectId = createdProject.id
+                        
+                        // Update local projects list
+                        await MainActor.run {
+                            self.projects.append(createdProject)
+                        }
+                        
+                        print("🔧 MOVE PARA: ✅ Created new project: \(createdProject.name)")
+                    } catch {
+                        print("🔧 MOVE PARA: ❌ Failed to create project: \(error)")
+                    }
                 }
             }
         }
         
-        if let suggestedProject = result.suggestedProject {
-            if let existingProject = projects.first(where: { $0.name.lowercased() == suggestedProject.lowercased() }) {
-                // Link to existing project
-                print("🔧 MOVE PARA: Linking to existing project: \(existingProject.name)")
-            } else {
-                // Create new project if confidence is high
-                if result.confidence > 0.8 {
-                    print("🔧 MOVE PARA: Creating new project: \(suggestedProject)")
-                    // Project creation would be implemented here
+        // Handle area assignment
+        if category == .area {
+            if let suggestedArea = result.suggestedArea {
+                if let existingArea = areas.first(where: { $0.name.lowercased() == suggestedArea.lowercased() }) {
+                    // Link to existing area
+                    targetAreaId = existingArea.id
+                    print("🔧 MOVE PARA: Linking to existing area: \(existingArea.name)")
+                } else if result.confidence > 0.8 {
+                    // Create new area if confidence is high
+                    print("🔧 MOVE PARA: Creating new area: \(suggestedArea)")
+                    do {
+                        let newArea = Area(
+                            name: suggestedArea,
+                            description: "Auto-created from AI processing",
+                            workPersonal: blob.workPersonal
+                        )
+                        let createdArea = try await AreaRepository().createArea(newArea)
+                        targetAreaId = createdArea.id
+                        
+                        // Update local areas list
+                        await MainActor.run {
+                            self.areas.append(createdArea)
+                        }
+                        
+                        print("🔧 MOVE PARA: ✅ Created new area: \(createdArea.name)")
+                    } catch {
+                        print("🔧 MOVE PARA: ❌ Failed to create area: \(error)")
+                    }
                 }
+            }
+        }
+        
+        // Update blob with PARA category assignment
+        if targetProjectId != nil || targetAreaId != nil {
+            do {
+                let categorizedBlob = Blob(
+                    id: blob.id,
+                    content: blob.content,
+                    sourceType: blob.sourceType,
+                    workPersonal: blob.workPersonal,
+                    processed: true, // Mark as processed when categorized
+                    projectId: targetProjectId,
+                    areaId: targetAreaId,
+                    isArchived: false
+                )
+                
+                let _ = try await blobRepository().updateBlob(categorizedBlob)
+                print("🔧 MOVE PARA: ✅ Blob updated with PARA assignment")
+            } catch {
+                print("🔧 MOVE PARA: ❌ Failed to update blob: \(error)")
+                throw error
             }
         }
         
@@ -1068,6 +1099,41 @@ class MainViewModel: ObservableObject {
     private func createTaskFromExtraction(taskInfo: TaskExtractionInfo, sourceBlob: Blob) async throws {
         print("🔧 CREATE TASK: Creating task: \(taskInfo.title)")
         
+        // Determine project/area assignment for the task
+        var taskProjectId: UUID? = nil
+        var taskAreaId: UUID? = nil
+        
+        // First try to use the blob's assignment
+        if let blobProjectId = sourceBlob.projectId {
+            taskProjectId = blobProjectId
+            print("🔧 CREATE TASK: Assigning to blob's project")
+        } else if let blobAreaId = sourceBlob.areaId {
+            taskAreaId = blobAreaId
+            print("🔧 CREATE TASK: Assigning to blob's area")
+        } else {
+            // If blob has no assignment, try to find suggested project/area
+            if let suggestedProject = taskInfo.suggestedProject,
+               let existingProject = projects.first(where: { $0.name.lowercased() == suggestedProject.lowercased() }) {
+                taskProjectId = existingProject.id
+                print("🔧 CREATE TASK: Assigning to suggested project: \(suggestedProject)")
+            } else if let suggestedArea = taskInfo.suggestedArea,
+                      let existingArea = areas.first(where: { $0.name.lowercased() == suggestedArea.lowercased() }) {
+                taskAreaId = existingArea.id
+                print("🔧 CREATE TASK: Assigning to suggested area: \(suggestedArea)")
+            } else {
+                // Default to first available project or area
+                if let firstProject = projects.first {
+                    taskProjectId = firstProject.id
+                    print("🔧 CREATE TASK: Assigning to first available project: \(firstProject.name)")
+                } else if let firstArea = areas.first {
+                    taskAreaId = firstArea.id
+                    print("🔧 CREATE TASK: Assigning to first available area: \(firstArea.name)")
+                } else {
+                    print("🔧 CREATE TASK: ⚠️ No projects or areas available - task will be unassigned")
+                }
+            }
+        }
+        
         let task = LifeTask(
             blobId: sourceBlob.id,
             title: taskInfo.title,
@@ -1075,7 +1141,9 @@ class MainViewModel: ObservableObject {
             priority: taskInfo.priority,
             dueDate: taskInfo.suggestedDueDate,
             estimatedDuration: taskInfo.estimatedDuration,
-            workPersonal: sourceBlob.workPersonal
+            workPersonal: sourceBlob.workPersonal,
+            projectId: taskProjectId,
+            areaId: taskAreaId
         )
         
         let _ = try await taskRepository().createTask(task)
