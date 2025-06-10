@@ -1,0 +1,105 @@
+# CURSOR/CLAUDE PROJECT RULES FOR LIFEMANAGER
+
+## PROJECT WORKFLOW RULES
+
+**ALWAYS follow these rules before generating or updating any code or documentation:**
+
+1. **Read PROJECT.md before doing any coding, logic, or major changes.**
+   - PROJECT.md contains the project overview, up-to-date implementation plan, database schema, and directory structure.
+   - After each significant feature or milestone, update PROJECT.md with changes, design decisions, and migrations.
+   - All new migrations and schema changes must be added to PROJECT.md.
+
+2. **All changes and new features should be tracked in implementation_details.txt file.**
+   - Log each file changed, the purpose, and any notable logic or design decisions.
+
+3. **Tasks must be broken down before coding.**
+   - Use step-by-step reasoning: outline each task in pseudocode, then confirm before implementing.
+
+4. **All code must be correct, complete, up-to-date, bug-free, readable, well-structured, and production-ready.**
+   - Include all required imports.
+   - Never leave TODOs or placeholders.
+   - Always verify code is functional.
+
+5. **Code must be easy to maintain.**
+   - Favor clarity, comments, and logical structure over cleverness or unnecessary performance optimization.
+
+6. **Minimize non-code output.**
+   - Only provide detailed explanations if requested; otherwise, focus on code and clear comments.
+
+7. **Be persistent and test-driven.**
+   - If a result is not as expected, continue iterating and testing until the specified goal is reached.
+
+8. **Keep project organization tight.**
+   - Split documentation into multiple small markdown files in a `doc/` folder when context size may be an issue.
+   - For each new feature or ticket, create a dedicated folder or file with a clear name.
+
+9. **Do not use or reference Gemini, Taskmaster, or PasteMax.**  
+   - All code generation, logic, and review will be handled by Claude Sonnet 4 in Cursor.AI.
+
+## PROJECT-SPECIFIC RULES
+
+### LifeManager Application Context
+- This is a native macOS productivity application for software engineers
+- Primary function: AI-powered processing and organization of text-based information
+- Backend: PostgreSQL database with comprehensive audit trails
+- AI Engine: LLM-driven categorization, task extraction, and content organization
+
+### Version 1.0 Scope Restrictions (MUST ENFORCE)
+**INCLUDED ONLY:**
+- Manual text input via natural language bar/text fields
+- Automatic categorization and tagging
+- Task extraction and prioritization
+- Work/personal distinction
+- Complete history and audit trail
+- Content summarization
+- PostgreSQL storage
+- Natural language search and retrieval
+- Multiple view modes (task list, calendar, timeline)
+- Inbox processing workflow
+
+**STRICTLY EXCLUDED (Never implement):**
+- Voice/audio input or output
+- Drag-and-drop, file, or image handling
+- Direct app integrations (email, messages, etc.)
+- Watch app or mobile companions
+- External data source auto-categorization
+- Attachment storage
+
+### Data Categories (Fixed Set)
+- Journal entries
+- Therapy notes
+- Tasks
+- Financial entries
+- Knowledge entries
+
+### Required Database Tables
+- Core: blobs, categories, tags, projects, journal_entries, therapy_notes, tasks, financial_entries, knowledge_entries
+- Relationships: blob_categories, blob_tags, task_tags
+- Audit: blob_history, task_history
+
+### Development Standards
+- Use UUIDs for all primary keys
+- Implement comprehensive audit trails for all changes
+- Maintain work/personal classification for all content
+- Enable natural language querying
+- Support multiple filtering and view modes
+- Preserve complete version history
+
+## FILE MANAGEMENT RULES
+
+- Always update PROJECT.md after significant changes
+- Log all changes in implementation_details.txt
+- Create tickets in tickets/ folder for new features
+- Keep documentation modular in doc/ folder
+- Use git dev branch for all AI-generated code
+- Maintain clean separation between v1.0 scope and future features
+
+## QUALITY STANDARDS
+
+- All code must be production-ready
+- No TODOs or placeholders
+- Complete error handling
+- Proper logging and monitoring
+- Full test coverage where applicable
+- Clear documentation and comments
+- Performance-conscious but maintainable code
