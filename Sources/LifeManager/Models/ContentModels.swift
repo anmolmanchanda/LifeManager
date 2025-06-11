@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Content Type Models
 
-struct LifeTask: Codable, Identifiable, PARAContent {
+struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
     let id: UUID
     let blobId: UUID?
     let title: String
@@ -81,6 +81,16 @@ struct LifeTask: Codable, Identifiable, PARAContent {
         self.updatedAt = updatedAt
         self.completedAt = completedAt
         self.archivedAt = archivedAt
+    }
+    
+    // Hashable conformance - use id for hashing
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    // Equatable conformance (required for Hashable)
+    static func == (lhs: LifeTask, rhs: LifeTask) -> Bool {
+        return lhs.id == rhs.id
     }
 }
 

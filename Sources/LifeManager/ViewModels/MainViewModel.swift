@@ -13,7 +13,7 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Development Mode
     
-    private var isDevelopmentMode = false // Set to true when using bypass
+    private var isDevelopmentMode = true // Set to true when using bypass - ENABLED FOR DEVELOPMENT
     
     // MARK: - Authentication State
     
@@ -964,7 +964,7 @@ class MainViewModel: ObservableObject {
                 self.archivedBlobs = loadedArchivedBlobs
                 
                 self.isLoading = false
-                self.successMessage = "✅ Data refreshed successfully"
+                self.successMessage = "✅ Data refreshed"
             }
             
             print("🔧 REFRESH: ✅ UI updated with fresh data")

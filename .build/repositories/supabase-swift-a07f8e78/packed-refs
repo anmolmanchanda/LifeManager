@@ -1,9 +1,7 @@
 # pack-refs with: peeled fully-peeled sorted 
 a9f53e2e433a6281c9dc1e45aecd0efe03ebb27b refs/heads/guilherme/broadcast-changes-improvement
-94329ce2bf9170a7fbac6cdf6174c052fe63a4df refs/heads/guilherme/clibs-190-edge-function-timeout-60-seconds
 0f2d85bd69a073770cdba77cc78a3a51cbeb57b7 refs/heads/guilherme/dont-send-non-jwts-in-authorization
 36c83e2ef4fd3372e601174878e596aec5bac59f refs/heads/guilherme/example-facebook
-70bceda3337cfee6f936f249e7e9514b63dcaf34 refs/heads/guilherme/fix-allow-default-service
 b21c4883215373870f8e8d1f5cffcc2e71ce75cd refs/heads/guilherme/fix/functions-set-auth
 734e6df0aa895ecf36bd8a820fbbc84de816b759 refs/heads/macos-keychain-error
 340d769a378388f803e31ec4ad0cd5657ba33df1 refs/heads/main
@@ -486,11 +484,9 @@ a9f53e2e433a6281c9dc1e45aecd0efe03ebb27b refs/pull/723/head
 30826673cbe5eb42028b78363082887743ab56fc refs/pull/726/head
 a7f3659b6fb36241e234af66e5dc7faba8a15469 refs/pull/726/merge
 94329ce2bf9170a7fbac6cdf6174c052fe63a4df refs/pull/728/head
-97ef8ee50ef233abb71b2fbba0268190806663b7 refs/pull/728/merge
 36c83e2ef4fd3372e601174878e596aec5bac59f refs/pull/729/head
 218c42f8a9c0bcbbe28fbbc0355aa2a23cfc42d4 refs/pull/729/merge
 70bceda3337cfee6f936f249e7e9514b63dcaf34 refs/pull/730/head
-5751d7fc9331a9462cd1804b513efe9eeda4a58b refs/pull/730/merge
 f5b6cf1de5607ac746f217bf3de228467ed29949 refs/pull/79/head
 c3f7df67518634e04b8facf9f0d17de9aae6e451 refs/pull/8/head
 f9599aa73b81a177b128c3bdc078a0849fe97706 refs/pull/88/head

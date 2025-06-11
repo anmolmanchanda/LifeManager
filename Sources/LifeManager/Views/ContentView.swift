@@ -1410,9 +1410,10 @@ struct ResourceRowView: View {
 /// Archives view
 struct ArchivesView: View {
     @EnvironmentObject var viewModel: MainViewModel
+    @State private var completedTasks: [LifeTask] = []
     
     private let archiveCategories = [
-        "Completed Projects", "Inactive Areas", "Old Resources", 
+        "Completed Tasks", "Completed Projects", "Inactive Areas", "Old Resources", 
         "Past Notes", "Outdated References", "Historical Data"
     ]
     
@@ -1427,45 +1428,28 @@ struct ArchivesView: View {
                     
                     Spacer()
                     
-                    // AI processing status
-                    if !viewModel.archivedBlobs.isEmpty {
-                        HStack(spacing: 8) {
-                            Image(systemName: "sparkles")
-                                .foregroundColor(.gray)
-                            
-                            Text("AI archived \(viewModel.archivedBlobs.count) items")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
+                    // Archive stats
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        
+                        Text("\(completedTasks.count) completed • \(viewModel.archivedBlobs.count) archived")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
                 }
                 .padding(.horizontal)
                 
                 // Description
-                Text("Inactive items from Projects, Areas, and Resources")
+                Text("Completed tasks and archived items from Projects, Areas, and Resources")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
-                
-                // Quick stats
-                HStack(spacing: 20) {
-                    StatView(
-                        title: "Formal Archives", 
-                        value: "\(viewModel.archives.count)",
-                        color: .gray
-                    )
-                    StatView(
-                        title: "AI Archived", 
-                        value: "\(viewModel.archivedBlobs.count)",
-                        color: .blue
-                    )
-                    Spacer()
-                }
-                .padding(.horizontal)
+                    .multilineTextAlignment(.center)
             }
             .padding(.vertical)
             .background(Color(NSColor.controlBackgroundColor))
@@ -1503,13 +1487,15 @@ struct ArchivesView: View {
                             }
                             .padding(.horizontal)
                             
-                            // Group archived blobs by inferred category
+                            // Group content by inferred category (tasks and blobs)
                             ForEach(archiveCategories, id: \.self) { category in
                                 let categoryBlobs = getArchiveCategoryBlobs(category: category)
-                                if !categoryBlobs.isEmpty {
+                                let categoryTasks = getArchiveCategoryTasks(category: category)
+                                if !categoryBlobs.isEmpty || !categoryTasks.isEmpty {
                                     ArchiveCategorySection(
                                         category: category,
-                                        blobs: categoryBlobs
+                                        blobs: categoryBlobs,
+                                        tasks: categoryTasks
                                     )
                                     .environmentObject(viewModel)
                                 }
@@ -1525,7 +1511,8 @@ struct ArchivesView: View {
                             if !uncategorizedBlobs.isEmpty {
                                 ArchiveCategorySection(
                                     category: "General Archives",
-                                    blobs: uncategorizedBlobs
+                                    blobs: uncategorizedBlobs,
+                                    tasks: []
                                 )
                                 .environmentObject(viewModel)
                             }
@@ -1565,7 +1552,20 @@ struct ArchivesView: View {
         .onAppear {
             Task {
                 await viewModel.refreshData()
+                await loadCompletedTasks()
             }
+        }
+    }
+    
+    private func loadCompletedTasks() async {
+        do {
+            let taskRepository = TaskRepository()
+            let completed = try await taskRepository.fetchTasks(status: .completed)
+            await MainActor.run {
+                self.completedTasks = completed
+            }
+        } catch {
+            print("Failed to load completed tasks: \(error.localizedDescription)")
         }
     }
     
@@ -1573,6 +1573,13 @@ struct ArchivesView: View {
         return viewModel.archivedBlobs.filter { blob in
             archiveBlobMatchesCategory(blob: blob, category: category)
         }
+    }
+    
+    private func getArchiveCategoryTasks(category: String) -> [LifeTask] {
+        if category == "Completed Tasks" {
+            return completedTasks
+        }
+        return []
     }
     
     private func archiveBlobMatchesCategory(blob: Blob, category: String) -> Bool {
@@ -1586,6 +1593,8 @@ struct ArchivesView: View {
         let isOld = Calendar.current.dateInterval(of: .month, for: createdDate)?.start ?? Date() < Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
         
         switch category {
+        case "Completed Tasks":
+            return false // Tasks are handled separately
         case "Completed Projects":
             return content.contains("completed") || content.contains("finished") || content.contains("done")
         case "Inactive Areas":
@@ -2862,34 +2871,32 @@ struct ToastView: View {
     }
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Image(systemName: type.icon)
                 .foregroundColor(.white)
-                .font(.headline)
+                .font(.caption)
             
             Text(message)
                 .foregroundColor(.white)
-                .font(.body)
+                .font(.caption)
                 .fontWeight(.medium)
-            
-            Spacer()
             
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .foregroundColor(.white.opacity(0.8))
-                    .font(.caption)
+                    .font(.caption2)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .background(type.color)
-        .cornerRadius(8)
-        .shadow(radius: 4)
+        .cornerRadius(6)
+        .shadow(radius: 2)
         .padding(.horizontal, 20)
         .onAppear {
-            // Auto-dismiss after 10 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            // Auto-dismiss after 5 seconds (reduced from 10)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                 onDismiss()
             }
         }
@@ -3275,12 +3282,14 @@ struct CalendarView: View {
     
     var body: some View {
         HSplitView {
-            // Unscheduled Tasks Sidebar (30% width)
-            UnscheduledTasksSidebar()
+            // PARA Tasks Parking Lot Sidebar (Fixed width with proper constraints)
+            PARATasksParkingLot()
+                .environmentObject(viewModel)
                 .environmentObject(calendarViewModel)
-                .frame(minWidth: 300, idealWidth: 350, maxWidth: 420)
+                .frame(minWidth: 280, idealWidth: 320, maxWidth: 400) // Fixed: Better width constraints
+                .clipped() // Fixed: Prevent content from overflowing
             
-            // Main Calendar View (70% width)
+            // Main Calendar View (Flexible width)
             VStack(spacing: 0) {
                 CalendarHeader()
                     .environmentObject(calendarViewModel)
@@ -3288,11 +3297,14 @@ struct CalendarView: View {
                 CalendarMainView()
                     .environmentObject(calendarViewModel)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity) // Fixed: Ensure minimum width
             .background(Color(NSColor.windowBackgroundColor))
         }
+        .frame(minWidth: 900, minHeight: 600) // Fixed: Set minimum window size
         .background(Color(NSColor.controlBackgroundColor))
         .onAppear {
+            // Set MainViewModel reference
+            calendarViewModel.setMainViewModel(viewModel)
             Task {
                 await calendarViewModel.loadCalendarData()
             }
@@ -3448,13 +3460,9 @@ struct CalendarHeader: View {
                     // View mode picker with improved styling
                     Picker("View Mode", selection: $calendarViewModel.viewMode) {
                         ForEach(CalendarViewMode.allCases, id: \.self) { mode in
-                            HStack(spacing: 4) {
-                                Image(systemName: mode.icon)
-                                    .font(.system(size: 12))
-                                Text(mode.displayName)
-                                    .font(.system(size: 12, weight: .medium))
-                            }
-                            .tag(mode)
+                            Text(mode.displayName)
+                                .font(.system(size: 12, weight: .medium))
+                                .tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -3770,6 +3778,7 @@ struct CalendarHourCell: View {
 struct CalendarEventView: View {
     let event: CalendarEvent
     @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @EnvironmentObject var viewModel: MainViewModel
     @State private var isHovered = false
     @State private var isPressed = false
     
@@ -3866,6 +3875,7 @@ struct CalendarEventView: View {
         .contextMenu {
             EventContextMenu(event: event)
                 .environmentObject(calendarViewModel)
+                .environmentObject(viewModel)
         }
     }
     
@@ -4424,27 +4434,107 @@ struct CalendarMonthDayCell: View {
 struct EventContextMenu: View {
     let event: CalendarEvent
     @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingEditSheet = false
+    @State private var showingRescheduleSheet = false
     
     var body: some View {
-        VStack {
-            Button("Edit Event") {
-                // TODO: Show edit event sheet
+        Group {
+            Button(action: {
+                print("🔧 DEBUG: Edit Event tapped for event: \(event.title)")
+                showingEditSheet = true
+            }) {
+                HStack {
+                    Image(systemName: "pencil")
+                    Text("Edit Event")
+                }
             }
             
-            Button("Reschedule") {
-                // TODO: Show reschedule options
+            Button(action: {
+                print("🔧 DEBUG: Reschedule tapped for event: \(event.title)")
+                showingRescheduleSheet = true
+            }) {
+                HStack {
+                    Image(systemName: "calendar.badge.clock")
+                    Text("Reschedule")
+                }
             }
             
-            if event.taskId != nil {
-                Button("Mark Complete") {
-                    // TODO: Mark task as complete
+            if let taskId = event.taskId {
+                Button(action: {
+                    Task {
+                        await markTaskComplete(taskId: taskId)
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text("Mark Complete")
+                    }
                 }
             }
             
             Divider()
             
-            Button("Delete Event") {
-                // TODO: Delete event
+            Button(role: .destructive, action: {
+                Task {
+                    await deleteEvent()
+                }
+            }) {
+                HStack {
+                    Image(systemName: "trash")
+                    Text("Delete Event")
+                }
+            }
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            EditEventSheet(event: event)
+                .environmentObject(calendarViewModel)
+                .environmentObject(viewModel)
+        }
+        .sheet(isPresented: $showingRescheduleSheet) {
+            RescheduleEventSheet(event: event)
+                .environmentObject(calendarViewModel)
+        }
+    }
+    
+    private func markTaskComplete(taskId: UUID) async {
+        do {
+            let taskRepository = TaskRepository()
+            _ = try await taskRepository.updateTaskStatus(id: taskId, status: .completed)
+            
+            // Refresh calendar data
+            await calendarViewModel.loadCalendarData()
+            
+            // Show success message
+            await MainActor.run {
+                // TODO: Show success toast
+            }
+        } catch {
+            await MainActor.run {
+                calendarViewModel.errorMessage = "Failed to complete task: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func deleteEvent() async {
+        if let taskId = event.taskId {
+            // Delete associated task
+            do {
+                let taskRepository = TaskRepository()
+                try await taskRepository.deleteTask(id: taskId)
+                
+                // Refresh calendar data
+                await calendarViewModel.loadCalendarData()
+            } catch {
+                await MainActor.run {
+                    calendarViewModel.errorMessage = "Failed to delete task: \(error.localizedDescription)"
+                }
+            }
+        } else {
+            // For other event types, remove from calendar view model
+            await MainActor.run {
+                // TODO: Implement deletion for non-task events
+                calendarViewModel.errorMessage = "Event deletion not yet implemented for non-task events"
             }
         }
     }
@@ -4910,6 +5000,7 @@ struct ResourceBlobRowView: View {
 struct ArchiveCategorySection: View {
     let category: String
     let blobs: [Blob]
+    let tasks: [LifeTask]
     @EnvironmentObject var viewModel: MainViewModel
     @State private var isExpanded = false
     
@@ -4918,6 +5009,13 @@ struct ArchiveCategorySection: View {
             isExpanded: $isExpanded,
             content: {
                 LazyVStack(spacing: 8) {
+                    // Show completed tasks first
+                    ForEach(tasks) { task in
+                        CompletedTaskRowView(task: task)
+                            .environmentObject(viewModel)
+                    }
+                    
+                    // Then show archived blobs
                     ForEach(blobs) { blob in
                         ArchiveBlobRowView(blob: blob)
                             .environmentObject(viewModel)
@@ -4935,7 +5033,7 @@ struct ArchiveCategorySection: View {
                         Text(category)
                             .font(.headline)
                         
-                        Text("\(blobs.count) AI-archived items")
+                        Text("\(tasks.count + blobs.count) items" + (tasks.count > 0 ? " (\(tasks.count) tasks, \(blobs.count) archived)" : ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -5070,6 +5168,208 @@ struct ArchiveBlobRowView: View {
         case .media: return "play.rectangle"
         case .grocery: return "cart"
         default: return "doc.text"
+        }
+    }
+}
+
+/// Completed task row view for archive display
+struct CompletedTaskRowView: View {
+    let task: LifeTask
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingTaskDetails = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Completed task icon
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.title2)
+                .frame(width: 32)
+            
+            // Task content
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(task.title)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .strikethrough(true) // Show as completed
+                    
+                    Spacer()
+                    
+                    // Completion date
+                    if let completedAt = task.completedAt {
+                        let formatter = ISO8601DateFormatter()
+                        if let completedDate = formatter.date(from: completedAt) {
+                            Text("Completed \(completedDate.formatted(.relative(presentation: .named)))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                if let description = task.description, !description.isEmpty {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                
+                // Task metadata
+                HStack(spacing: 12) {
+                    // Priority
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(priorityColor(task.priority))
+                            .frame(width: 8, height: 8)
+                        Text(task.priority.displayName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // Work/Personal
+                    HStack(spacing: 4) {
+                        Image(systemName: task.workPersonal == .work ? "briefcase.fill" : "house.fill")
+                        Text(task.workPersonal.displayName)
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    
+                    // Duration if available
+                    if let duration = task.estimatedDuration {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                            Text("\(duration)m")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            
+            // Actions menu
+            Menu {
+                Button(action: {
+                    Task {
+                        await restoreTask()
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Restore Task")
+                    }
+                }
+                
+                Button(role: .destructive, action: {
+                    Task {
+                        await deleteCompletedTask()
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("Delete Permanently")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+        .cornerRadius(8)
+        .contextMenu {
+            Button("View Details") {
+                showingTaskDetails = true
+            }
+            
+            Button("Restore Task") {
+                Task {
+                    await restoreTask()
+                }
+            }
+            
+            Button(role: .destructive) {
+                Task {
+                    await deleteCompletedTask()
+                }
+            } label: {
+                Text("Delete Permanently")
+            }
+        }
+        .sheet(isPresented: $showingTaskDetails) {
+            TaskDetailsView(task: task)
+                .environmentObject(viewModel)
+        }
+    }
+    
+    private func priorityColor(_ priority: TaskPriority) -> Color {
+        switch priority {
+        case .urgent: return .red
+        case .high: return .orange
+        case .medium: return .blue
+        case .low: return .green
+        }
+    }
+    
+    private func restoreTask() async {
+        do {
+            let taskRepository = TaskRepository()
+            let restoredTask = LifeTask(
+                id: task.id,
+                blobId: task.blobId,
+                title: task.title,
+                description: task.description,
+                priority: task.priority,
+                status: .todo, // Restore as todo
+                dueDate: task.dueDate,
+                estimatedDuration: task.estimatedDuration,
+                workPersonal: task.workPersonal,
+                projectId: task.projectId,
+                areaId: task.areaId,
+                resourceId: task.resourceId,
+                isFocus: task.isFocus,
+                isArchived: task.isArchived,
+                createdAt: task.createdAt,
+                updatedAt: ISO8601DateFormatter().string(from: Date()),
+                completedAt: nil, // Clear completion date
+                archivedAt: task.archivedAt
+            )
+            
+            _ = try await taskRepository.updateTask(restoredTask)
+            
+            await MainActor.run {
+                viewModel.successMessage = "Task '\(task.title)' restored to active tasks"
+            }
+            
+        } catch {
+            await MainActor.run {
+                viewModel.errorMessage = "Failed to restore task: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func deleteCompletedTask() async {
+        do {
+            let taskRepository = TaskRepository()
+            try await taskRepository.deleteTask(id: task.id)
+            
+            // Also delete associated blob if exists
+            if let blobId = task.blobId {
+                let blobRepository = BlobRepository()
+                try await blobRepository.deleteBlob(id: blobId)
+            }
+            
+            await MainActor.run {
+                viewModel.successMessage = "Task permanently deleted"
+            }
+            
+        } catch {
+            await MainActor.run {
+                viewModel.errorMessage = "Failed to delete task: \(error.localizedDescription)"
+            }
         }
     }
 }
@@ -5374,6 +5674,263 @@ struct WorkView: View {
             }
         } catch {
             print("Error loading work content: \(error)")
+        }
+    }
+}
+
+/// Edit event sheet
+struct EditEventSheet: View {
+    let event: CalendarEvent
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @EnvironmentObject var viewModel: MainViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var title: String
+    @State private var description: String
+    @State private var startDate: Date
+    @State private var duration: Int
+    @State private var priority: TaskPriority
+    @State private var workPersonal: WorkPersonalType
+    
+    init(event: CalendarEvent) {
+        self.event = event
+        self._title = State(initialValue: event.title)
+        self._description = State(initialValue: event.description ?? "")
+        self._startDate = State(initialValue: event.startDate)
+        self._duration = State(initialValue: event.duration)
+        self._priority = State(initialValue: event.priority)
+        self._workPersonal = State(initialValue: event.workPersonal)
+    }
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Event Details") {
+                    TextField("Title", text: $title)
+                    TextField("Description", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+                
+                Section("Scheduling") {
+                    DatePicker("Start Time", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+                    
+                    HStack {
+                        Text("Duration")
+                        Spacer()
+                        Picker("Duration", selection: $duration) {
+                            ForEach([15, 30, 45, 60, 90, 120, 180, 240], id: \.self) { minutes in
+                                Text("\(minutes) min").tag(minutes)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                }
+                
+                Section("Properties") {
+                    Picker("Priority", selection: $priority) {
+                        ForEach(TaskPriority.allCases, id: \.self) { priority in
+                            Text(priority.displayName).tag(priority)
+                        }
+                    }
+                    
+                    Picker("Type", selection: $workPersonal) {
+                        Text("Work").tag(WorkPersonalType.work)
+                        Text("Personal").tag(WorkPersonalType.personal)
+                        Text("Both").tag(WorkPersonalType.both)
+                    }
+                }
+            }
+            .navigationTitle("Edit Event")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task {
+                            await saveChanges()
+                        }
+                    }
+                    .disabled(title.isEmpty)
+                }
+            }
+        }
+        .frame(width: 500, height: 600)
+    }
+    
+    private func saveChanges() async {
+        guard let taskId = event.taskId else {
+            dismiss()
+            return
+        }
+        
+        do {
+            let taskRepository = TaskRepository()
+            
+            // Get the current task
+            guard let currentTask = try await taskRepository.fetchTask(id: taskId) else {
+                throw SupabaseError.notFound
+            }
+            
+            // Create updated task
+            let updatedTask = LifeTask(
+                id: currentTask.id,
+                blobId: currentTask.blobId,
+                title: title,
+                description: description.isEmpty ? nil : description,
+                priority: priority,
+                status: currentTask.status,
+                dueDate: ISO8601DateFormatter().string(from: startDate),
+                estimatedDuration: duration,
+                workPersonal: workPersonal,
+                projectId: currentTask.projectId,
+                areaId: currentTask.areaId,
+                resourceId: currentTask.resourceId,
+                isFocus: currentTask.isFocus,
+                isArchived: currentTask.isArchived,
+                createdAt: currentTask.createdAt,
+                updatedAt: ISO8601DateFormatter().string(from: Date()),
+                completedAt: currentTask.completedAt,
+                archivedAt: currentTask.archivedAt
+            )
+            
+            _ = try await taskRepository.updateTask(updatedTask)
+            
+            // Refresh calendar
+            await calendarViewModel.loadCalendarData()
+            
+            await MainActor.run {
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                calendarViewModel.errorMessage = "Failed to update event: \(error.localizedDescription)"
+                dismiss()
+            }
+        }
+    }
+}
+
+/// Reschedule event sheet
+struct RescheduleEventSheet: View {
+    let event: CalendarEvent
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var newStartDate: Date
+    @State private var suggestedSlots: [Date] = []
+    
+    init(event: CalendarEvent) {
+        self.event = event
+        self._newStartDate = State(initialValue: event.startDate)
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Reschedule: \(event.title)")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    DatePicker("New Time", selection: $newStartDate, displayedComponents: [.date, .hourAndMinute])
+                        .datePickerStyle(.graphical)
+                }
+                .padding()
+                
+                if !suggestedSlots.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Suggested Times")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+                            ForEach(suggestedSlots.prefix(6), id: \.self) { slot in
+                                Button(action: {
+                                    newStartDate = slot
+                                }) {
+                                    Text(slot.calendarSuggestionFormat())
+                                        .font(.caption)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.blue.opacity(0.1))
+                                        .foregroundColor(.blue)
+                                        .cornerRadius(8)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                Spacer()
+            }
+            .navigationTitle("Reschedule Event")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Reschedule") {
+                        Task {
+                            await rescheduleEvent()
+                        }
+                    }
+                }
+            }
+        }
+        .frame(width: 500, height: 600)
+        .onAppear {
+            loadSuggestedSlots()
+        }
+    }
+    
+    private func loadSuggestedSlots() {
+        // Generate suggested slots based on working hours and availability
+        let calendar = Calendar.current
+        let today = Date()
+        
+        var slots: [Date] = []
+        
+        // Generate slots for next 7 days
+        for day in 0..<7 {
+            guard let date = calendar.date(byAdding: .day, value: day, to: today) else { continue }
+            
+            // Working hours: 9 AM to 5 PM
+            for hour in 9...17 {
+                guard let slot = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: date) else { continue }
+                
+                // Skip past times
+                if slot > Date() {
+                    slots.append(slot)
+                }
+            }
+        }
+        
+        // Filter out conflicting times
+        let availableSlots = slots.filter { slot in
+            let endTime = slot.addingTimeInterval(TimeInterval(event.duration * 60))
+            return !calendarViewModel.events.contains { existingEvent in
+                existingEvent.id != event.id &&
+                existingEvent.startDate < endTime &&
+                existingEvent.endDate > slot
+            }
+        }
+        
+        suggestedSlots = Array(availableSlots.prefix(10))
+    }
+    
+    private func rescheduleEvent() async {
+        await calendarViewModel.rescheduleEvent(event, to: newStartDate)
+        await MainActor.run {
+            dismiss()
         }
     }
 }

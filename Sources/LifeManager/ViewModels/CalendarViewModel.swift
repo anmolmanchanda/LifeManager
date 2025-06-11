@@ -8,10 +8,11 @@ class CalendarViewModel: ObservableObject {
     
     // MARK: - Published Properties
     
-    @Published var viewMode: CalendarViewMode = .week
+    @Published var viewMode: CalendarViewMode = .month
     @Published var selectedDate: Date = Date()
     @Published var events: [CalendarEvent] = []
     @Published var unscheduledTasks: [LifeTask] = []
+    @Published var allTasks: [LifeTask] = [] // All tasks from PARA categories
     @Published var filter: CalendarFilter = CalendarFilter()
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -37,6 +38,9 @@ class CalendarViewModel: ObservableObject {
     private let areaRepository = AreaRepository()
     private var cancellables = Set<AnyCancellable>()
     
+    // Reference to MainViewModel for accessing PARA tasks
+    private weak var mainViewModel: MainViewModel?
+    
     // MARK: - Computed Properties
     
     /// Get current date range based on view mode
@@ -60,10 +64,17 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    /// Get filtered unscheduled tasks
+    /// Get filtered unscheduled tasks (tasks from all PARA categories without scheduled times)
     var filteredUnscheduledTasks: [LifeTask] {
-        return unscheduledTasks.filter { task in
-            passesTaskFilter(task)
+        return allTasks.filter { task in
+            task.dueDate == nil && !task.isArchived && task.status != .completed && passesTaskFilter(task)
+        }
+    }
+    
+    /// Get all tasks for parking lot (all PARA tasks)
+    var allPARATasksForParkingLot: [LifeTask] {
+        return allTasks.filter { task in
+            !task.isArchived && passesTaskFilter(task)
         }
     }
     
@@ -80,16 +91,35 @@ class CalendarViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Load calendar data
+    /// Set reference to MainViewModel for accessing PARA tasks
+    func setMainViewModel(_ viewModel: MainViewModel) {
+        self.mainViewModel = viewModel
+    }
+    
+    /// Load calendar data including all PARA tasks
     func loadCalendarData() async {
         isLoading = true
         errorMessage = nil
         
         do {
-            // Load tasks and convert to events
+            // Load all tasks from database
             let tasks = try await taskRepository.fetchAllTasks()
-            let scheduledTasks = tasks.filter { $0.dueDate != nil && !$0.isArchived }
-            let unscheduled = tasks.filter { $0.dueDate == nil && !$0.isArchived && $0.status != .completed }
+            
+            // Combine with tasks from MainViewModel (PARA tasks)
+            var allAvailableTasks = tasks
+            
+            // Add focus tasks from MainViewModel
+            if let mainViewModel = mainViewModel {
+                await MainActor.run {
+                    allAvailableTasks.append(contentsOf: mainViewModel.focusTasks)
+                }
+            }
+            
+            // Remove duplicates based on ID
+            allAvailableTasks = Array(Set(allAvailableTasks))
+            
+            let scheduledTasks = allAvailableTasks.filter { $0.dueDate != nil && !$0.isArchived }
+            let unscheduled = allAvailableTasks.filter { $0.dueDate == nil && !$0.isArchived && $0.status != .completed }
             
             // Convert scheduled tasks to calendar events
             let taskEvents = scheduledTasks.compactMap { $0.toCalendarEvent() }
@@ -101,6 +131,7 @@ class CalendarViewModel: ObservableObject {
             await MainActor.run {
                 self.events = taskEvents + lockedBlocks + focusBlocks
                 self.unscheduledTasks = unscheduled
+                self.allTasks = allAvailableTasks
                 self.lockedTimeBlocks = lockedBlocks
                 self.focusTimeBlocks = focusBlocks
                 self.isLoading = false
