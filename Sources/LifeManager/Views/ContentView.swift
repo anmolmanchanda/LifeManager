@@ -1718,34 +1718,139 @@ struct FocusView: View {
 
 struct TaskRowView: View {
     let task: LifeTask
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var isCompleting = false
     
     var body: some View {
-        HStack {
-            // Priority indicator
+        HStack(spacing: 12) {
+            // Priority indicator with score
+            VStack(spacing: 2) {
             Circle()
                 .fill(priorityColor(task.priority))
-                .frame(width: 12, height: 12)
+                    .frame(width: 16, height: 16)
+                
+                Text("\(task.priority.priorityScore)")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(priorityColor(task.priority))
+            }
             
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 4) {
+                // Task title
                 Text(task.title)
                     .font(.headline)
+                    .lineLimit(2)
                 
-                if let description = task.description {
+                // Description if available
+                if let description = task.description, !description.isEmpty {
                     Text(description)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                }
+                
+                // Task metadata row
+                HStack(spacing: 12) {
+                    // Priority label
+                    HStack(spacing: 4) {
+                        Image(systemName: priorityIcon(task.priority))
+                            .font(.caption)
+                            .foregroundColor(priorityColor(task.priority))
+                        Text(task.priority.displayName)
+                            .font(.caption)
+                            .foregroundColor(priorityColor(task.priority))
+                            .fontWeight(.medium)
+                    }
+                    
+                    // Due date if available
+                    if let dueDate = task.dueDate {
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(formatTaskDate(dueDate))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    // Duration if available
+                    if let duration = task.estimatedDuration {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(duration)m")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
                 }
             }
             
             Spacer()
             
+            // Action buttons
+            HStack(spacing: 8) {
+                // Focus indicator
             if task.isFocus {
                 Image(systemName: "target")
                     .foregroundColor(.orange)
+                        .font(.system(size: 14))
+                }
+                
+                // Work/Personal indicator
+                Image(systemName: task.workPersonal == .work ? "briefcase.fill" : "house.fill")
+                    .font(.caption)
+                    .foregroundColor(task.workPersonal == .work ? .blue : .purple)
+                
+                // Complete button
+                Button(action: {
+                    completeTask()
+                }) {
+                    if isCompleting {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(0.6)
+                    } else {
+                        Image(systemName: task.status == .completed ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 18))
+                            .foregroundColor(task.status == .completed ? .green : .secondary)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isCompleting || task.status == .completed)
+                .help(task.status == .completed ? "Task completed" : "Mark as completed")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(task.status == .completed ? Color.secondary.opacity(0.1) : Color.clear)
+        )
+        .opacity(task.status == .completed ? 0.6 : 1.0)
+    }
+    
+    private func completeTask() {
+        guard task.status != .completed else { return }
+        
+        isCompleting = true
+        Task {
+            do {
+                await viewModel.completeTask(task)
+                await MainActor.run {
+                    isCompleting = false
+                }
+            } catch {
+                await MainActor.run {
+                    isCompleting = false
+                    viewModel.errorMessage = "Failed to complete task: \(error.localizedDescription)"
+                }
+            }
+        }
     }
     
     private func priorityColor(_ priority: TaskPriority) -> Color {
@@ -1754,6 +1859,39 @@ struct TaskRowView: View {
         case .high: return .orange
         case .medium: return .blue
         case .low: return .green
+        }
+    }
+    
+    private func priorityIcon(_ priority: TaskPriority) -> String {
+        switch priority {
+        case .urgent: return "exclamationmark.triangle.fill"
+        case .high: return "arrow.up.circle.fill"
+        case .medium: return "minus.circle.fill"
+        case .low: return "arrow.down.circle.fill"
+        }
+    }
+    
+    private func formatTaskDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: dateString) else {
+            return dateString
+        }
+        
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateStyle = .short
+        displayFormatter.timeStyle = .short
+        
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "Today " + displayFormatter.string(from: date).components(separatedBy: " ").last!
+        } else if calendar.isDateInTomorrow(date) {
+            return "Tomorrow " + displayFormatter.string(from: date).components(separatedBy: " ").last!
+        } else if calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) {
+            displayFormatter.dateFormat = "E h:mm a"
+            return displayFormatter.string(from: date)
+        } else {
+            displayFormatter.dateFormat = "MMM d, h:mm a"
+            return displayFormatter.string(from: date)
         }
     }
 }
@@ -2043,8 +2181,8 @@ struct ProcessingConfirmationContent: View {
     let dismiss: DismissAction
     
     var body: some View {
-        if !viewModel.pendingConfirmations.isEmpty && currentIndex < viewModel.pendingConfirmations.count {
-            let result = viewModel.pendingConfirmations[currentIndex]
+            if !viewModel.pendingConfirmations.isEmpty && currentIndex < viewModel.pendingConfirmations.count {
+                let result = viewModel.pendingConfirmations[currentIndex]
             ProcessingConfirmationDetail(
                 result: result,
                 currentIndex: currentIndex,
@@ -2076,7 +2214,7 @@ struct ProcessingConfirmationDetail: View {
     let onDismiss: () -> Void
     
     var body: some View {
-        VStack(spacing: 0) {
+                VStack(spacing: 0) {
             ProcessingConfirmationHeader(
                 currentIndex: currentIndex,
                 totalCount: totalCount
@@ -2106,24 +2244,24 @@ struct ProcessingConfirmationHeader: View {
     let totalCount: Int
     
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("Review AI Processing")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("Review AI Processing")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                            
                 Text("\(currentIndex + 1) of \(totalCount)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            
-            Divider()
-        }
-        .background(Color(NSColor.windowBackgroundColor))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 24)
+                        
+                        Divider()
+                    }
+                    .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
@@ -2132,8 +2270,8 @@ struct ProcessingConfirmationBody: View {
     @ObservedObject var viewModel: MainViewModel
     
     var body: some View {
-        VStack(spacing: 24) {
-            if let blob = viewModel.recentBlobs.first(where: { $0.id == result.blobId }) {
+                        VStack(spacing: 24) {
+                            if let blob = viewModel.recentBlobs.first(where: { $0.id == result.blobId }) {
                 ProcessingOriginalNote(blob: blob)
             }
             
@@ -2151,41 +2289,41 @@ struct ProcessingOriginalNote: View {
     let blob: Blob
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Original Note")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            
-            Text(blob.content)
-                .font(.body)
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                )
-        }
-        .padding(.horizontal, 24)
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Text("Original Note")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                        Spacer()
+                                    }
+                                    
+                                    Text(blob.content)
+                                        .font(.body)
+                                        .padding(16)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(Color(NSColor.controlBackgroundColor))
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                        )
+                                }
+                                .padding(.horizontal, 24)
     }
-}
-
+                            }
+                            
 struct ProcessingAIAnalysis: View {
     let result: ProcessingResult
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Text("AI Analysis Results")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            
+                            VStack(alignment: .leading, spacing: 20) {
+                                HStack {
+                                    Text("AI Analysis Results")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                                
             ProcessingCategoryInfo(result: result)
             ProcessingTasksInfo(result: result)
             ProcessingTagsInfo(result: result)
@@ -2205,74 +2343,74 @@ struct ProcessingCategoryInfo: View {
     let result: ProcessingResult
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 16) {
-                Image(systemName: result.paraCategory.icon)
-                    .foregroundColor(.blue)
-                    .font(.title2)
-                    .frame(width: 32)
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Category: \(result.paraCategory.displayName)")
-                        .font(.body)
-                        .fontWeight(.medium)
-                    
-                    if let area = result.suggestedArea {
-                        HStack(spacing: 6) {
-                            Image(systemName: "square.stack.3d.up")
-                                .foregroundColor(.green)
-                                .font(.caption)
-                            Text("Area: \(area)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    if let project = result.suggestedProject {
-                        HStack(spacing: 6) {
-                            Image(systemName: "target")
-                                .foregroundColor(.orange)
-                                .font(.caption)
-                            Text("Project: \(project)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    ConfidenceIndicator(confidence: result.confidence)
-                    Text("Confidence")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                                VStack(alignment: .leading, spacing: 16) {
+                                    HStack(spacing: 16) {
+                                        Image(systemName: result.paraCategory.icon)
+                                            .foregroundColor(.blue)
+                                            .font(.title2)
+                                            .frame(width: 32)
+                                        
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("Category: \(result.paraCategory.displayName)")
+                                                .font(.body)
+                                                .fontWeight(.medium)
+                                            
+                                            if let area = result.suggestedArea {
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: "square.stack.3d.up")
+                                                        .foregroundColor(.green)
+                                                        .font(.caption)
+                                                    Text("Area: \(area)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                            
+                                            if let project = result.suggestedProject {
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: "target")
+                                                        .foregroundColor(.orange)
+                                                        .font(.caption)
+                                                    Text("Project: \(project)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        VStack(alignment: .trailing, spacing: 4) {
+                                            ConfidenceIndicator(confidence: result.confidence)
+                                            Text("Confidence")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
                 }
             }
         }
-    }
-}
-
+                                        }
+                                    }
+                                    
 struct ProcessingTasksInfo: View {
     let result: ProcessingResult
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Extracted Tasks")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                Text("\(result.extractedTasks.count) task\(result.extractedTasks.count == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            if !result.extractedTasks.isEmpty {
-                VStack(spacing: 10) {
-                    ForEach(result.extractedTasks.prefix(5)) { task in
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        HStack {
+                                            Text("Extracted Tasks")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(result.extractedTasks.count) task\(result.extractedTasks.count == 1 ? "" : "s")")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        if !result.extractedTasks.isEmpty {
+                                            VStack(spacing: 10) {
+                                                ForEach(result.extractedTasks.prefix(5)) { task in
                         ProcessingTaskRow(task: task)
                     }
                     
@@ -2297,93 +2435,93 @@ struct ProcessingTaskRow: View {
     let task: TaskExtractionInfo
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(priorityColor(task.priority))
-                .frame(width: 10, height: 10)
-                .padding(.top, 6)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(task.title)
-                    .font(.body)
-                    .multilineTextAlignment(.leading)
-                
-                if let description = task.description, !description.isEmpty {
-                    Text(description)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
-                }
-            }
-            
-            Spacer()
-            
-            Text(task.priority.displayName)
-                .font(.caption)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(priorityColor(task.priority).opacity(0.2))
-                .foregroundColor(priorityColor(task.priority))
-                .cornerRadius(4)
-        }
-        .padding(.vertical, 2)
-    }
-    
+                                                    HStack(alignment: .top, spacing: 12) {
+                                                        Circle()
+                                                            .fill(priorityColor(task.priority))
+                                                            .frame(width: 10, height: 10)
+                                                            .padding(.top, 6)
+                                                        
+                                                        VStack(alignment: .leading, spacing: 4) {
+                                                            Text(task.title)
+                                                                .font(.body)
+                                                                .multilineTextAlignment(.leading)
+                                                            
+                                                            if let description = task.description, !description.isEmpty {
+                                                                Text(description)
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.secondary)
+                                                                    .multilineTextAlignment(.leading)
+                                                            }
+                                                        }
+                                                        
+                                                        Spacer()
+                                                        
+                                                        Text(task.priority.displayName)
+                                                            .font(.caption)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 4)
+                                                            .background(priorityColor(task.priority).opacity(0.2))
+                                                            .foregroundColor(priorityColor(task.priority))
+                                                            .cornerRadius(4)
+                                                    }
+                                                    .padding(.vertical, 2)
+                                                }
+                                                
     private func priorityColor(_ priority: TaskPriority) -> Color {
         switch priority {
         case .urgent: return .red
         case .high: return .orange
         case .medium: return .blue
         case .low: return .green
-        }
-    }
+                                                }
+                                            }
 }
 
 struct ProcessingTagsInfo: View {
     let result: ProcessingResult
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Suggested Tags")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                Text("\(result.autoTags.count) tag\(result.autoTags.count == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            if !result.autoTags.isEmpty {
-                LazyVGrid(columns: [
-                    GridItem(.adaptive(minimum: 70, maximum: 140))
-                ], alignment: .leading, spacing: 8) {
-                    ForEach(result.autoTags.prefix(12), id: \.self) { tag in
-                        Text(tag)
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.blue.opacity(0.2))
-                            .foregroundColor(.blue)
-                            .cornerRadius(6)
-                            .fixedSize()
-                    }
-                }
-                
-                if result.autoTags.count > 12 {
-                    Text("+ \(result.autoTags.count - 12) more tags will be applied")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                }
-            } else {
-                Text("No tags suggested for this note")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 12)
-            }
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        HStack {
+                                            Text("Suggested Tags")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(result.autoTags.count) tag\(result.autoTags.count == 1 ? "" : "s")")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        if !result.autoTags.isEmpty {
+                                            LazyVGrid(columns: [
+                                                GridItem(.adaptive(minimum: 70, maximum: 140))
+                                            ], alignment: .leading, spacing: 8) {
+                                                ForEach(result.autoTags.prefix(12), id: \.self) { tag in
+                                                    Text(tag)
+                                                        .font(.caption)
+                                                        .padding(.horizontal, 10)
+                                                        .padding(.vertical, 6)
+                                                        .background(Color.blue.opacity(0.2))
+                                                        .foregroundColor(.blue)
+                                                        .cornerRadius(6)
+                                                        .fixedSize()
+                                                }
+                                            }
+                                            
+                                            if result.autoTags.count > 12 {
+                                                Text("+ \(result.autoTags.count - 12) more tags will be applied")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                                    .padding(.horizontal, 12)
+                                            }
+                                        } else {
+                                            Text("No tags suggested for this note")
+                                                .font(.body)
+                                                .foregroundColor(.secondary)
+                                                .padding(.horizontal, 12)
+                                        }
         }
     }
 }
@@ -2392,17 +2530,17 @@ struct ProcessingSummaryInfo: View {
     let summary: String
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("AI Summary")
-                .font(.subheadline)
-                .fontWeight(.medium)
-            
-            Text(summary)
-                .font(.body)
-                .foregroundColor(.secondary)
-        }
-    }
-}
+                                        VStack(alignment: .leading, spacing: 12) {
+                                            Text("AI Summary")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            
+                                            Text(summary)
+                                                .font(.body)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
 
 struct ProcessingConfirmationFooter: View {
     let result: ProcessingResult
@@ -2413,61 +2551,61 @@ struct ProcessingConfirmationFooter: View {
     let onDismiss: () -> Void
     
     var body: some View {
-        VStack(spacing: 0) {
-            Divider()
-            
-            HStack(spacing: 16) {
-                Button("Skip This Note") {
-                    Task {
-                        await viewModel.confirmProcessing(for: result, approved: false)
+                    VStack(spacing: 0) {
+                        Divider()
+                        
+                        HStack(spacing: 16) {
+                            Button("Skip This Note") {
+                                Task {
+                                    await viewModel.confirmProcessing(for: result, approved: false)
                         onNext()
-                    }
-                }
-                .buttonStyle(.bordered)
-                
-                Button("Approve & Process") {
-                    Task {
-                        await viewModel.confirmProcessing(for: result, approved: true)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Approve & Process") {
+                                Task {
+                                    await viewModel.confirmProcessing(for: result, approved: true)
                         onNext()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            
                 if totalCount > 1 {
                     if currentIndex < totalCount - 1 {
-                        Button("Next →") {
+                                    Button("Next →") {
                             onNext()
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
                         }
-                        .buttonStyle(.bordered)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 20)
                     }
+                    .background(Color(NSColor.windowBackgroundColor))
                 }
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
-        }
-        .background(Color(NSColor.windowBackgroundColor))
-    }
 }
 
 struct ProcessingConfirmationEmpty: View {
     let onDismiss: () -> Void
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.green)
-            
-            Text("All items reviewed!")
-                .font(.headline)
-                .foregroundColor(.secondary)
-            
-            Button("Close") {
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.green)
+                    
+                    Text("All items reviewed!")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    Button("Close") {
                 onDismiss()
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding(40)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(40)
     }
 }
 
@@ -2822,7 +2960,7 @@ struct AITransparencyContent: View {
     let dismiss: DismissAction
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 20) {
             AITransparencyOriginalNote(blob: blob)
             AITransparencyAnalysis(blob: blob, project: project, area: area)
             AITransparencyMetadata(blob: blob)
@@ -2836,19 +2974,19 @@ struct AITransparencyOriginalNote: View {
     let blob: Blob
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Your Original Note")
-                .font(.headline)
-            
-            Text(blob.content)
-                .padding()
-                .background(Color(NSColor.textBackgroundColor))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                )
-        }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Your Original Note")
+                            .font(.headline)
+                        
+                        Text(blob.content)
+                            .padding()
+                            .background(Color(NSColor.textBackgroundColor))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                    }
     }
 }
 
@@ -2858,15 +2996,15 @@ struct AITransparencyAnalysis: View {
     let area: Area?
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "brain")
-                    .foregroundColor(.blue)
-                Text("AI Analysis")
-                    .font(.headline)
-            }
-            
-            if let project = project {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "brain")
+                                .foregroundColor(.blue)
+                            Text("AI Analysis")
+                                .font(.headline)
+                        }
+                        
+                        if let project = project {
                 AITransparencyProjectAssignment(blob: blob, project: project)
             }
             
@@ -2882,31 +3020,31 @@ struct AITransparencyProjectAssignment: View {
     let project: Project
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Assigned to Project: **\(project.name)**")
-            
-            if let description = project.description {
-                Text("Project Description: \(description)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            Text("**Why this assignment:**")
-                .font(.subheadline)
-                .padding(.top, 8)
-            
-            Text("• Content mentions actionable items related to \(project.name.lowercased())")
-            Text("• Timeline and deliverables suggest project-based work")
-            Text("• Keywords match project scope and objectives")
-            
-            if blob.workPersonal == .work {
-                Text("• Classified as work-related content")
-            }
-        }
-        .padding()
-        .background(Color.blue.opacity(0.1))
-        .cornerRadius(8)
-    }
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Assigned to Project: **\(project.name)**")
+                                
+                                if let description = project.description {
+                                    Text("Project Description: \(description)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Text("**Why this assignment:**")
+                                    .font(.subheadline)
+                                    .padding(.top, 8)
+                                
+                                Text("• Content mentions actionable items related to \(project.name.lowercased())")
+                                Text("• Timeline and deliverables suggest project-based work")
+                                Text("• Keywords match project scope and objectives")
+                                
+                                if blob.workPersonal == .work {
+                                    Text("• Classified as work-related content")
+                                }
+                            }
+                            .padding()
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                        }
 }
 
 struct AITransparencyAreaAssignment: View {
@@ -2914,109 +3052,109 @@ struct AITransparencyAreaAssignment: View {
     let area: Area
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Assigned to Area: **\(area.name)**")
-            
-            if let description = area.description {
-                Text("Area Description: \(description)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            Text("**Why this assignment:**")
-                .font(.subheadline)
-                .padding(.top, 8)
-            
-            Text("• Content relates to ongoing responsibilities in \(area.name.lowercased())")
-            Text("• No specific project timeline identified")
-            Text("• Maintenance or improvement-focused content")
-        }
-        .padding()
-        .background(Color.green.opacity(0.1))
-        .cornerRadius(8)
-    }
-}
-
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Assigned to Area: **\(area.name)**")
+                                
+                                if let description = area.description {
+                                    Text("Area Description: \(description)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Text("**Why this assignment:**")
+                                    .font(.subheadline)
+                                    .padding(.top, 8)
+                                
+                                Text("• Content relates to ongoing responsibilities in \(area.name.lowercased())")
+                                Text("• No specific project timeline identified")
+                                Text("• Maintenance or improvement-focused content")
+                            }
+                            .padding()
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                    
 struct AITransparencyMetadata: View {
     let blob: Blob
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Processing Details")
-                .font(.headline)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Source:")
-                    Spacer()
-                    Text(blob.sourceType.rawValue.capitalized)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("Category:")
-                    Spacer()
-                    Text(blob.workPersonal.rawValue.capitalized)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("Processed:")
-                    Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Processing Details")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Source:")
+                                Spacer()
+                                Text(blob.sourceType.rawValue.capitalized)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("Category:")
+                                Spacer()
+                                Text(blob.workPersonal.rawValue.capitalized)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("Processed:")
+                                Spacer()
                     Text(formatRelativeDate(blob.createdAt))
-                        .foregroundColor(.secondary)
-                }
-                
-                if blob.processed {
-                    HStack {
-                        Text("Status:")
-                        Spacer()
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Processed")
-                                .foregroundColor(.green)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            if blob.processed {
+                                HStack {
+                                    Text("Status:")
+                                    Spacer()
+                                    HStack {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                        Text("Processed")
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                            }
                         }
-                    }
-                }
-            }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
+                        .padding()
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(8)
         }
     }
-}
-
+                    }
+                    
 struct AITransparencyActions: View {
     let dismiss: DismissAction
     
     var body: some View {
-        VStack(spacing: 12) {
-            Text("Don't agree with this assignment?")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 12) {
-                Button("Move to Different Project") {
-                    // TODO: Implement reassignment
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
-                
-                Button("Move to Area") {
-                    // TODO: Implement reassignment
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
-                
-                Button("Move to Resources") {
-                    // TODO: Implement reassignment
-                    dismiss()
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-        .padding(.top)
+                    VStack(spacing: 12) {
+                        Text("Don't agree with this assignment?")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            Button("Move to Different Project") {
+                                // TODO: Implement reassignment
+                                dismiss()
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Move to Area") {
+                                // TODO: Implement reassignment
+                                dismiss()
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            Button("Move to Resources") {
+                                // TODO: Implement reassignment
+                                dismiss()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding(.top)
     }
 }
 
@@ -3131,34 +3269,1449 @@ struct MindmapView: View {
 /// Calendar view for time-based content organization
 struct CalendarView: View {
     @EnvironmentObject var viewModel: MainViewModel
+    @StateObject private var calendarViewModel = CalendarViewModel()
+    @State private var showingCreateEvent = false
+    @State private var showingTaskDetails: LifeTask?
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Calendar")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+        HSplitView {
+            // Unscheduled Tasks Sidebar (30% width)
+            UnscheduledTasksSidebar()
+                .environmentObject(calendarViewModel)
+                .frame(minWidth: 300, idealWidth: 350, maxWidth: 420)
             
-            VStack(spacing: 16) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 48))
-                    .foregroundColor(.secondary)
+            // Main Calendar View (70% width)
+            VStack(spacing: 0) {
+                CalendarHeader()
+                    .environmentObject(calendarViewModel)
                 
-                Text("Time-Based View")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+                CalendarMainView()
+                    .environmentObject(calendarViewModel)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(NSColor.windowBackgroundColor))
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+        .onAppear {
+            Task {
+                await calendarViewModel.loadCalendarData()
+            }
+        }
+        .sheet(isPresented: $showingCreateEvent) {
+            CreateEventView(calendarViewModel: calendarViewModel)
+        }
+        .sheet(item: $showingTaskDetails) { task in
+            TaskDetailsView(task: task)
+                .environmentObject(viewModel)
+        }
+        .alert("Calendar Error", isPresented: .constant(calendarViewModel.errorMessage != nil)) {
+            Button("OK") {
+                calendarViewModel.errorMessage = nil
+            }
+        } message: {
+            if let errorMessage = calendarViewModel.errorMessage {
+                Text(errorMessage)
+            }
+        }
+    }
+}
+
+/// Calendar header with navigation and view mode controls
+struct CalendarHeader: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 20) {
+                // Navigation controls
+                HStack(spacing: 12) {
+                    Button(action: { calendarViewModel.navigatePrevious() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
+                            .frame(width: 32, height: 32)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .cornerRadius(8)
+                            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Previous period")
+                    
+                    Button(action: { calendarViewModel.navigateNext() }) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
+                            .frame(width: 32, height: 32)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .cornerRadius(8)
+                            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Next period")
+                    
+                    Button("Today") {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            calendarViewModel.goToToday()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.blue)
+                }
                 
-                Text("View your tasks, projects, and content organized by time. Coming soon!")
+                Spacer()
+                
+                // Current date/period with improved typography
+                VStack(spacing: 2) {
+                    Text(calendarViewModel.formatDateForView(calendarViewModel.selectedDate))
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    if calendarViewModel.viewMode == .week {
+                        Text("Week View")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else if calendarViewModel.viewMode == .day {
+                        Text(dayOfWeekName(calendarViewModel.selectedDate))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                // View mode picker and controls
+                HStack(spacing: 16) {
+                    // Filter button with badge
+                    Button(action: { 
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            calendarViewModel.showingFilters.toggle()
+                        }
+                    }) {
+                        ZStack {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(calendarViewModel.hasActiveFilters ? .white : .secondary)
+                                .frame(width: 36, height: 36)
+                                .background(calendarViewModel.hasActiveFilters ? 
+                                           AnyShapeStyle(Color.blue.gradient) : AnyShapeStyle(Color(NSColor.controlBackgroundColor)))
+                                .cornerRadius(10)
+                                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            
+                            if calendarViewModel.hasActiveFilters {
+                                Circle()
+                                    .fill(Color.orange)
+                                    .frame(width: 8, height: 8)
+                                    .offset(x: 12, y: -12)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Filter calendar events")
+                    .popover(isPresented: $calendarViewModel.showingFilters) {
+                        CalendarFilterView()
+                            .environmentObject(calendarViewModel)
+                    }
+                    
+                    // Auto-schedule toggle with better styling
+                    Button(action: { 
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            calendarViewModel.toggleAutoSchedule()
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: calendarViewModel.autoScheduleEnabled ? 
+                                  "brain.filled.head.profile" : "brain.head.profile")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(calendarViewModel.autoScheduleEnabled ? .white : .secondary)
+                            
+                            Text("Smart")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(calendarViewModel.autoScheduleEnabled ? .white : .secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(calendarViewModel.autoScheduleEnabled ? 
+                                   AnyView(LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)) :
+                                   AnyView(Color(NSColor.controlBackgroundColor)))
+                        .cornerRadius(12)
+                        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Motion AI-style smart scheduling")
+                    
+                    // Divider
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.3))
+                        .frame(width: 1, height: 24)
+                    
+                    // View mode picker with improved styling
+                    Picker("View Mode", selection: $calendarViewModel.viewMode) {
+                        ForEach(CalendarViewMode.allCases, id: \.self) { mode in
+                            HStack(spacing: 4) {
+                                Image(systemName: mode.icon)
+                                    .font(.system(size: 12))
+                                Text(mode.displayName)
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(Color(NSColor.windowBackgroundColor))
+            
+            // Subtle divider
+            Rectangle()
+                .fill(LinearGradient(
+                    colors: [Color.secondary.opacity(0.3), Color.clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ))
+                .frame(height: 1)
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    private func dayOfWeekName(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: date)
+    }
+}
+
+/// Main calendar view that switches between different view modes
+struct CalendarMainView: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        Group {
+            if calendarViewModel.isLoading {
+                VStack {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Loading calendar...")
+                        .foregroundColor(.secondary)
+                        .padding(.top)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                switch calendarViewModel.viewMode {
+                case .day:
+                    CalendarDayView()
+                        .environmentObject(calendarViewModel)
+                case .week:
+                    CalendarWeekView()
+                        .environmentObject(calendarViewModel)
+                case .month:
+                    CalendarMonthView()
+                        .environmentObject(calendarViewModel)
+                }
+            }
+        }
+    }
+}
+
+/// Weekly calendar view (Google Calendar style)
+struct CalendarWeekView: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    private let hours = Array(6...23) // 6 AM to 11 PM
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    // Week header
+                    WeekHeaderView()
+                        .environmentObject(calendarViewModel)
+                    
+                    // Week grid
+                    LazyVGrid(columns: weekColumns, spacing: 1) {
+                        // Time column header
+                        Color.clear
+                            .frame(width: 60, height: 30)
+                        
+                        // Day headers
+                        ForEach(weekDays, id: \.self) { date in
+                            VStack(spacing: 2) {
+                                Text(date.calendarDayFormat())
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("\(Calendar.current.component(.day, from: date))")
+                                    .font(.title3)
+                .fontWeight(.bold)
+                                    .foregroundColor(Calendar.current.isDateInToday(date) ? .blue : .primary)
+                            }
+                            .frame(height: 30)
+                        }
+                        
+                        // Hour rows
+                        ForEach(hours, id: \.self) { hour in
+                            // Time label
+                            Text(formatHour(hour))
+                                .font(.caption)
+                    .foregroundColor(.secondary)
+                                .frame(width: 60, alignment: .trailing)
+                                .padding(.trailing, 8)
+                            
+                            // Day cells for this hour
+                            ForEach(weekDays, id: \.self) { date in
+                                CalendarHourCell(date: date, hour: hour)
+                                    .environmentObject(calendarViewModel)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear {
+            // Scroll to current time
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // TODO: Implement scroll to current hour
+            }
+        }
+    }
+    
+    private var weekColumns: [GridItem] {
+        [GridItem(.fixed(60))] + Array(repeating: GridItem(.flexible()), count: 7)
+    }
+    
+    private var weekDays: [Date] {
+        let calendar = Calendar.current
+        let startOfWeek = calendarViewModel.selectedDate.startOfWeek
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
+    }
+    
+    private func formatHour(_ hour: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        return formatter.string(from: date)
+    }
+}
+
+/// Daily calendar view (detailed hourly view)
+struct CalendarDayView: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    private let hours = Array(6...23)
+    
+    var body: some View {
+        ScrollView(.vertical) {
+            LazyVStack(spacing: 1) {
+                ForEach(hours, id: \.self) { hour in
+                    CalendarDayHourView(hour: hour)
+                        .environmentObject(calendarViewModel)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+/// Monthly calendar view (traditional grid)
+struct CalendarMonthView: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Month grid
+            CalendarMonthGrid()
+                .environmentObject(calendarViewModel)
+        }
+    }
+}
+
+/// Hour cell for week view
+struct CalendarHourCell: View {
+    let date: Date
+    let hour: Int
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @State private var isHovered = false
+    @State private var isDragTargeted = false
+    
+    var body: some View {
+        let cellDate = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
+        let events = calendarViewModel.events(for: date, hour: hour)
+        let isCurrentHour = Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour
+        
+        ZStack(alignment: .topLeading) {
+            // Enhanced cell background with better styling
+            RoundedRectangle(cornerRadius: isHovered ? 8 : 4)
+                .fill(cellBackgroundColor)
+                .frame(height: 60)
+                .overlay {
+                    RoundedRectangle(cornerRadius: isHovered ? 8 : 4)
+                        .stroke(cellBorderColor, lineWidth: isCurrentHour ? 2 : 0.5)
+                }
+                .shadow(color: .black.opacity(isHovered ? 0.1 : 0), radius: isHovered ? 4 : 0, x: 0, y: 2)
+                .animation(.easeInOut(duration: 0.2), value: isHovered)
+            
+            // Current time indicator line
+            if isCurrentHour {
+                Rectangle()
+                    .fill(LinearGradient(
+                        colors: [.blue, .blue.opacity(0.3)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ))
+                    .frame(height: 2)
+                    .offset(y: timeIndicatorOffset)
+                    .animation(.easeInOut(duration: 0.3), value: timeIndicatorOffset)
+            }
+            
+            // Events in this hour with improved layout
+            if !events.isEmpty {
+                LazyVStack(spacing: 2) {
+                    ForEach(events) { event in
+                        CalendarEventView(event: event)
+                            .environmentObject(calendarViewModel)
+                            .transition(.asymmetric(
+                                insertion: .scale.combined(with: .opacity),
+                                removal: .opacity
+                            ))
+                    }
+                }
+                .padding(4)
+            }
+            
+            // Drop target indicator with pulse animation
+            if calendarViewModel.dropTargetDate == cellDate {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.blue.opacity(0.2))
+                    .frame(height: 60)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.blue, lineWidth: 2)
+                            .scaleEffect(isDragTargeted ? 1.05 : 1.0)
+                            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isDragTargeted)
+                    }
+                    .onAppear { isDragTargeted = true }
+                    .onDisappear { isDragTargeted = false }
+            }
+            
+            // Hover overlay for better UX
+            if isHovered && events.isEmpty {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.blue.opacity(0.7))
+                        Text("Schedule here")
+                            .font(.caption)
+                    .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .opacity(0.8)
+            }
+        }
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+        .onTapGesture {
+            // Handle cell tap - show scheduling options
+            hapticFeedback()
+        }
+        .onDrop(of: [.text], isTargeted: nil) { providers in
+            calendarViewModel.dropTargetDate = cellDate
+            Task {
+                await calendarViewModel.handleDrop(on: cellDate)
+            }
+            hapticFeedback()
+            return true
+        }
+    }
+    
+    private var cellBackgroundColor: Color {
+        if Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour {
+            return Color.blue.opacity(0.08)
+        } else if isHovered {
+            return Color(NSColor.controlAccentColor).opacity(0.05)
+        } else {
+            return Color(NSColor.controlBackgroundColor).opacity(0.3)
+        }
+    }
+    
+    private var cellBorderColor: Color {
+        let isCurrentHour = Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour
+        
+        if isCurrentHour {
+            return .blue
+        } else if isHovered {
+            return Color.secondary.opacity(0.5)
+        } else {
+            return Color.secondary.opacity(0.2)
+        }
+    }
+    
+    private var timeIndicatorOffset: CGFloat {
+        let now = Date()
+        let currentMinute = Calendar.current.component(.minute, from: now)
+        return CGFloat(currentMinute) / 60.0 * 58.0 // Proportional to cell height minus padding
+    }
+    
+    private func hapticFeedback() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
+    }
+}
+
+/// Individual event view in calendar
+struct CalendarEventView: View {
+    let event: CalendarEvent
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @State private var isHovered = false
+    @State private var isPressed = false
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            // Enhanced priority/type indicator
+            RoundedRectangle(cornerRadius: 2)
+                .fill(LinearGradient(
+                    colors: [event.color, event.color.opacity(0.7)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ))
+                .frame(width: 4)
+                .shadow(color: event.color.opacity(0.3), radius: 1, x: 0, y: 1)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                // Title with better typography
+                Text(event.title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                
+                if let description = event.description, !description.isEmpty {
+                    Text(description)
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                // Enhanced time and duration display
+                HStack(spacing: 3) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                    
+                    Text("\(event.startDate.calendarDisplayFormat()) • \(event.duration)min")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    if event.isLocked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 8))
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Enhanced PARA and priority indicators
+            VStack(spacing: 3) {
+                // Work/Personal indicator with better styling
+                ZStack {
+                    Circle()
+                        .fill(event.workPersonal == .work ? 
+                              LinearGradient(colors: [.blue, .blue.opacity(0.7)], startPoint: .top, endPoint: .bottom) :
+                              LinearGradient(colors: [.purple, .purple.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                        .frame(width: 16, height: 16)
+                        .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+                    
+                    Image(systemName: event.workPersonal == .work ? "briefcase.fill" : "house.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                
+                // Priority indicator
+                priorityIndicator
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(eventBackgroundColor)
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(isHovered ? 0.15 : 0.05), radius: isHovered ? 4 : 2, x: 0, y: isHovered ? 2 : 1)
+        .scaleEffect(isPressed ? 0.98 : (isHovered ? 1.02 : 1.0))
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = true
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    isPressed = false
+                }
+            }
+            
+            hapticFeedback()
+        }
+        .contextMenu {
+            EventContextMenu(event: event)
+                .environmentObject(calendarViewModel)
+        }
+    }
+    
+    private var eventBackgroundColor: Color {
+        if isPressed {
+            return event.color.opacity(0.4)
+        } else if isHovered {
+            return event.color.opacity(0.25)
+        } else {
+            return event.color.opacity(0.15)
+        }
+    }
+    
+    @ViewBuilder
+    private var priorityIndicator: some View {
+        switch event.priority {
+        case .urgent:
+            Circle()
+                .fill(Color.red)
+                .frame(width: 6, height: 6)
+        case .high:
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 5, height: 5)
+        case .medium:
+            Circle()
+                .fill(Color.blue)
+                .frame(width: 4, height: 4)
+        case .low:
+            Circle()
+                .fill(Color.green)
+                .frame(width: 3, height: 3)
+        }
+    }
+    
+    private func hapticFeedback() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
+    }
+}
+
+/// Unscheduled tasks sidebar
+struct UnscheduledTasksSidebar: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Unscheduled Tasks")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    Text("\(calendarViewModel.filteredUnscheduledTasks.count)")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.2))
+                        .foregroundColor(.orange)
+                        .cornerRadius(8)
+                }
+                
+                // Auto-schedule button
+                if !calendarViewModel.filteredUnscheduledTasks.isEmpty {
+                    Button(action: {
+                        Task {
+                            await calendarViewModel.autoScheduleUnscheduledTasks()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "brain.filled.head.profile")
+                                .foregroundColor(.white)
+                            Text("Auto-Schedule All")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                                .fontWeight(.medium)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(calendarViewModel.isLoading)
+                }
             }
             .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            // Elegant divider
+            Rectangle()
+                .fill(LinearGradient(
+                    colors: [Color.secondary.opacity(0.3), Color.secondary.opacity(0.1), Color.clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ))
+                .frame(height: 1)
+            
+            // Enhanced Tasks list
+            if calendarViewModel.filteredUnscheduledTasks.isEmpty {
+                // Enhanced empty state
+                VStack(spacing: 20) {
+                    // Animated checkmark
+                    ZStack {
+                        Circle()
+                            .fill(LinearGradient(
+                                colors: [.green.opacity(0.2), .green.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                            .frame(width: 80, height: 80)
+                            .shadow(color: .green.opacity(0.2), radius: 10, x: 0, y: 4)
+                        
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 40, weight: .medium))
+                            .foregroundColor(.green)
+                    }
+                    
+                    VStack(spacing: 8) {
+                        Text("All tasks scheduled!")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                        
+                        Text("Great job staying organized.\nAll your tasks have been assigned to time slots.")
+                            .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                    }
+                    
+                    // Subtle action hint
+                    VStack(spacing: 8) {
+                        Text("Next steps:")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            Label("Add new tasks", systemImage: "plus.circle")
+                            Label("Review schedule", systemImage: "calendar")
+                        }
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.8))
+                    }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(24)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(calendarViewModel.filteredUnscheduledTasks) { task in
+                            UnscheduledTaskRow(task: task)
+                                .environmentObject(calendarViewModel)
+                                .transition(.asymmetric(
+                                    insertion: .slide.combined(with: .opacity),
+                                    removal: .scale.combined(with: .opacity)
+                                ))
+                        }
+                    }
+                    .padding(16)
+                }
+                .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+            }
+        }
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
+/// Individual unscheduled task row with enhanced drag support
+struct UnscheduledTaskRow: View {
+    let task: LifeTask
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @State private var dragOffset = CGSize.zero
+    @State private var isDragging = false
+    @State private var isHovered = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            taskHeader
+            
+            if !suggestedTimes.isEmpty {
+                suggestedTimesSection
+            }
+        }
+        .padding(16)
+        .background(taskBackgroundColor)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(isDragging ? 0.2 : (isHovered ? 0.1 : 0.05)), 
+                radius: isDragging ? 8 : (isHovered ? 4 : 2), 
+                x: 0, 
+                y: isDragging ? 4 : (isHovered ? 2 : 1))
+        .scaleEffect(isDragging ? 0.95 : (isHovered ? 1.02 : 1.0))
+        .rotationEffect(.degrees(isDragging ? 2 : 0))
+        .offset(dragOffset)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .gesture(dragGesture)
+    }
+    
+    private var taskHeader: some View {
+        HStack(spacing: 12) {
+            priorityIndicator
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                
+                if let description = task.description, !description.isEmpty {
+                    Text(description)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            
+            Spacer()
+            
+            taskMetadata
+        }
+    }
+    
+    private var priorityIndicator: some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [priorityColor(task.priority), priorityColor(task.priority).opacity(0.7)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .frame(width: 16, height: 16)
+                .shadow(color: priorityColor(task.priority).opacity(0.4), radius: 2, x: 0, y: 1)
+            
+            Circle()
+                .fill(priorityColor(task.priority))
+                .frame(width: 8, height: 8)
+        }
+    }
+    
+    private var taskMetadata: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            if let duration = task.estimatedDuration {
+                Text("\(duration)min")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.blue.gradient))
+                    .shadow(color: .blue.opacity(0.3), radius: 2, x: 0, y: 1)
+            }
+            
+            workPersonalIndicator
+        }
+    }
+    
+    private var workPersonalIndicator: some View {
+        ZStack {
+            Circle()
+                .fill(task.workPersonal == .work ? 
+                      LinearGradient(colors: [.blue, .blue.opacity(0.7)], startPoint: .top, endPoint: .bottom) :
+                      LinearGradient(colors: [.purple, .purple.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                .frame(width: 20, height: 20)
+                .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+            
+            Image(systemName: task.workPersonal == .work ? "briefcase.fill" : "house.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.white)
+        }
+    }
+    
+    private var suggestedTimesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Suggested times:")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 8) {
+                ForEach(suggestedTimes.prefix(2), id: \.self) { time in
+                    Button(action: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            // Schedule this for the next run loop to avoid Task conflict
+                            DispatchQueue.main.async {
+                                Task.detached(priority: .background) {
+                                    await calendarViewModel.scheduleTask(task, at: time)
+                                }
+                            }
+                        }
+                    }) {
+                        Text(time.calendarSuggestionFormat())
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+                
+                Spacer()
+                
+                // Drag indicator
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+        }
+    }
+    
+    private var dragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                if !isDragging {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isDragging = true
+                    }
+                    calendarViewModel.startDragging(task)
+                    hapticFeedback()
+                }
+                dragOffset = value.translation
+                calendarViewModel.updateDragPosition(value.translation)
+            }
+            .onEnded { value in
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isDragging = false
+                    dragOffset = .zero
+                }
+                calendarViewModel.cancelDrag()
+                hapticFeedback()
+            }
+    }
+    
+    private var taskBackgroundColor: Color {
+        if isDragging {
+            return Color(NSColor.controlAccentColor).opacity(0.2)
+        } else if isHovered {
+            return Color(NSColor.controlBackgroundColor).opacity(0.8)
+        } else {
+            return Color(NSColor.controlBackgroundColor).opacity(0.6)
+        }
+    }
+    
+    private var suggestedTimes: [Date] {
+        calendarViewModel.suggestedSlots(for: task)
+    }
+    
+    private func priorityColor(_ priority: TaskPriority) -> Color {
+        switch priority {
+        case .urgent: return .red
+        case .high: return .orange
+        case .medium: return .blue
+        case .low: return .green
+        }
+    }
+    
+    private func hapticFeedback() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
+    }
+}
+
+// MARK: - Additional Calendar Components
+
+/// Week header with day names
+struct WeekHeaderView: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        HStack {
+            Text("Time")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .frame(width: 60)
+            
+            ForEach(weekDays, id: \.self) { date in
+                VStack(spacing: 4) {
+                    Text(dayName(for: date))
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Text("\(Calendar.current.component(.day, from: date))")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Calendar.current.isDateInToday(date) ? .blue : .primary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, 12)
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+    
+    private var weekDays: [Date] {
+        let calendar = Calendar.current
+        let startOfWeek = calendarViewModel.selectedDate.startOfWeek
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
+    }
+    
+    private func dayName(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date)
+    }
+}
+
+/// Day hour view for day mode
+struct CalendarDayHourView: View {
+    let hour: Int
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        let date = calendarViewModel.selectedDate
+        let _ = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
+        let events = calendarViewModel.events(for: date, hour: hour)
+        
+        HStack(alignment: .top, spacing: 12) {
+            // Time label
+            VStack {
+                Text(formatHour(hour))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("")
+                    .font(.caption2)
+            }
+            .frame(width: 60, alignment: .trailing)
+            
+            // Events area
+            VStack(spacing: 4) {
+                if !events.isEmpty {
+                    ForEach(events) { event in
+                        CalendarEventView(event: event)
+                            .environmentObject(calendarViewModel)
+                    }
+                } else {
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(height: 60)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(height: 60)
+        .background(hourBackgroundColor)
+        .border(Color.secondary.opacity(0.2), width: 0.5)
+    }
+    
+    private var hourBackgroundColor: Color {
+        let currentHour = Calendar.current.component(.hour, from: Date())
+        let isCurrentHour = Calendar.current.isDateInToday(calendarViewModel.selectedDate) && hour == currentHour
+        return isCurrentHour ? Color.blue.opacity(0.1) : Color.clear
+    }
+    
+    private func formatHour(_ hour: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        return formatter.string(from: date)
+    }
+}
+
+/// Month grid view
+struct CalendarMonthGrid: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 1) {
+            // Day headers
+            ForEach(dayHeaders, id: \.self) { day in
+                Text(day)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                    .frame(height: 30)
+            }
+            
+            // Month days
+            ForEach(monthDays, id: \.self) { date in
+                CalendarMonthDayCell(date: date)
+                    .environmentObject(calendarViewModel)
+            }
+        }
+        .padding()
+    }
+    
+    private let dayHeaders = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    
+    private var monthDays: [Date] {
+        let calendar = Calendar.current
+        let startOfMonth = calendarViewModel.selectedDate.startOfMonth
+        let _ = calendarViewModel.selectedDate.endOfMonth
+        
+        // Get first day of calendar grid (might be from previous month)
+        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
+        let startDate = calendar.date(byAdding: .day, value: -(firstWeekday - 1), to: startOfMonth) ?? startOfMonth
+        
+        // Generate 42 days (6 weeks)
+        return (0..<42).compactMap { calendar.date(byAdding: .day, value: $0, to: startDate) }
+    }
+}
+
+/// Month day cell
+struct CalendarMonthDayCell: View {
+    let date: Date
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        let events = calendarViewModel.events(for: date)
+        let isCurrentMonth = Calendar.current.isDate(date, equalTo: calendarViewModel.selectedDate, toGranularity: .month)
+        let isToday = Calendar.current.isDateInToday(date)
+        
+        VStack(spacing: 2) {
+            // Day number
+            Text("\(Calendar.current.component(.day, from: date))")
+                .font(.subheadline)
+                .fontWeight(isToday ? .bold : .medium)
+                .foregroundColor(isCurrentMonth ? (isToday ? .blue : .primary) : .secondary)
+            
+            // Event indicators
+            if !events.isEmpty {
+                HStack(spacing: 2) {
+                    ForEach(events.prefix(3)) { event in
+                        Circle()
+                            .fill(event.color)
+                            .frame(width: 6, height: 6)
+                    }
+                    
+                    if events.count > 3 {
+                        Text("+\(events.count - 3)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
             
             Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.controlBackgroundColor))
+        .frame(height: 80)
+        .frame(maxWidth: .infinity)
+        .background(isToday ? Color.blue.opacity(0.1) : Color.clear)
+        .cornerRadius(4)
+        .onTapGesture {
+            calendarViewModel.selectedDate = date
+            calendarViewModel.changeViewMode(.day)
+        }
+    }
+}
+
+/// Event context menu
+struct EventContextMenu: View {
+    let event: CalendarEvent
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        VStack {
+            Button("Edit Event") {
+                // TODO: Show edit event sheet
+            }
+            
+            Button("Reschedule") {
+                // TODO: Show reschedule options
+            }
+            
+            if event.taskId != nil {
+                Button("Mark Complete") {
+                    // TODO: Mark task as complete
+                }
+            }
+            
+            Divider()
+            
+            Button("Delete Event") {
+                // TODO: Delete event
+            }
+        }
+    }
+}
+
+/// Calendar filter view
+struct CalendarFilterView: View {
+    @EnvironmentObject var calendarViewModel: CalendarViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            HStack {
+                Text("Calendar Filters")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                if calendarViewModel.hasActiveFilters {
+                    Button("Clear All") {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            calendarViewModel.clearFilters()
+                        }
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.blue)
+                }
+            }
+            
+            // Work/Personal filter
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Content Type")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                HStack(spacing: 12) {
+                    FilterChip(
+                        title: "Work",
+                        icon: "briefcase.fill",
+                        color: .blue,
+                        isSelected: calendarViewModel.filter.workPersonalFilter == WorkPersonalType.work,
+                        action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                calendarViewModel.filter.workPersonalFilter = 
+                                    calendarViewModel.filter.workPersonalFilter == WorkPersonalType.work ? nil : WorkPersonalType.work
+                            }
+                        }
+                    )
+                    
+                    FilterChip(
+                        title: "Personal",
+                        icon: "house.fill",
+                        color: .purple,
+                        isSelected: calendarViewModel.filter.workPersonalFilter == WorkPersonalType.personal,
+                        action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                calendarViewModel.filter.workPersonalFilter = 
+                                    calendarViewModel.filter.workPersonalFilter == WorkPersonalType.personal ? nil : WorkPersonalType.personal
+                            }
+                        }
+                    )
+                }
+            }
+            
+            // Priority filter
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Priority Level")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+                    ForEach(TaskPriority.allCases, id: \.self) { priority in
+                        FilterChip(
+                            title: priority.displayName,
+                            icon: priorityIcon(priority),
+                            color: priorityColor(priority),
+                            isSelected: calendarViewModel.filter.selectedPriorities.contains(priority),
+                            action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    if calendarViewModel.filter.selectedPriorities.contains(priority) {
+                                        calendarViewModel.filter.selectedPriorities.remove(priority)
+                                    } else {
+                                        calendarViewModel.filter.selectedPriorities.insert(priority)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            
+            // Additional filters
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Additional Filters")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                VStack(spacing: 10) {
+                    HStack {
+                        Toggle("Focus Tasks Only", isOn: .init(
+                            get: { calendarViewModel.filter.showOnlyFocus },
+                            set: { newValue in
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    calendarViewModel.filter.showOnlyFocus = newValue
+                                }
+                            }
+                        ))
+                        .font(.system(size: 13, weight: .medium))
+                        
+                        Spacer()
+                        
+                        Image(systemName: "scope")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 14))
+                    }
+                    
+                    HStack {
+                        Toggle("Show Completed", isOn: .init(
+                            get: { calendarViewModel.filter.showCompleted },
+                            set: { newValue in
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    calendarViewModel.filter.showCompleted = newValue
+                                }
+                            }
+                        ))
+                        .font(.system(size: 13, weight: .medium))
+                        
+                        Spacer()
+                        
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 14))
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    private func priorityIcon(_ priority: TaskPriority) -> String {
+        switch priority {
+        case .urgent: return "exclamationmark.triangle.fill"
+        case .high: return "arrow.up.circle.fill"
+        case .medium: return "minus.circle.fill"
+        case .low: return "arrow.down.circle.fill"
+        }
+    }
+    
+    private func priorityColor(_ priority: TaskPriority) -> Color {
+        switch priority {
+        case .urgent: return .red
+        case .high: return .orange
+        case .medium: return .blue
+        case .low: return .green
+        }
+    }
+}
+
+/// Enhanced filter chip component
+struct FilterChip: View {
+    let title: String
+    let icon: String?
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+    
+    init(title: String, icon: String? = nil, color: Color = .blue, isSelected: Bool, action: @escaping () -> Void) {
+        self.title = title
+        self.icon = icon
+        self.color = color
+        self.isSelected = isSelected
+        self.action = action
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let icon = icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(isSelected ? .white : color)
+                }
+                
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(isSelected ? .white : .primary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(chipBackground)
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(isSelected ? 0.2 : 0.05), radius: isSelected ? 3 : 1, x: 0, y: isSelected ? 2 : 1)
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+    }
+    
+    private var chipBackground: some View {
+        Group {
+            if isSelected {
+                LinearGradient(
+                    colors: [color, color.opacity(0.8)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                Color(NSColor.controlBackgroundColor)
+            }
+        }
+    }
+}
+
+/// Create event view (placeholder)
+struct CreateEventView: View {
+    let calendarViewModel: CalendarViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack {
+            Text("Create Event")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Event creation coming soon!")
+                .foregroundColor(.secondary)
+            
+            Button("Close") {
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+        }
         .padding()
+        .frame(width: 400, height: 300)
+    }
+}
+
+/// Task details view (placeholder)
+struct TaskDetailsView: View {
+    let task: LifeTask
+    @EnvironmentObject var viewModel: MainViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack {
+            Text("Task Details")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text(task.title)
+                .font(.headline)
+            
+            if let description = task.description {
+                Text(description)
+                    .foregroundColor(.secondary)
+            }
+            
+            Button("Close") {
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .frame(width: 400, height: 300)
     }
 }
 

@@ -341,6 +341,9 @@ class MainViewModel: ObservableObject {
             
             print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
             
+            // Enhance existing tasks with comprehensive LLM processing
+            await enhanceExistingTasks()
+            
             // If some data is empty, let's create some sample data for development
             if loadedAreas.isEmpty && loadedProjects.isEmpty {
                 print("🔧 LOAD DATA: No PARA data found, creating sample data...")
@@ -402,17 +405,123 @@ class MainViewModel: ObservableObject {
             
             print("🔧 SAMPLE DATA: ✅ Created sample projects")
             
+            // Create sample enhanced tasks with comprehensive data
+            await createSampleEnhancedTasks(healthArea: savedHealthArea, careerArea: savedCareerArea, q1Project: savedQ1Project, workoutProject: savedWorkoutProject)
+            
             // Update local state
             await MainActor.run {
                 self.areas = [savedHealthArea, savedCareerArea]
                 self.projects = [savedQ1Project, savedWorkoutProject]
-                self.successMessage = "✅ Created sample PARA data"
+                self.successMessage = "✅ Created sample PARA data with enhanced tasks"
             }
             
         } catch {
             print("🔧 SAMPLE DATA: ❌ Failed to create sample data: \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to create sample data: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Create sample enhanced tasks with comprehensive data for testing
+    private func createSampleEnhancedTasks(healthArea: Area, careerArea: Area, q1Project: Project, workoutProject: Project) async {
+        print("🔧 SAMPLE TASKS: Creating enhanced sample tasks...")
+        
+        do {
+            let calendar = Calendar.current
+            let now = Date()
+            
+            // Create sample tasks with different priority levels and comprehensive data
+            let sampleTasks = [
+                // Urgent task (Priority 5)
+                LifeTask(
+                    title: "Submit quarterly report",
+                    description: "Final review and submission of Q1 financial report to stakeholders",
+                    priority: .urgent,
+                    status: .todo,
+                    dueDate: ISO8601DateFormatter().string(from: calendar.date(byAdding: .hour, value: 4, to: now)!),
+                    estimatedDuration: 45,
+                    workPersonal: .work,
+                    projectId: q1Project.id,
+                    areaId: careerArea.id,
+                    isFocus: true
+                ),
+                
+                // High priority task (Priority 4)
+                LifeTask(
+                    title: "Doctor appointment follow-up",
+                    description: "Call to schedule follow-up appointment and discuss test results",
+                    priority: .high,
+                    status: .todo,
+                    dueDate: ISO8601DateFormatter().string(from: calendar.date(byAdding: .day, value: 1, to: now)!),
+                    estimatedDuration: 30,
+                    workPersonal: .personal,
+                    areaId: healthArea.id,
+                    isFocus: true
+                ),
+                
+                // Medium priority task (Priority 3)
+                LifeTask(
+                    title: "Plan weekly workout schedule",
+                    description: "Design workout routine for next week including cardio and strength training",
+                    priority: .medium,
+                    status: .todo,
+                    dueDate: ISO8601DateFormatter().string(from: calendar.date(byAdding: .day, value: 3, to: now)!),
+                    estimatedDuration: 60,
+                    workPersonal: .personal,
+                    projectId: workoutProject.id,
+                    areaId: healthArea.id,
+                    isFocus: false
+                ),
+                
+                // Low priority task (Priority 2)
+                LifeTask(
+                    title: "Research productivity tools",
+                    description: "Explore new productivity apps and tools for better task management",
+                    priority: .low,
+                    status: .todo,
+                    dueDate: ISO8601DateFormatter().string(from: calendar.date(byAdding: .weekOfYear, value: 1, to: now)!),
+                    estimatedDuration: 90,
+                    workPersonal: .work,
+                    areaId: careerArea.id,
+                    isFocus: false
+                ),
+                
+                // Completed task to test UI states
+                LifeTask(
+                    title: "Complete daily standup",
+                    description: "Attend team standup meeting and share progress updates",
+                    priority: .medium,
+                    status: .completed,
+                    dueDate: ISO8601DateFormatter().string(from: calendar.date(byAdding: .hour, value: -2, to: now)!),
+                    estimatedDuration: 15,
+                    workPersonal: .work,
+                    projectId: q1Project.id,
+                    areaId: careerArea.id,
+                    isFocus: false,
+                    completedAt: ISO8601DateFormatter().string(from: calendar.date(byAdding: .hour, value: -1, to: now)!)
+                )
+            ]
+            
+            // Save sample tasks to database
+            var createdTasks: [LifeTask] = []
+            for task in sampleTasks {
+                let createdTask = try await TaskRepository().createTask(task)
+                createdTasks.append(createdTask)
+                print("🔧 SAMPLE TASKS: Created task: \(task.title) (Priority: \(task.priority.rawValue)/\(task.priority.priorityScore))")
+            }
+            
+            // Update focus tasks in local state
+            await MainActor.run {
+                self.focusTasks = createdTasks.filter { $0.isFocus && $0.status != .completed }
+            }
+            
+            print("🔧 SAMPLE TASKS: ✅ Created \(sampleTasks.count) enhanced sample tasks")
+            
+        } catch {
+            print("🔧 SAMPLE TASKS: ❌ Failed to create sample tasks: \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to create sample tasks: \(error.localizedDescription)"
             }
         }
     }
@@ -1371,8 +1480,56 @@ class MainViewModel: ObservableObject {
             areaId: taskAreaId
         )
         
-        let _ = try await taskRepository().createTask(task)
-        print("🔧 CREATE TASK: ✅ Task created: \(taskInfo.title)")
+        let createdTask = try await taskRepository().createTask(task)
+        
+        // Log the comprehensive task creation with priority scoring
+        print("🔧 CREATE TASK: ✅ Task created with comprehensive data:")
+        print("🔧 CREATE TASK:   Title: \(taskInfo.title)")
+        print("🔧 CREATE TASK:   Priority: \(taskInfo.priority.rawValue) (Score: \(taskInfo.priorityScore))")
+        print("🔧 CREATE TASK:   Due Date: \(taskInfo.suggestedDueDate ?? "Not set")")
+        print("🔧 CREATE TASK:   Duration: \(taskInfo.estimatedDuration ?? 0) minutes")
+        print("🔧 CREATE TASK:   Time Block: \(taskInfo.timeBlock ?? "Flexible")")
+        if let reasoning = taskInfo.priorityReasoning {
+            print("🔧 CREATE TASK:   Priority Reasoning: \(reasoning)")
+        }
+        if !taskInfo.urgencyIndicators.isEmpty {
+            print("🔧 CREATE TASK:   Urgency Indicators: \(taskInfo.urgencyIndicators.joined(separator: ", "))")
+        }
+        if !taskInfo.importanceFactors.isEmpty {
+            print("🔧 CREATE TASK:   Importance Factors: \(taskInfo.importanceFactors.joined(separator: ", "))")
+        }
+        print("🔧 CREATE TASK:   Confidence: \(taskInfo.confidence)")
+        
+        // Add to focus tasks if marked as high priority or focus
+        if taskInfo.priority == .urgent || taskInfo.priority == .high || taskInfo.priorityScore >= 4 {
+            await MainActor.run {
+                let focusTask = LifeTask(
+                    id: createdTask.id,
+                    blobId: createdTask.blobId,
+                    title: createdTask.title,
+                    description: createdTask.description,
+                    priority: createdTask.priority,
+                    status: createdTask.status,
+                    dueDate: createdTask.dueDate,
+                    estimatedDuration: createdTask.estimatedDuration,
+                    workPersonal: createdTask.workPersonal,
+                    projectId: createdTask.projectId,
+                    areaId: createdTask.areaId,
+                    resourceId: createdTask.resourceId,
+                    isFocus: true, // Mark as focus task
+                    isArchived: createdTask.isArchived,
+                    createdAt: createdTask.createdAt,
+                    updatedAt: createdTask.updatedAt,
+                    completedAt: createdTask.completedAt,
+                    archivedAt: createdTask.archivedAt
+                )
+                
+                self.focusTasks.append(focusTask)
+                print("🔧 CREATE TASK: ✅ Added high-priority task to focus list")
+            }
+        }
+        
+        print("🔧 CREATE TASK: ✅ Task creation completed: \(taskInfo.title)")
     }
     
     /// Apply tags to blob
@@ -1533,6 +1690,139 @@ class MainViewModel: ObservableObject {
             print("🔧 RESTORE: ❌ Failed to restore blob from archive: \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to restore from archive: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Enhance existing tasks with comprehensive LLM processing
+    private func enhanceExistingTasks() async {
+        print("🔧 ENHANCE TASKS: Starting enhancement of existing tasks...")
+        
+        do {
+            // Fetch all tasks from the database
+            print("🔧 ENHANCE TASKS: Fetching all tasks...")
+            let allTasks = try await TaskRepository().fetchAllTasks()
+            print("🔧 ENHANCE TASKS: Found \(allTasks.count) tasks to potentially enhance")
+            
+            if allTasks.isEmpty {
+                print("🔧 ENHANCE TASKS: No tasks found, skipping enhancement")
+                return
+            }
+            
+            // Use LLM service to enhance tasks
+            print("🔧 ENHANCE TASKS: Starting LLM enhancement process...")
+            let enhancementResults = try await llmService.enhanceExistingTasks(allTasks)
+            print("🔧 ENHANCE TASKS: ✅ LLM enhancement completed for \(enhancementResults.count) tasks")
+            
+            // Process enhancement results and update tasks that were enhanced
+            var enhancedCount = 0
+            var taskRepository = TaskRepository()
+            
+            for result in enhancementResults {
+                if result.wasEnhanced {
+                    do {
+                        print("🔧 ENHANCE TASKS: Updating enhanced task: \(result.enhancedTask.title)")
+                        let _ = try await taskRepository.updateTask(result.enhancedTask)
+                        enhancedCount += 1
+                        print("🔧 ENHANCE TASKS: ✅ Successfully updated task: \(result.enhancedTask.title)")
+                    } catch {
+                        print("🔧 ENHANCE TASKS: ❌ Failed to update task: \(result.enhancedTask.title) - \(error)")
+                    }
+                } else {
+                    print("🔧 ENHANCE TASKS: ⏭️ Task already optimized: \(result.originalTask.title)")
+                }
+            }
+            
+            print("🔧 ENHANCE TASKS: ✅ Enhancement complete - Updated \(enhancedCount) of \(allTasks.count) tasks")
+            
+            // Refresh focus tasks after enhancement
+            await refreshFocusTasks()
+            
+            // Show success message
+            await MainActor.run {
+                if enhancedCount > 0 {
+                    self.successMessage = "Enhanced \(enhancedCount) tasks with AI-powered priority scoring, dates, and durations"
+                } else {
+                    print("🔧 ENHANCE TASKS: All tasks already have comprehensive data")
+                }
+            }
+            
+        } catch LLMError.missingAPIKey {
+            print("🔧 ENHANCE TASKS: ⚠️ LLM API key not configured, skipping task enhancement")
+            await MainActor.run {
+                self.successMessage = "Task enhancement requires LLM API key. Set OPENAI_API_KEY environment variable."
+            }
+        } catch {
+            print("🔧 ENHANCE TASKS: ❌ Error enhancing tasks: \(error)")
+            await MainActor.run {
+                self.errorMessage = "Task enhancement failed: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Refresh focus tasks after enhancement
+    private func refreshFocusTasks() async {
+        do {
+            let updatedFocusTasks = try await TaskRepository().fetchFocusTasks()
+            await MainActor.run {
+                self.focusTasks = updatedFocusTasks
+            }
+            print("🔧 ENHANCE TASKS: ✅ Refreshed focus tasks: \(updatedFocusTasks.count)")
+        } catch {
+            print("🔧 ENHANCE TASKS: ❌ Failed to refresh focus tasks: \(error)")
+        }
+    }
+    
+    /// Complete a task and update its status
+    func completeTask(_ task: LifeTask) async {
+        print("🔧 COMPLETE TASK: Marking task as completed: \(task.title)")
+        
+        do {
+            // Create completed task with updated status and completion timestamp
+            let completedTask = LifeTask(
+                id: task.id,
+                blobId: task.blobId,
+                title: task.title,
+                description: task.description,
+                priority: task.priority,
+                status: .completed,
+                dueDate: task.dueDate,
+                estimatedDuration: task.estimatedDuration,
+                workPersonal: task.workPersonal,
+                projectId: task.projectId,
+                areaId: task.areaId,
+                resourceId: task.resourceId,
+                isFocus: task.isFocus,
+                isArchived: task.isArchived,
+                createdAt: task.createdAt,
+                updatedAt: ISO8601DateFormatter().string(from: Date()),
+                completedAt: ISO8601DateFormatter().string(from: Date()),
+                archivedAt: task.archivedAt
+            )
+            
+            // Update in database
+            let updatedTask = try await TaskRepository().updateTask(completedTask)
+            print("🔧 COMPLETE TASK: ✅ Task marked as completed in database")
+            
+            // Update local state
+            await MainActor.run {
+                // Update in focus tasks list
+                if let index = self.focusTasks.firstIndex(where: { $0.id == task.id }) {
+                    self.focusTasks[index] = updatedTask
+                }
+                
+                self.successMessage = "✅ Task '\(task.title)' marked as completed"
+            }
+            
+            // Refresh data to ensure consistency
+            await refreshFocusTasks()
+            
+            print("🔧 COMPLETE TASK: ✅ Task completion processed successfully")
+            
+        } catch {
+            print("🔧 COMPLETE TASK: ❌ Error completing task: \(error)")
+            await MainActor.run {
+                self.errorMessage = "Failed to complete task: \(error.localizedDescription)"
             }
         }
     }

@@ -237,6 +237,257 @@ class LLMService: ObservableObject {
         return result
     }
     
+    /// Enhance existing tasks with comprehensive LLM processing
+    /// Ensures all tasks have proper dates, times, durations, and priority scores
+    func enhanceExistingTasks(_ tasks: [LifeTask]) async throws -> [TaskEnhancementResult] {
+        print("🔧 LLM ENHANCE: Starting enhancement of \(tasks.count) existing tasks")
+        
+        var enhancementResults: [TaskEnhancementResult] = []
+        
+        for task in tasks {
+            do {
+                print("🔧 LLM ENHANCE: Processing task: \(task.title)")
+                
+                // Check if task needs enhancement
+                let needsEnhancement = task.dueDate == nil || 
+                                     task.estimatedDuration == nil || 
+                                     task.priority == .medium // Default priority suggests it wasn't properly analyzed
+                
+                if needsEnhancement {
+                    let enhancementResult = try await enhanceIndividualTask(task)
+                    enhancementResults.append(enhancementResult)
+                    print("🔧 LLM ENHANCE: ✅ Enhanced task: \(task.title)")
+                } else {
+                    // Task already has good data, create a no-change result
+                    let result = TaskEnhancementResult(
+                        originalTask: task,
+                        enhancedTask: task,
+                        priorityScore: task.priority.priorityScore,
+                        priorityReasoning: "Task already has comprehensive data",
+                        wasEnhanced: false,
+                        confidence: 1.0
+                    )
+                    enhancementResults.append(result)
+                    print("🔧 LLM ENHANCE: ⏭️ Skipped task (already enhanced): \(task.title)")
+                }
+            } catch {
+                print("🔧 LLM ENHANCE: ❌ Failed to enhance task: \(task.title) - \(error)")
+                // Create error result
+                let errorResult = TaskEnhancementResult(
+                    originalTask: task,
+                    enhancedTask: task,
+                    priorityScore: task.priority.priorityScore,
+                    priorityReasoning: "Enhancement failed: \(error.localizedDescription)",
+                    wasEnhanced: false,
+                    confidence: 0.0
+                )
+                enhancementResults.append(errorResult)
+            }
+        }
+        
+        print("🔧 LLM ENHANCE: ✅ Completed enhancement of \(tasks.count) tasks")
+        return enhancementResults
+    }
+    
+    /// Enhance a single task with LLM processing
+    private func enhanceIndividualTask(_ task: LifeTask) async throws -> TaskEnhancementResult {
+        let promptTemplate = "enhance_task"
+        let promptVersion = "v1.0"
+        
+        // Create enhancement prompt
+        let promptText = createTaskEnhancementPrompt(for: task)
+        
+        let startTime = Date()
+        let response = try await callLLM(prompt: promptText)
+        let processingTime = Int(Date().timeIntervalSince(startTime) * 1000)
+        
+        // Parse enhancement response
+        let enhancement = try parseTaskEnhancementResponse(response, for: task)
+        
+        // Log the enhancement
+        await logPromptExecution(
+            template: promptTemplate,
+            version: promptVersion,
+            inputData: [
+                "task_title": .string(task.title),
+                "task_description": .string(task.description ?? ""),
+                "current_priority": .string(task.priority.rawValue)
+            ],
+            promptText: promptText,
+            responseText: response,
+            processingTime: processingTime,
+            confidenceScore: enhancement.confidence
+        )
+        
+        return enhancement
+    }
+    
+    /// Create task enhancement prompt
+    private func createTaskEnhancementPrompt(for task: LifeTask) -> String {
+        let currentDate = ISO8601DateFormatter().string(from: Date())
+        
+        return """
+        You are an AI assistant specialized in task management and productivity optimization.
+        
+        Analyze this existing task and provide comprehensive enhancement with MANDATORY fields:
+        
+        **Existing Task:**
+        Title: "\(task.title)"
+        Description: "\(task.description ?? "No description")"
+        Current Priority: \(task.priority.rawValue)
+        Current Due Date: \(task.dueDate ?? "None")
+        Current Duration: \(task.estimatedDuration?.description ?? "None") minutes
+        Work/Personal: \(task.workPersonal.rawValue)
+        Current Date/Time: \(currentDate)
+        
+        **CRITICAL ENHANCEMENT REQUIREMENTS:**
+        You MUST provide ALL of the following for this task:
+        
+        1. **Priority Score (1-5 Scale):**
+           - Score 5 (Urgent): Life-critical, legal deadlines, emergencies, blocking others
+           - Score 4 (High): Important deadlines, key milestones, health/safety issues  
+           - Score 3 (Medium): Regular work tasks, planned activities, moderate importance
+           - Score 2 (Low): Nice-to-have, learning, non-urgent improvements
+           - Score 1 (Lowest): Someday/maybe items, distant future planning
+        
+        2. **Smart Due Date Assignment:**
+           - Analyze task title and description for time indicators
+           - If no specific time mentioned, assign intelligent defaults:
+             * Urgent (Score 5): Within 4 hours or next business day
+             * High (Score 4): Within 1-2 days
+             * Medium (Score 3): Within 1 week
+             * Low (Score 2): Within 2 weeks
+             * Lowest (Score 1): Within 1 month
+           - Consider work/personal classification for scheduling
+           - Use business hours for work tasks, flexible hours for personal
+        
+        3. **Duration Estimation:**
+           - Quick tasks (calls, emails, decisions): 15-30 minutes
+           - Planning/research: 60-120 minutes
+           - Implementation/execution: 90-180 minutes
+           - Deep work/creative: 120-240 minutes
+           - Meetings/appointments: 30-60 minutes
+           - Learning/skill development: 45-90 minutes
+        
+        4. **Priority Analysis:**
+           - Identify urgency indicators (deadlines, time pressure, dependencies)
+           - Assess importance factors (impact on goals, health, relationships)
+           - Consider consequences of delay
+           - Evaluate effort vs. impact ratio
+        
+        **Response Format (JSON):**
+        {
+          "enhanced_priority": "urgent|high|medium|low",
+          "priority_score": 4,
+          "priority_reasoning": "Detailed explanation of priority assessment",
+          "suggested_due_date": "2024-01-15T14:00:00Z",
+          "due_date_reasoning": "Why this date/time makes sense",
+          "estimated_duration": 60,
+          "duration_reasoning": "Why this duration is appropriate",
+          "urgency_indicators": ["deadline", "dependency", "health"],
+          "importance_factors": ["goal_impact", "relationship", "learning"],
+          "time_block": "work_hours|evening|weekend|flexible",
+          "enhancement_needed": true,
+          "confidence": 0.9,
+          "enhancement_summary": "Brief summary of what was enhanced and why"
+        }
+        
+        **Guidelines:**
+        - Be realistic about time estimates and deadlines
+        - Consider the person's likely schedule and energy levels
+        - Account for task complexity and potential obstacles
+        - Prioritize based on actual impact and urgency, not just perception
+        - Ensure due dates are achievable and motivating
+        - Factor in preparation time and potential interruptions
+        
+        IMPORTANT: Every field must be populated with thoughtful, realistic values.
+        """
+    }
+    
+    /// Parse task enhancement response
+    private func parseTaskEnhancementResponse(_ response: String, for task: LifeTask) throws -> TaskEnhancementResult {
+        print("🔧 LLM ENHANCE PARSE: Parsing enhancement response for task: \(task.title)")
+        
+        let jsonString = extractJSON(from: response)
+        guard let data = jsonString.data(using: .utf8),
+              let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw LLMError.invalidResponse
+        }
+        
+        // Parse enhanced priority
+        let priorityScore = json["priority_score"] as? Int ?? task.priority.priorityScore
+        let priorityString = json["enhanced_priority"] as? String ?? task.priority.rawValue
+        let enhancedPriority = TaskPriority(rawValue: priorityString) ?? TaskPriority(fromScore: priorityScore)
+        let priorityReasoning = json["priority_reasoning"] as? String ?? "Enhanced priority analysis"
+        
+        // Parse enhanced due date
+        var enhancedDueDate = task.dueDate
+        if let dueDateString = json["suggested_due_date"] as? String {
+            let isoFormatter = ISO8601DateFormatter()
+            if isoFormatter.date(from: dueDateString) != nil {
+                enhancedDueDate = dueDateString
+            } else {
+                // Create smart default if parsing fails
+                let defaultDate = createSmartDefaultDate(for: enhancedPriority)
+                enhancedDueDate = isoFormatter.string(from: defaultDate)
+            }
+        } else if task.dueDate == nil {
+            // No due date exists, create one
+            let defaultDate = createSmartDefaultDate(for: enhancedPriority)
+            enhancedDueDate = ISO8601DateFormatter().string(from: defaultDate)
+        }
+        
+        // Parse enhanced duration
+        let enhancedDuration = json["estimated_duration"] as? Int ?? task.estimatedDuration ?? {
+            // Fallback duration based on priority
+            switch enhancedPriority {
+            case .urgent: return 30
+            case .high: return 60
+            case .medium: return 45
+            case .low: return 30
+            }
+        }()
+        
+        // Create enhanced task
+        let enhancedTask = LifeTask(
+            id: task.id,
+            blobId: task.blobId,
+            title: task.title,
+            description: task.description,
+            priority: enhancedPriority,
+            status: task.status,
+            dueDate: enhancedDueDate,
+            estimatedDuration: enhancedDuration,
+            workPersonal: task.workPersonal,
+            projectId: task.projectId,
+            areaId: task.areaId,
+            resourceId: task.resourceId,
+            isFocus: task.isFocus,
+            isArchived: task.isArchived,
+            createdAt: task.createdAt,
+            updatedAt: ISO8601DateFormatter().string(from: Date()), // Update timestamp
+            completedAt: task.completedAt,
+            archivedAt: task.archivedAt
+        )
+        
+        let wasEnhanced = enhancedTask.priority != task.priority || 
+                         enhancedTask.dueDate != task.dueDate || 
+                         enhancedTask.estimatedDuration != task.estimatedDuration
+        
+        let confidence = json["confidence"] as? Double ?? 0.8
+        
+        print("🔧 LLM ENHANCE PARSE: ✅ Enhanced task: \(task.title) (Priority: \(enhancedPriority.rawValue)/\(priorityScore), Due: \(enhancedDueDate ?? "none"), Duration: \(enhancedDuration)min)")
+        
+        return TaskEnhancementResult(
+            originalTask: task,
+            enhancedTask: enhancedTask,
+            priorityScore: priorityScore,
+            priorityReasoning: priorityReasoning,
+            wasEnhanced: wasEnhanced,
+            confidence: confidence
+        )
+    }
+    
     // MARK: - Convenience Methods
     
     /// Quick PARA categorization for a blob content
@@ -606,10 +857,12 @@ class LLMService: ObservableObject {
     /// Create comprehensive processing prompt
     private func createComprehensivePrompt(for blob: Blob, availableAreas: [String], availableProjects: [String], confidenceThreshold: Double) -> String {
         let currentDate = ISO8601DateFormatter().string(from: Date())
-        return """
-        You are an AI assistant specialized in the PARA methodology (Projects, Areas, Resources, Archives) for personal knowledge management.
+        let currentTime = DateFormatter().string(from: Date())
         
-        Analyze this content comprehensively and provide a structured response:
+        return """
+        You are an AI assistant specialized in the PARA methodology (Projects, Areas, Resources, Archives) for personal knowledge management and intelligent task management.
+        
+        Analyze this content comprehensively and provide a structured response with MANDATORY task enhancement:
         
         **Content to Process:**
         Content: "\(blob.content)"
@@ -621,23 +874,50 @@ class LLMService: ObservableObject {
         Existing Areas: \(availableAreas.isEmpty ? "None" : availableAreas.joined(separator: ", "))
         Existing Projects: \(availableProjects.isEmpty ? "None" : availableProjects.joined(separator: ", "))
         
-        **Instructions:**
-        1. PARA Categorization: Determine if this is a Project, Area, Resource, or Archive
-           - For Projects: Suggest which existing project it belongs to, or create a new project name
-           - For Areas: Suggest which existing area it belongs to, or create a new area name
-           - Be specific about sub-categorization within Projects/Areas
+        **CRITICAL TASK REQUIREMENTS:**
+        For EVERY task you extract, you MUST assign ALL of the following:
         
-        2. Task Extraction: Find any actionable items with smart date/time analysis
-           - Analyze temporal language ("tomorrow", "next week", "Monday", "in 2 hours")
-           - Infer urgency from context ("ASAP", "urgent", "deadline")
-           - Estimate realistic durations based on task complexity
-           - Consider work hours vs personal time
-           - Set intelligent priorities based on urgency and importance
+        1. **Priority Score (1-5 Scale):** 
+           - Score 5 (Urgent): Life-critical, legal deadlines, emergencies, blocking others
+           - Score 4 (High): Important deadlines, key milestones, health/safety issues
+           - Score 3 (Medium): Regular work tasks, planned activities, moderate importance
+           - Score 2 (Low): Nice-to-have, learning, non-urgent improvements
+           - Score 1 (Lowest): Someday/maybe items, distant future planning
         
-        3. Auto-Tagging: Generate relevant tags for searchability
-        4. Summarization: Create a 1-2 sentence summary if content is lengthy (>100 words)
-        5. Cross-Links: Identify connections to existing or suggested new PARA items
-        6. Confidence Assessment: Rate your confidence (0.0-1.0) for each decision
+        2. **Smart Date Assignment:**
+           - Parse temporal language: "tomorrow" = next day at appropriate time
+           - "next week" = upcoming Monday at 9 AM
+           - "this weekend" = upcoming Saturday at 10 AM
+           - "Monday" = next occurrence at 9 AM
+           - "in 2 hours" = current time + 2 hours
+           - "tonight" = today at 7 PM
+           - "ASAP"/"urgent" = within next 2 hours, priority score 5
+           - No time mentioned = suggest intelligent default based on priority and type
+        
+        3. **Duration Estimation (minutes):**
+           - Quick tasks (calls, emails, simple decisions): 15-30 minutes
+           - Planning/research tasks: 60-120 minutes
+           - Shopping/errands: 30-60 minutes
+           - Deep work tasks: 120-240 minutes
+           - Meetings: 30-60 minutes (unless specified)
+           - Learning/reading: 45-90 minutes
+           - Creative work: 90-180 minutes
+        
+        4. **Time Slot Assignment:**
+           - Work tasks: Business hours (9 AM - 6 PM on weekdays)
+           - Personal tasks: Evenings (6 PM - 10 PM) or weekends
+           - Health/exercise: Early morning (7-9 AM) or evening (6-8 PM)
+           - Shopping/errands: Weekend mornings or weekday evenings
+           - Learning: Focused time blocks when alert
+        
+        **Enhanced Processing Instructions:**
+        1. PARA Categorization with sub-category specificity
+        2. Extract ALL actionable items as complete tasks
+        3. For each task, analyze urgency indicators: deadlines, time pressure, consequences of delay
+        4. Consider importance factors: impact on goals, health, relationships, work
+        5. Cross-reference with available projects/areas for proper assignment
+        6. Flag truly urgent tasks separately
+        7. Provide reasoning for each priority score assignment
         
         **Response Format (JSON):**
         {
@@ -650,15 +930,21 @@ class LLMService: ObservableObject {
           "extracted_tasks": [
             {
               "title": "Clear, actionable task title",
-              "description": "Additional context",
-              "priority": "urgent|high|medium|low",
-              "estimated_duration": 30,
+              "description": "Additional context and reasoning",
+              "priority_score": 4,
+              "priority": "high",
+              "priority_reasoning": "Important deadline affecting team delivery",
+              "estimated_duration": 45,
               "suggested_due_date": "2024-01-15T14:00:00Z",
-              "suggested_due_reason": "Based on 'tomorrow afternoon' in content",
+              "suggested_due_reason": "Based on 'tomorrow afternoon' in content + business hours",
+              "time_block": "work_hours|evening|weekend|flexible",
+              "urgency_indicators": ["deadline", "blocking_others"],
+              "importance_factors": ["work_milestone", "team_dependency"],
               "area": "Health & Fitness",
               "project": "Q1 Planning",
-              "tags": ["workout", "planning"],
+              "tags": ["workout", "planning", "health"],
               "is_focus": true,
+              "work_personal": "work|personal|both",
               "confidence": 0.9
             }
           ],
@@ -672,41 +958,77 @@ class LLMService: ObservableObject {
               "reason": "Why this connection makes sense"
             }
           ],
-          "reasoning": "Brief explanation of categorization decision"
+          "reasoning": "Brief explanation of categorization and priority decisions"
         }
         
-        **Date/Time Analysis Guidelines:**
-        - "tomorrow" = next day at reasonable time (9 AM for work, 10 AM for personal)
-        - "next week" = following Monday at 9 AM
-        - "this weekend" = upcoming Saturday at 10 AM
-        - "Monday" = next occurrence of that day at 9 AM
-        - "in 2 hours" = current time + 2 hours
-        - "tonight" = today at 7 PM
-        - "ASAP" or "urgent" = today within 2 hours, priority = urgent
-        - No time mentioned = suggest reasonable default based on task type
+        **Priority Score Guidelines:**
+        - **Score 5 (Urgent):** Deadlines today/tomorrow, emergencies, blocking critical path
+        - **Score 4 (High):** Important deadlines this week, key health/safety, major milestones
+        - **Score 3 (Medium):** Regular tasks, planned activities, moderate impact
+        - **Score 2 (Low):** Nice-to-have improvements, learning, optimization
+        - **Score 1 (Lowest):** Someday/maybe, brainstorming, distant future
         
-        **Duration Estimation Guidelines:**
-        - Quick tasks (calls, emails): 15-30 minutes
-        - Planning/research tasks: 60-120 minutes
-        - Shopping/errands: 30-60 minutes
-        - Deep work tasks: 120-240 minutes
-        - Meetings: 30-60 minutes (unless specified)
+        **Time Assignment Rules:**
+        - Respect work/personal classification for scheduling
+        - Consider energy levels for different task types
+        - Account for realistic availability and context switching
+        - Buffer time for task switching and preparation
+        - Align with typical productivity patterns
         
-        **Priority Guidelines:**
-        - Urgent: Time-sensitive with consequences (deadlines, ASAP)
-        - High: Important but flexible timing (health, key projects)
-        - Medium: Regular maintenance and development (most tasks)
-        - Low: Nice-to-have, no time pressure (research, optimization)
+        **Duration Estimation Factors:**
+        - Task complexity and cognitive load
+        - Required preparation and cleanup time
+        - Potential interruptions and context switching
+        - Learning curve for new or unfamiliar tasks
+        - Communication and coordination overhead
         
-        IMPORTANT RULES:
-        - Always suggest sub-categorization for Projects and Areas
-        - Be smart about date/time inference using current context
-        - Duration should be realistic and actionable
-        - Tasks should be specific and actionable
-        - Tags should be helpful for search and context
-        - Cross-links should be meaningful connections
-        - If confidence < 0.7, set requires_confirmation = true
+        IMPORTANT: Every extracted task MUST have all fields populated. No empty durations, dates, or priority scores allowed.
         """
+    }
+    
+    /// Create smart default date based on task priority
+    private func createSmartDefaultDate(for priority: TaskPriority) -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        switch priority {
+        case .urgent:
+            // Urgent tasks: within next 4 hours or next business day morning
+            if let nextFewHours = calendar.date(byAdding: .hour, value: 4, to: now) {
+                return nextFewHours
+            }
+            fallthrough
+        case .high:
+            // High priority: within next 2 days, business hours
+            var targetDate = now
+            if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) {
+                targetDate = tomorrow
+                // Set to 9 AM business time
+                let components = calendar.dateComponents([.year, .month, .day], from: targetDate)
+                if let businessTime = calendar.date(from: DateComponents(year: components.year, month: components.month, day: components.day, hour: 9, minute: 0)) {
+                    return businessTime
+                }
+            }
+            return targetDate
+        case .medium:
+            // Medium priority: within a week, flexible timing
+            if let nextWeek = calendar.date(byAdding: .day, value: 5, to: now) {
+                let components = calendar.dateComponents([.year, .month, .day], from: nextWeek)
+                if let flexibleTime = calendar.date(from: DateComponents(year: components.year, month: components.month, day: components.day, hour: 10, minute: 0)) {
+                    return flexibleTime
+                }
+            }
+            return now
+        case .low:
+            // Low priority: within 2 weeks, weekend or evening time
+            if let twoWeeks = calendar.date(byAdding: .day, value: 14, to: now) {
+                let components = calendar.dateComponents([.year, .month, .day], from: twoWeeks)
+                if let weekendTime = calendar.date(from: DateComponents(year: components.year, month: components.month, day: components.day, hour: 14, minute: 0)) {
+                    return weekendTime
+                }
+            }
+            return now
+        }
     }
     
     /// Parse comprehensive processing response
@@ -752,11 +1074,25 @@ class LLMService: ObservableObject {
             }
             
             let description = taskData["description"] as? String
-            let priorityString = taskData["priority"] as? String ?? "medium"
-            let priority = TaskPriority(rawValue: priorityString) ?? .medium
-            let estimatedDuration = taskData["estimated_duration"] as? Int
             
-            // Enhanced date parsing with fallback
+            // Enhanced priority handling with scoring
+            let priorityScore = taskData["priority_score"] as? Int ?? 3
+            let priorityString = taskData["priority"] as? String ?? "medium"
+            let priority = TaskPriority(rawValue: priorityString) ?? TaskPriority(fromScore: priorityScore)
+            let priorityReasoning = taskData["priority_reasoning"] as? String
+            
+            // Enhanced duration estimation
+            let estimatedDuration = taskData["estimated_duration"] as? Int ?? {
+                // Fallback duration estimation based on task type and priority
+                switch priority {
+                case .urgent: return 30  // Urgent tasks are often quick actions
+                case .high: return 60    // High priority tasks need focused time
+                case .medium: return 45  // Standard task duration
+                case .low: return 30     // Low priority tasks are often quick
+                }
+            }()
+            
+            // Enhanced date parsing with smart defaults
             var suggestedDueDate: String? = nil
             if let dueDateString = taskData["suggested_due_date"] as? String {
                 // Try to parse and validate the date
@@ -773,16 +1109,30 @@ class LLMService: ObservableObject {
                         print("🔧 LLM PARSE: ✅ Converted basic date: \(dueDateString) -> \(suggestedDueDate!)")
                     } else {
                         print("🔧 LLM PARSE: ⚠️ Invalid date format: \(dueDateString)")
+                        // Assign smart default based on priority
+                        let defaultDate = createSmartDefaultDate(for: priority)
+                        let isoFormatter = ISO8601DateFormatter()
+                        suggestedDueDate = isoFormatter.string(from: defaultDate)
+                        print("🔧 LLM PARSE: ✅ Assigned smart default date: \(suggestedDueDate!)")
                     }
                 }
+            } else {
+                // No date provided, create smart default
+                let defaultDate = createSmartDefaultDate(for: priority)
+                let isoFormatter = ISO8601DateFormatter()
+                suggestedDueDate = isoFormatter.string(from: defaultDate)
+                print("🔧 LLM PARSE: ✅ Created smart default date: \(suggestedDueDate!)")
             }
             
             let suggestedArea = taskData["area"] as? String ?? taskData["suggested_area"] as? String
             let suggestedProject = taskData["project"] as? String ?? taskData["suggested_project"] as? String
             let taskTags = taskData["tags"] as? [String] ?? []
             let taskConfidence = taskData["confidence"] as? Double ?? 0.8
+            let timeBlock = taskData["time_block"] as? String
+            let urgencyIndicators = taskData["urgency_indicators"] as? [String] ?? []
+            let importanceFactors = taskData["importance_factors"] as? [String] ?? []
             
-            print("🔧 LLM PARSE: ✅ Parsed task: \(title) (\(priority.rawValue), \(estimatedDuration ?? 0)min)")
+            print("🔧 LLM PARSE: ✅ Parsed enhanced task: \(title) (Priority: \(priority.rawValue)/\(priorityScore), Duration: \(estimatedDuration)min, Due: \(suggestedDueDate ?? "none"))")
             
             return TaskExtractionInfo(
                 title: title,
@@ -793,7 +1143,12 @@ class LLMService: ObservableObject {
                 suggestedArea: suggestedArea,
                 suggestedProject: suggestedProject,
                 tags: taskTags,
-                confidence: taskConfidence
+                confidence: taskConfidence,
+                priorityScore: priorityScore,
+                priorityReasoning: priorityReasoning,
+                urgencyIndicators: urgencyIndicators,
+                importanceFactors: importanceFactors,
+                timeBlock: timeBlock
             )
         }
         print("🔧 LLM PARSE: Successfully parsed \(extractedTasks.count) tasks")

@@ -208,6 +208,25 @@ enum TaskPriority: String, CaseIterable, Codable {
         case .low: return 3
         }
     }
+    
+    var priorityScore: Int {
+        switch self {
+        case .urgent: return 5
+        case .high: return 4
+        case .medium: return 3
+        case .low: return 2
+        }
+    }
+    
+    init(fromScore score: Int) {
+        switch score {
+        case 5: self = .urgent
+        case 4: self = .high
+        case 3: self = .medium
+        case 2, 1: self = .low
+        default: self = .medium
+        }
+    }
 }
 
 /// Task status types
@@ -630,8 +649,13 @@ struct TaskExtractionInfo: Codable, Identifiable {
     let suggestedProject: String?
     let tags: [String]
     let confidence: Double
+    let priorityScore: Int
+    let priorityReasoning: String?
+    let urgencyIndicators: [String]
+    let importanceFactors: [String]
+    let timeBlock: String?
     
-    init(id: UUID = UUID(), title: String, description: String? = nil, priority: TaskPriority = .medium, estimatedDuration: Int? = nil, suggestedDueDate: String? = nil, suggestedArea: String? = nil, suggestedProject: String? = nil, tags: [String] = [], confidence: Double = 0.8) {
+    init(id: UUID = UUID(), title: String, description: String? = nil, priority: TaskPriority = .medium, estimatedDuration: Int? = nil, suggestedDueDate: String? = nil, suggestedArea: String? = nil, suggestedProject: String? = nil, tags: [String] = [], confidence: Double = 0.8, priorityScore: Int? = nil, priorityReasoning: String? = nil, urgencyIndicators: [String] = [], importanceFactors: [String] = [], timeBlock: String? = nil) {
         self.id = id
         self.title = title
         self.description = description
@@ -642,6 +666,11 @@ struct TaskExtractionInfo: Codable, Identifiable {
         self.suggestedProject = suggestedProject
         self.tags = tags
         self.confidence = confidence
+        self.priorityScore = priorityScore ?? priority.priorityScore
+        self.priorityReasoning = priorityReasoning
+        self.urgencyIndicators = urgencyIndicators
+        self.importanceFactors = importanceFactors
+        self.timeBlock = timeBlock
     }
 }
 
@@ -812,4 +841,27 @@ struct BatchProcessingSummary: Codable {
             errors += 1
         }
     }
-} 
+}
+
+// MARK: - Task Enhancement Results
+
+/// Result of task enhancement processing
+struct TaskEnhancementResult {
+    let originalTask: LifeTask
+    let enhancedTask: LifeTask
+    let priorityScore: Int
+    let priorityReasoning: String
+    let wasEnhanced: Bool
+    let confidence: Double
+    
+    init(originalTask: LifeTask, enhancedTask: LifeTask, priorityScore: Int, priorityReasoning: String, wasEnhanced: Bool, confidence: Double) {
+        self.originalTask = originalTask
+        self.enhancedTask = enhancedTask
+        self.priorityScore = priorityScore
+        self.priorityReasoning = priorityReasoning
+        self.wasEnhanced = wasEnhanced
+        self.confidence = confidence
+    }
+}
+
+// MARK: - Task Extraction Info 
