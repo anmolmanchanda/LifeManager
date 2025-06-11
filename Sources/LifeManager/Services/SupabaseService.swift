@@ -104,6 +104,14 @@ class SupabaseService: ObservableObject {
         }
     }
     
+    /// Send password reset email
+    func resetPassword(email: String) async throws {
+        try await client.auth.resetPasswordForEmail(
+            email,
+            redirectTo: URL(string: "lifemanager://auth/reset")
+        )
+    }
+    
     /// Handle magic link callback from custom URL scheme
     func handleMagicLinkCallback(url: URL) async throws {
         print("Processing magic link callback URL: \(url)")

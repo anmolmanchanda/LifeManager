@@ -204,6 +204,29 @@ class MainViewModel: ObservableObject {
         }
     }
     
+    func resetPassword(email: String) async {
+        await MainActor.run {
+            isLoading = true
+            authError = nil
+            authSuccess = nil
+        }
+        
+        do {
+            try await supabaseService.resetPassword(email: email)
+            await MainActor.run {
+                self.authSuccess = "✅ Password reset email sent to \(email). Check your email for reset instructions."
+                self.authError = nil
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.authError = "Failed to send reset email: \(error.localizedDescription)"
+                self.authSuccess = nil
+                self.isLoading = false
+            }
+        }
+    }
+    
     // MARK: - Data Loading
     
     private func loadInitialData() async {
@@ -984,9 +1007,90 @@ class MainViewModel: ObservableObject {
         isDevelopmentMode = true
         isAuthenticated = true
         
-        // Load mock data immediately
+        // Try to create a real authenticated session or use mock data
         Task {
-            await loadMockData()
+            await createDevelopmentSession()
+        }
+    }
+    
+    private func createDevelopmentSession() async {
+        // First try to create a real account for development
+        do {
+            let developmentEmail = "dev@lifemanager.local"
+            let developmentPassword = "DevPass123!"
+            
+            // Try to sign in first
+            do {
+                let session = try await supabaseService.signIn(email: developmentEmail, password: developmentPassword)
+                await MainActor.run {
+                    self.isAuthenticated = true
+                    print("🔧 DEV BYPASS: ✅ Successfully signed in with development account")
+                }
+                // Load real data from database
+                await loadInitialData()
+                return
+            } catch {
+                print("🔧 DEV BYPASS: Sign in failed, trying to create account: \(error)")
+            }
+            
+            // If sign in failed, try to create the account
+            do {
+                let session = try await supabaseService.signUp(email: developmentEmail, password: developmentPassword)
+                await MainActor.run {
+                    self.isAuthenticated = true
+                    print("🔧 DEV BYPASS: ✅ Successfully created and signed in with development account")
+                }
+                // Load real data from database
+                await loadInitialData()
+                return
+            } catch {
+                print("🔧 DEV BYPASS: Account creation failed: \(error)")
+            }
+            
+        } catch {
+            print("🔧 DEV BYPASS: All authentication attempts failed: \(error)")
+        }
+        
+        // If all else fails, use mock data
+        print("🔧 DEV BYPASS: Falling back to mock data")
+        await loadMockData()
+    }
+    
+    func forceCreateDevAccount() async {
+        await MainActor.run {
+            isLoading = true
+            authError = nil
+            authSuccess = nil
+        }
+        
+        let developmentEmail = "dev@lifemanager.local"
+        let developmentPassword = "DevPass123!"
+        
+        do {
+            // Force create account (ignoring errors if it already exists)
+            let session = try await supabaseService.signUp(email: developmentEmail, password: developmentPassword)
+            await MainActor.run {
+                self.isAuthenticated = true
+                self.authSuccess = "✅ Development account created and signed in!"
+                self.isLoading = false
+            }
+            await loadInitialData()
+        } catch {
+            // If creation failed, try signing in
+            do {
+                let session = try await supabaseService.signIn(email: developmentEmail, password: developmentPassword)
+                await MainActor.run {
+                    self.isAuthenticated = true
+                    self.authSuccess = "✅ Signed in with development account!"
+                    self.isLoading = false
+                }
+                await loadInitialData()
+            } catch {
+                await MainActor.run {
+                    self.authError = "Failed to create/sign in to dev account: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
+            }
         }
     }
     

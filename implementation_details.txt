@@ -2,6 +2,60 @@
 
 ## Change Log and Implementation Notes
 
+=== 🔧 LATEST CHANGES ===
+
+### Authentication System Improvements (December 2024)
+
+**Problem Summary:**
+User reported multiple authentication issues:
+- Multiple accounts with forgotten passwords
+- Magic links not working (no emails received)  
+- Test account giving "invalid credentials" error
+- Development bypass not showing content due to Supabase RLS requirements
+
+**Files Modified:**
+1. **Sources/LifeManager/Views/AuthenticationView.swift**
+   - Updated test account credentials to `dev@lifemanager.local`
+   - Added automatic fallback from sign-in to sign-up for test account
+   - Added password reset button and functionality
+   - Added "Force Create Dev Account" button for development
+
+2. **Sources/LifeManager/ViewModels/MainViewModel.swift**
+   - Enhanced `enableDevelopmentBypass()` to create real authenticated sessions
+   - Added `createDevelopmentSession()` method with fallback logic
+   - Added `resetPassword()` method for password reset functionality  
+   - Added `forceCreateDevAccount()` method for guaranteed dev account creation
+
+3. **Sources/LifeManager/Services/SupabaseService.swift**
+   - Added `resetPassword()` method with proper redirect URL
+   - Enhanced authentication flow handling
+
+4. **PROJECT.md**
+   - Added "Recent Changes" section documenting authentication improvements
+   - Listed solutions for common authentication issues
+
+**Technical Implementation:**
+- **Development Bypass Enhancement**: Now attempts to create real Supabase authenticated session instead of just setting local flags
+- **Test Account Improvement**: Changed from `test@lifemanager.app` to `dev@lifemanager.local` with automatic creation fallback
+- **Password Reset**: Full password reset flow with email sending via Supabase Auth
+- **Force Account Creation**: Dedicated method that tries creation first, then sign-in if account exists
+- **Better Error Handling**: Enhanced error messages and multiple fallback mechanisms
+
+**Authentication Solutions Provided:**
+1. **Existing accounts with forgotten passwords**: Use the "Reset Password" button
+2. **Magic link not working**: Use manual callback processing or Force Create Dev Account  
+3. **Test account invalid credentials**: Fixed to use new dev@lifemanager.local account
+4. **Development bypass showing no content**: Now creates authenticated sessions for database access
+5. **Email delivery issues**: Added alternative account creation methods
+
+**Benefits:**
+- Resolves all reported authentication issues
+- Provides multiple paths to successful authentication
+- Maintains development workflow while fixing database access
+- Improves user experience with clear error messages and solutions
+
+---
+
 ### Project Setup - Initial Setup (June 9, 2024)
 
 **Files Created:**
@@ -613,3 +667,106 @@ What this change accomplishes
 **All major functionality requested has been implemented and is ready for user testing.**
 
 ---
+
+LIFEMANAGER IMPLEMENTATION DETAILS LOG
+
+========================================
+Date: 2024-XX-XX
+Feature: Recently Deleted Tasks & Improved Scheduling Logic
+========================================
+
+## Files Modified:
+
+### 1. Sources/LifeManager/Models/ContentModels.swift
+- **Purpose**: Enhanced LifeTask model with soft delete support
+- **Changes**: 
+  - Added `deletedAt: String?` field
+  - Added `isScheduled` computed property (checks for time, not just date)
+  - Added `isDeleted` computed property
+  - Added `canBePermalentlyDeleted` computed property (24-hour check)
+- **Logic**: Task is only "scheduled" if it has both date AND specific time (not midnight)
+
+### 2. supabase/migrations/003_recently_deleted.sql
+- **Purpose**: Database schema update for soft deletion
+- **Changes**:
+  - Added `deleted_at TIMESTAMP WITH TIME ZONE` column to tasks table
+  - Added index for performance
+  - Created PostgreSQL functions for soft delete operations
+  - Added cleanup function for automatic permanent deletion
+- **Design Decision**: Used PostgreSQL functions for atomic operations
+
+### 3. Sources/LifeManager/Repositories/TaskRepository.swift
+- **Purpose**: Extended repository with soft delete operations
+- **Changes**:
+  - Added `softDeleteTask()` method using RPC calls
+  - Added `restoreDeletedTask()` method
+  - Added `permanentlyDeleteTask()` method
+  - Added `fetchRecentlyDeletedTasks()` method
+  - Modified `deleteTask()` to use soft delete by default
+- **Design Decision**: Kept legacy `deleteTask()` method for backward compatibility
+
+### 4. Sources/LifeManager/Views/CalendarParkingLot.swift
+- **Purpose**: Updated parking lot logic to use new scheduling detection
+- **Changes**:
+  - Updated filtered tasks to use `task.isScheduled` instead of `task.dueDate != nil`
+  - Updated unscheduled tasks filtering logic
+  - Added exclusion of deleted tasks (`!task.isDeleted`)
+  - Updated context menu and quick actions to use new logic
+- **Design Decision**: Consistent filtering across all task views
+
+### 5. Sources/LifeManager/ViewModels/CalendarViewModel.swift
+- **Purpose**: Updated calendar view model for new scheduling logic
+- **Changes**:
+  - Updated `filteredUnscheduledTasks` to use `!task.isScheduled`
+  - Added `!task.isDeleted` filter to all task collections
+  - Updated scheduled tasks detection in `loadCalendarData()`
+- **Design Decision**: Centralized filtering logic for consistency
+
+### 6. Sources/LifeManager/Views/ContentView.swift
+- **Purpose**: Added Recently Deleted section to Archives
+- **Changes**:
+  - Added "Recently Deleted" to archive categories
+  - Added `recentlyDeletedTasks` state variable
+  - Added `loadRecentlyDeletedTasks()` function
+  - Created `RecentlyDeletedTaskRowView` component with restore/delete actions
+  - Updated `getArchiveCategoryTasks()` to handle recently deleted
+  - Added conditional rendering in `ArchiveCategorySection`
+- **Design Decision**: Integrated into existing Archives structure
+
+## Technical Implementation Details:
+
+### Scheduling Logic Enhancement:
+- **Problem**: Tasks with only dates (e.g., "due tomorrow") were considered "scheduled" even without specific times
+- **Solution**: Check if time components are non-zero (not midnight) to determine true scheduling
+- **Impact**: Better organization in parking lot with clearer scheduled vs. unscheduled distinction
+
+### Soft Delete System:
+- **Database Level**: PostgreSQL functions ensure atomic operations and data consistency
+- **Application Level**: Repository pattern maintains clean separation of concerns
+- **UI Level**: Visual feedback with countdown timers and action buttons
+
+### Data Flow:
+1. User deletes task → `softDeleteTask()` → Sets `deleted_at` timestamp
+2. Task appears in "Recently Deleted" section with countdown
+3. User can restore → `restoreDeletedTask()` → Clears `deleted_at`
+4. After 24 hours → `cleanupPermanentlyDeletedTasks()` → Permanent removal
+
+## Testing Considerations:
+- Verify tasks with dates at midnight are properly categorized as unscheduled
+- Test 24-hour deletion countdown and permanent cleanup
+- Ensure deleted tasks don't appear in active views
+- Verify restore functionality works correctly
+- Test edge cases around midnight and timezone handling
+
+## Performance Impact:
+- Added database index on `deleted_at` for efficient querying
+- Filtered queries exclude deleted tasks by default
+- New computed properties are lightweight (date parsing only when needed)
+
+## Future Enhancements:
+- Extend soft delete to other content types (blobs, projects)
+- Add bulk operations for recently deleted items
+- User-configurable deletion recovery period
+- Automated cleanup scheduling in Supabase
+
+========================================

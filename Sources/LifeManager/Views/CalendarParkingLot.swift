@@ -179,9 +179,9 @@ struct PARATasksParkingLot: View {
         case .all:
             break
         case .scheduled:
-            tasks = tasks.filter { $0.dueDate != nil }
+            tasks = tasks.filter { $0.isScheduled }
         case .unscheduled:
-            tasks = tasks.filter { $0.dueDate == nil }
+            tasks = tasks.filter { !$0.isScheduled }
         case .focus:
             tasks = tasks.filter { $0.isFocus }
         case .work:
@@ -218,13 +218,13 @@ struct PARATasksParkingLot: View {
         // Add tasks from calendar view model (which loads from database)
         allTasks.append(contentsOf: calendarViewModel.allTasks)
         
-        // Remove duplicates and archived tasks
+        // Remove duplicates, archived tasks, and deleted tasks
         let uniqueTasks = Array(Set(allTasks))
-        return uniqueTasks.filter { !$0.isArchived }
+        return uniqueTasks.filter { !$0.isArchived && !$0.isDeleted }
     }
     
     private var unscheduledTasks: [LifeTask] {
-        return filteredTasks.filter { $0.dueDate == nil }
+        return filteredTasks.filter { !$0.isScheduled }
     }
     
     private var emptyState: some View {
@@ -358,7 +358,7 @@ struct ParkingLotTaskRow: View {
                 
                 // Schedule status
                 VStack(spacing: 4) {
-                    if task.dueDate != nil {
+                    if task.isScheduled {
                         Image(systemName: "calendar.badge.checkmark")
                             .font(.caption)
                             .foregroundColor(.green)
@@ -377,7 +377,7 @@ struct ParkingLotTaskRow: View {
             }
             
             // Quick actions for unscheduled tasks
-            if task.dueDate == nil && !calendarViewModel.suggestedSlots(for: task).isEmpty {
+            if !task.isScheduled && !calendarViewModel.suggestedSlots(for: task).isEmpty {
                 HStack(spacing: 6) {
                     Text("Quick schedule:")
                         .font(.caption2)
@@ -491,7 +491,7 @@ struct TaskContextMenu: View {
                 }
             }
             
-            if task.dueDate == nil {
+            if !task.isScheduled {
                 Button(action: {
                     Task {
                         await scheduleTaskQuickly()

@@ -67,14 +67,14 @@ class CalendarViewModel: ObservableObject {
     /// Get filtered unscheduled tasks (tasks from all PARA categories without scheduled times)
     var filteredUnscheduledTasks: [LifeTask] {
         return allTasks.filter { task in
-            task.dueDate == nil && !task.isArchived && task.status != .completed && passesTaskFilter(task)
+            !task.isScheduled && !task.isArchived && !task.isDeleted && task.status != .completed && passesTaskFilter(task)
         }
     }
     
     /// Get all tasks for parking lot (all PARA tasks)
     var allPARATasksForParkingLot: [LifeTask] {
         return allTasks.filter { task in
-            !task.isArchived && passesTaskFilter(task)
+            !task.isArchived && !task.isDeleted && passesTaskFilter(task)
         }
     }
     
@@ -118,8 +118,8 @@ class CalendarViewModel: ObservableObject {
             // Remove duplicates based on ID
             allAvailableTasks = Array(Set(allAvailableTasks))
             
-            let scheduledTasks = allAvailableTasks.filter { $0.dueDate != nil && !$0.isArchived }
-            let unscheduled = allAvailableTasks.filter { $0.dueDate == nil && !$0.isArchived && $0.status != .completed }
+            let scheduledTasks = allAvailableTasks.filter { $0.isScheduled && !$0.isArchived && !$0.isDeleted }
+            let unscheduled = allAvailableTasks.filter { !$0.isScheduled && !$0.isArchived && !$0.isDeleted && $0.status != .completed }
             
             // Convert scheduled tasks to calendar events
             let taskEvents = scheduledTasks.compactMap { $0.toCalendarEvent() }

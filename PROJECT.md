@@ -49,6 +49,29 @@ This document specifies the feature set for each major version of LifeManager, i
 
 # LifeManager - AI-Powered Personal Productivity System with PARA Framework
 
+## Recent Changes (Latest Updates)
+
+### Authentication System Improvements (Latest)
+- **Enhanced Development Bypass**: Now creates real authenticated Supabase sessions instead of mock data
+- **Improved Test Account**: Updated to `dev@lifemanager.local` with automatic fallback creation
+- **Password Reset Feature**: Added password reset functionality for existing accounts
+- **Force Account Creation**: Added "Force Create Dev Account" button for development setup
+- **Better Error Handling**: Improved authentication error messages and fallback mechanisms
+- **Magic Link Processing**: Enhanced magic link callback handling with manual processing option
+
+**Authentication Solutions for Common Issues**:
+1. **Existing accounts with forgotten passwords**: Use the "Reset Password" button
+2. **Magic link not working**: Use manual callback processing or Force Create Dev Account
+3. **Test account invalid credentials**: Fixed to use new dev@lifemanager.local account
+4. **Development bypass showing no content**: Now creates authenticated sessions for database access
+5. **Email delivery issues**: Added alternative account creation methods
+
+### Recently Deleted Tasks & Parking Lot Scheduling (Previous Update)
+- **Recently Deleted Section**: Added 24-hour recovery system for deleted tasks in archive
+- **Enhanced Scheduling Logic**: Fixed parking lot to only show tasks with both date AND time as "scheduled"
+- **Database Soft Delete**: Implemented PostgreSQL soft delete with cleanup functions
+- **UI Improvements**: Added countdown timers and restore/delete actions for recently deleted tasks
+
 ## Project Summary and Goals
 
 LifeManager is a native macOS productivity application designed for productivity-obsessed software engineers, built around the **PARA methodology** (Projects, Areas, Resources, Archives). The system serves as a comprehensive "life OS" that ingests, processes, and organizes all text-based information through AI-powered automation using **Supabase** as the managed backend and **Swift/SwiftUI** for the native macOS interface.
@@ -373,3 +396,53 @@ LifeManager/
 This project serves as a comprehensive personal productivity system with the PARA methodology at its core. AI processing is enhanced with PARA context for more accurate categorization, and the prompt engineering system ensures continuous optimization of LLM interactions. The system maintains strict boundaries for v1.0 to ensure focused development while building a robust foundation for advanced PARA-based features.
 
 All prompt templates are versioned and tracked for performance optimization, enabling A/B testing and continuous improvement of AI accuracy within the PARA framework.
+
+# Recent Changes and Enhancements
+
+## Recently Implemented Features
+
+### Recently Deleted Tasks (v1.0 Enhancement)
+- **Soft Deletion System**: Tasks now have a 24-hour recovery period before permanent deletion
+- **Database Changes**: Added `deleted_at` column to tasks table with automatic cleanup functions
+- **UI Integration**: "Recently Deleted" section added to Archives view with restore/permanent delete options
+- **Auto-cleanup**: Database function to permanently delete tasks after 24 hours (manual trigger available)
+- **Recovery Workflow**: Users can restore accidentally deleted tasks within the 24-hour window
+
+### Improved Parking Lot Scheduling Logic (v1.0 Enhancement)
+- **Enhanced Scheduling Detection**: Tasks are only considered "scheduled" if they have both date AND time
+- **Smart Filtering**: Tasks with only dates (midnight time) are now properly categorized as "unscheduled"
+- **Consistent UI**: Updated all parking lot views to use the new `isScheduled` computed property
+- **Better Organization**: Clearer distinction between truly scheduled tasks vs. tasks with just due dates
+
+### Database Schema Updates
+```sql
+-- New migration: 003_recently_deleted.sql
+ALTER TABLE tasks ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
+CREATE INDEX idx_tasks_deleted_at ON tasks(deleted_at);
+
+-- Cleanup functions for automated maintenance
+CREATE FUNCTION cleanup_permanently_deleted_tasks();
+CREATE FUNCTION soft_delete_task(task_id UUID);
+CREATE FUNCTION restore_deleted_task(task_id UUID);
+CREATE FUNCTION permanently_delete_task(task_id UUID);
+```
+
+### Code Changes Summary
+1. **Model Updates**: Enhanced `LifeTask` with `deletedAt`, `isScheduled`, `isDeleted`, and `canBePermalentlyDeleted` properties
+2. **Repository Extensions**: Added soft delete, restore, and permanent delete methods to `TaskRepository`
+3. **UI Components**: New `RecentlyDeletedTaskRowView` with restore/delete actions and countdown timer
+4. **Filtering Logic**: Updated all task filtering to exclude deleted tasks and use proper scheduling logic
+5. **Archive Integration**: Recently deleted tasks appear in Archives under dedicated section
+
+### Implementation Details
+- **Soft Delete**: Tasks marked with `deleted_at` timestamp, not immediately removed from database
+- **Recovery Period**: 24-hour window for task restoration with visual countdown
+- **Automatic Cleanup**: Background process to permanently delete expired tasks
+- **UI Polish**: Red-tinted rows, strikethrough text, and clear action buttons for deleted tasks
+- **Data Integrity**: Proper filtering ensures deleted tasks don't appear in active views
+
+## Next Development Steps
+1. Set up automated cleanup job in Supabase dashboard
+2. Add bulk restore/delete operations for recently deleted items
+3. Consider extending soft delete to other content types (blobs, projects)
+4. Add user preferences for deletion recovery period

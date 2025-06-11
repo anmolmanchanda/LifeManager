@@ -21,6 +21,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
     let updatedAt: String
     let completedAt: String?
     let archivedAt: String?
+    let deletedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -41,6 +42,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         case updatedAt = "updated_at"
         case completedAt = "completed_at"
         case archivedAt = "archived_at"
+        case deletedAt = "deleted_at"
     }
     
     init(
@@ -61,7 +63,8 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
         updatedAt: String = ISO8601DateFormatter().string(from: Date()),
         completedAt: String? = nil,
-        archivedAt: String? = nil
+        archivedAt: String? = nil,
+        deletedAt: String? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -81,6 +84,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         self.updatedAt = updatedAt
         self.completedAt = completedAt
         self.archivedAt = archivedAt
+        self.deletedAt = deletedAt
     }
     
     // Hashable conformance - use id for hashing
@@ -91,6 +95,37 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
     // Equatable conformance (required for Hashable)
     static func == (lhs: LifeTask, rhs: LifeTask) -> Bool {
         return lhs.id == rhs.id
+    }
+    
+    // Computed properties for scheduling logic
+    var isScheduled: Bool {
+        guard let dueDateString = dueDate,
+              let dueDate = ISO8601DateFormatter().date(from: dueDateString) else {
+            return false
+        }
+        
+        // Check if the date has a specific time (not just midnight)
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.hour, .minute], from: dueDate)
+        
+        // If both hour and minute are 0, it's likely just a date without time
+        return !(components.hour == 0 && components.minute == 0)
+    }
+    
+    var isDeleted: Bool {
+        return deletedAt != nil
+    }
+    
+    var canBePermalentlyDeleted: Bool {
+        guard let deletedAtString = deletedAt,
+              let deletedDate = ISO8601DateFormatter().date(from: deletedAtString) else {
+            return false
+        }
+        
+        // Check if 24 hours have passed since deletion
+        let now = Date()
+        let hoursPassedSinceDeletion = now.timeIntervalSince(deletedDate) / 3600
+        return hoursPassedSinceDeletion >= 24
     }
 }
 

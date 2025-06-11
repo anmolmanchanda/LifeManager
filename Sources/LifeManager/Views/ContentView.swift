@@ -1411,9 +1411,10 @@ struct ResourceRowView: View {
 struct ArchivesView: View {
     @EnvironmentObject var viewModel: MainViewModel
     @State private var completedTasks: [LifeTask] = []
+    @State private var recentlyDeletedTasks: [LifeTask] = []
     
     private let archiveCategories = [
-        "Completed Tasks", "Completed Projects", "Inactive Areas", "Old Resources", 
+        "Recently Deleted", "Completed Tasks", "Completed Projects", "Inactive Areas", "Old Resources", 
         "Past Notes", "Outdated References", "Historical Data"
     ]
     
@@ -1553,6 +1554,7 @@ struct ArchivesView: View {
             Task {
                 await viewModel.refreshData()
                 await loadCompletedTasks()
+                await loadRecentlyDeletedTasks()
             }
         }
     }
@@ -1566,6 +1568,18 @@ struct ArchivesView: View {
             }
         } catch {
             print("Failed to load completed tasks: \(error.localizedDescription)")
+        }
+    }
+    
+    private func loadRecentlyDeletedTasks() async {
+        do {
+            let taskRepository = TaskRepository()
+            let deleted = try await taskRepository.fetchRecentlyDeletedTasks()
+            await MainActor.run {
+                self.recentlyDeletedTasks = deleted
+            }
+        } catch {
+            print("Failed to load recently deleted tasks: \(error.localizedDescription)")
         }
     }
     
@@ -1593,6 +1607,8 @@ struct ArchivesView: View {
         let isOld = Calendar.current.dateInterval(of: .month, for: createdDate)?.start ?? Date() < Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
         
         switch category {
+        case "Recently Deleted":
+            return false // Tasks are handled separately
         case "Completed Tasks":
             return false // Tasks are handled separately
         case "Completed Projects":
@@ -5009,10 +5025,15 @@ struct ArchiveCategorySection: View {
             isExpanded: $isExpanded,
             content: {
                 LazyVStack(spacing: 8) {
-                    // Show completed tasks first
+                    // Show recently deleted tasks first (if category is Recently Deleted)
                     ForEach(tasks) { task in
+                        if category == "Recently Deleted" {
+                            RecentlyDeletedTaskRowView(task: task)
+                                .environmentObject(viewModel)
+                        } else {
                         CompletedTaskRowView(task: task)
                             .environmentObject(viewModel)
+                        }
                     }
                     
                     // Then show archived blobs
@@ -5932,6 +5953,162 @@ struct RescheduleEventSheet: View {
         await MainActor.run {
             dismiss()
         }
+    }
+}
+
+/// Recently deleted task row with restore/permanent delete options
+struct RecentlyDeletedTaskRowView: View {
+    let task: LifeTask
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingDeleteConfirmation = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Deleted status indicator
+            VStack(spacing: 4) {
+                Circle()
+                    .fill(Color.red.opacity(0.6))
+                    .frame(width: 12, height: 12)
+                
+                Image(systemName: "trash")
+                    .font(.caption2)
+                    .foregroundColor(.red)
+            }
+            
+            // Task content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title)
+                    .font(.body)
+                    .strikethrough(true, color: .secondary)
+                    .foregroundColor(.secondary)
+                
+                if let description = task.description {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                
+                HStack(spacing: 8) {
+                    // Priority indicator
+                    Text(task.priority.displayName)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(priorityColor(task.priority).opacity(0.2))
+                        .foregroundColor(priorityColor(task.priority))
+                        .cornerRadius(4)
+                    
+                    // Deletion time
+                    if let deletedAtString = task.deletedAt,
+                       let deletedDate = ISO8601DateFormatter().date(from: deletedAtString) {
+                        Text("Deleted \(RelativeDateTimeFormatter().localizedString(for: deletedDate, relativeTo: Date()))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Permanent deletion countdown
+                    if task.canBePermalentlyDeleted {
+                        Text("Ready for permanent deletion")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    } else {
+                        let hoursLeft = hoursUntilPermanentDeletion(task)
+                        Text("\(hoursLeft)h left")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Action buttons
+            VStack(spacing: 8) {
+                Button(action: {
+                    Task {
+                        await restoreTask()
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.counterclockwise")
+                        Text("Restore")
+                    }
+                    .foregroundColor(.blue)
+                }
+                .buttonStyle(.borderless)
+                
+                Button(action: {
+                    showingDeleteConfirmation = true
+                }) {
+                    HStack {
+                        Image(systemName: "trash.fill")
+                        Text("Delete")
+                    }
+                    .foregroundColor(.red)
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+        .padding(12)
+        .background(Color(NSColor.systemGray).opacity(0.2))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+        )
+        .alert("Permanently Delete Task", isPresented: $showingDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    await permanentlyDeleteTask()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This action cannot be undone.")
+        }
+    }
+    
+    private func restoreTask() async {
+        do {
+            let taskRepository = TaskRepository()
+            try await taskRepository.restoreDeletedTask(id: task.id)
+            await viewModel.refreshData()
+        } catch {
+            print("Failed to restore task: \(error)")
+        }
+    }
+    
+    private func permanentlyDeleteTask() async {
+        do {
+            let taskRepository = TaskRepository()
+            try await taskRepository.permanentlyDeleteTask(id: task.id)
+            await viewModel.refreshData()
+        } catch {
+            print("Failed to permanently delete task: \(error)")
+        }
+    }
+    
+    private func priorityColor(_ priority: TaskPriority) -> Color {
+        switch priority {
+        case .urgent: return .red
+        case .high: return .orange
+        case .medium: return .yellow
+        case .low: return .green
+        }
+    }
+    
+    private func hoursUntilPermanentDeletion(_ task: LifeTask) -> Int {
+        guard let deletedAtString = task.deletedAt,
+              let deletedAt = ISO8601DateFormatter().date(from: deletedAtString) else {
+            return 0
+        }
+        
+        let deleteTime = deletedAt.addingTimeInterval(24 * 60 * 60) // 24 hours later
+        let hoursLeft = Int(deleteTime.timeIntervalSinceNow / 3600)
+        return max(0, hoursLeft)
     }
 }
 

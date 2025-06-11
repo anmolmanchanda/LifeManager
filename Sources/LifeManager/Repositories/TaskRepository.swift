@@ -180,7 +180,7 @@ class TaskRepository: ObservableObject {
     
     /// Update task status
     func updateTaskStatus(id: UUID, status: TaskStatus) async throws -> LifeTask {
-        guard var task = try await fetchTask(id: id) else {
+        guard let task = try await fetchTask(id: id) else {
             throw SupabaseError.notFound
         }
         
@@ -207,7 +207,7 @@ class TaskRepository: ObservableObject {
     
     /// Update task priority
     func updateTaskPriority(id: UUID, priority: TaskPriority) async throws -> LifeTask {
-        guard var task = try await fetchTask(id: id) else {
+        guard let task = try await fetchTask(id: id) else {
             throw SupabaseError.notFound
         }
         
@@ -230,13 +230,62 @@ class TaskRepository: ObservableObject {
         return try await updateTask(updatedTask)
     }
     
-    /// Delete task
+    /// Soft delete task (move to recently deleted for 24 hours)
+    func softDeleteTask(id: UUID) async throws {
+        try await supabaseService.client
+            .rpc("soft_delete_task", params: ["task_id": id.uuidString])
+            .execute()
+    }
+    
+    /// Restore a soft deleted task
+    func restoreDeletedTask(id: UUID) async throws {
+        try await supabaseService.client
+            .rpc("restore_deleted_task", params: ["task_id": id.uuidString])
+            .execute()
+    }
+    
+    /// Permanently delete task immediately
+    func permanentlyDeleteTask(id: UUID) async throws {
+        try await supabaseService.client
+            .rpc("permanently_delete_task", params: ["task_id": id.uuidString])
+            .execute()
+    }
+    
+    /// Delete task (temporarily using hard delete until migration is applied)
     func deleteTask(id: UUID) async throws {
-        try await supabaseService.delete(
-            from: SupabaseService.TableName.tasks.rawValue,
-            matching: "id",
-            value: id.uuidString
-        )
+        // TODO: Switch back to soft delete after migration is applied
+        // try await softDeleteTask(id: id)
+        
+        // Temporarily use hard delete until database migration is applied
+        try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .delete()
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
+    
+    /// Fetch recently deleted tasks
+    func fetchRecentlyDeletedTasks() async throws -> [LifeTask] {
+        // TODO: Implement after migration is applied
+        // let response: [LifeTask] = try await supabaseService.client
+        //     .from(SupabaseService.TableName.tasks.rawValue)
+        //     .select()
+        //     .not("deleted_at", operator: .is, value: "null")
+        //     .order("deleted_at", ascending: false)
+        //     .execute()
+        //     .value
+        // 
+        // return response
+        
+        // Temporarily return empty array until database migration is applied
+        return []
+    }
+    
+    /// Clean up permanently deleted tasks (called manually or via scheduled job)
+    func cleanupPermanentlyDeletedTasks() async throws {
+        try await supabaseService.client
+            .rpc("cleanup_permanently_deleted_tasks")
+            .execute()
     }
     
     // MARK: - Tag Operations

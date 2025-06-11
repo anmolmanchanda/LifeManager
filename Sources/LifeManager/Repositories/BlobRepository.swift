@@ -105,7 +105,7 @@ class BlobRepository: ObservableObject {
     
     /// Mark blob as processed
     func markBlobAsProcessed(id: UUID) async throws -> Blob {
-        guard var blob = try await fetchBlob(id: id) else {
+        guard let blob = try await fetchBlob(id: id) else {
             throw SupabaseError.notFound
         }
         

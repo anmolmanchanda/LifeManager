@@ -159,12 +159,23 @@ struct AuthenticationView: View {
                             }
                             
                             // Development sign-in bypass
-                            Button("Skip Authentication (Development)") {
-                                viewModel.enableDevelopmentBypass()
+                            HStack(spacing: 8) {
+                                Button("Skip Authentication (Development)") {
+                                    viewModel.enableDevelopmentBypass()
+                                }
+                                .buttonStyle(.borderless)
+                                .foregroundColor(.orange)
+                                .font(.caption2)
+                                
+                                Button("Force Create Dev Account") {
+                                    Task {
+                                        await viewModel.forceCreateDevAccount()
+                                    }
+                                }
+                                .buttonStyle(.borderless)
+                                .foregroundColor(.green)
+                                .font(.caption2)
                             }
-                            .buttonStyle(.borderless)
-                            .foregroundColor(.orange)
-                            .font(.caption2)
                         }
                     }
                 }
@@ -239,10 +250,16 @@ struct AuthenticationView: View {
                                 .foregroundColor(.secondary)
                             
                             Button("Use Test Account") {
-                                email = "test@lifemanager.app"
-                                password = "TestPass123!"
+                                email = "dev@lifemanager.local"
+                                password = "DevPass123!"
                                 Task {
-                                    await viewModel.signUp(email: email, password: password)
+                                    // Try to sign in first, if that fails, create account
+                                    await viewModel.signIn(email: email, password: password)
+                                    
+                                    // If sign in failed, try creating the account
+                                    if !viewModel.isAuthenticated {
+                                        await viewModel.signUp(email: email, password: password)
+                                    }
                                 }
                             }
                             .buttonStyle(.borderless)
@@ -251,12 +268,25 @@ struct AuthenticationView: View {
                         }
                     }
                     
-                    Button(isSignUp ? "Back to Password Sign In" : "Use Magic Link Instead") {
-                        isSignUp.toggle()
-                        viewModel.authError = nil
+                    HStack(spacing: 16) {
+                        Button(isSignUp ? "Back to Password Sign In" : "Use Magic Link Instead") {
+                            isSignUp.toggle()
+                            viewModel.authError = nil
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundColor(.blue)
+                        
+                        if !isSignUp {
+                            Button("Reset Password") {
+                                Task {
+                                    await viewModel.resetPassword(email: email)
+                                }
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundColor(.orange)
+                            .disabled(email.isEmpty)
+                        }
                     }
-                    .buttonStyle(.borderless)
-                    .foregroundColor(.blue)
                 }
                 
                 if viewModel.isLoading {
