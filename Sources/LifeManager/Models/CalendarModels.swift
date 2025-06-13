@@ -26,6 +26,27 @@ enum CalendarViewMode: String, CaseIterable {
     }
 }
 
+/// Calendar filter options for filtering events
+enum CalendarFilter: String, CaseIterable, Hashable {
+    case work = "work"
+    case personal = "personal"
+    case toggl = "toggl"
+    case user = "user"
+    case locked = "locked"
+    case unlocked = "unlocked"
+    
+    var displayName: String {
+        switch self {
+        case .work: return "Work"
+        case .personal: return "Personal"
+        case .toggl: return "Toggl"
+        case .user: return "User"
+        case .locked: return "Locked"
+        case .unlocked: return "Unlocked"
+        }
+    }
+}
+
 /// Calendar event type for different content types
 enum CalendarEventType: String, CaseIterable {
     case task = "task"
@@ -54,11 +75,11 @@ enum CalendarEventType: String, CaseIterable {
 
 /// Calendar event model representing scheduled items
 struct CalendarEvent: Identifiable, Equatable {
-    let id = UUID()
-    let title: String
-    let description: String?
-    let startDate: Date
-    let endDate: Date
+    let id: UUID
+    var title: String
+    var description: String?
+    var startDate: Date
+    var endDate: Date
     let type: CalendarEventType
     let priority: TaskPriority
     let workPersonal: WorkPersonalType
@@ -68,9 +89,75 @@ struct CalendarEvent: Identifiable, Equatable {
     let isLocked: Bool
     let color: Color
     
+    // Advanced Calendar Features
+    var isActual: Bool = false
+    var originalPlannedTime: DateInterval?
+    var source: EventSource = .user
+    var togglEntryId: Int?
+    var isBumped: Bool = false
+    var bumpedByMinutes: Int = 0
+    var isImportant: Bool = false
+    var daysInParkingLot: Int = 0
+    
+    let duration: TimeInterval // Duration in seconds
+    
+    enum EventSource {
+        case user
+        case toggl
+        case lifeTask
+    }
+    
+    init(
+        id: UUID = UUID(),
+        title: String,
+        description: String? = nil,
+        startDate: Date,
+        endDate: Date,
+        type: CalendarEventType = .task,
+        priority: TaskPriority = .medium,
+        workPersonal: WorkPersonalType = .work,
+        projectId: UUID? = nil,
+        areaId: UUID? = nil,
+        taskId: UUID? = nil,
+        isLocked: Bool = false,
+        color: Color = .blue,
+        isActual: Bool = false,
+        originalPlannedTime: DateInterval? = nil,
+        source: EventSource = .user,
+        togglEntryId: Int? = nil,
+        isBumped: Bool = false,
+        bumpedByMinutes: Int = 0,
+        isImportant: Bool = false,
+        daysInParkingLot: Int = 0,
+        duration: TimeInterval
+    ) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.startDate = startDate
+        self.endDate = endDate
+        self.type = type
+        self.priority = priority
+        self.workPersonal = workPersonal
+        self.projectId = projectId
+        self.areaId = areaId
+        self.taskId = taskId
+        self.isLocked = isLocked
+        self.color = color
+        self.isActual = isActual
+        self.originalPlannedTime = originalPlannedTime
+        self.source = source
+        self.togglEntryId = togglEntryId
+        self.isBumped = isBumped
+        self.bumpedByMinutes = bumpedByMinutes
+        self.isImportant = isImportant
+        self.daysInParkingLot = daysInParkingLot
+        self.duration = duration
+    }
+    
     /// Duration in minutes
-    var duration: Int {
-        Int(endDate.timeIntervalSince(startDate) / 60)
+    var durationMinutes: Int {
+        Int(duration / 60)
     }
     
     /// Check if event overlaps with another event
@@ -96,8 +183,8 @@ extension CalendarEvent: Hashable {
     }
 }
 
-/// Calendar filter model for filtering events and tasks
-struct CalendarFilter {
+/// Calendar filter settings model for filtering events and tasks
+struct CalendarFilterSettings: Hashable {
     var selectedProjects: Set<UUID> = []
     var selectedAreas: Set<UUID> = []
     var selectedPriorities: Set<TaskPriority> = []
@@ -240,7 +327,8 @@ struct SmartScheduler {
                     areaId: task.areaId,
                     taskId: task.id,
                     isLocked: false,
-                    color: colorForTask(task)
+                    color: colorForTask(task),
+                    duration: TimeInterval(duration * 60)
                 )
                 
                 newEvents.append(event)
@@ -337,7 +425,8 @@ extension LifeTask {
             areaId: areaId,
             taskId: id,
             isLocked: false,
-            color: colorForPriority(priority)
+            color: colorForPriority(priority),
+            duration: TimeInterval(duration * 60)
         )
     }
     

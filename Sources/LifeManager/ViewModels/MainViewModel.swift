@@ -9,7 +9,7 @@ class MainViewModel: ObservableObject {
     // MARK: - Services
     
     private let supabaseService = SupabaseService.shared
-    private let llmService = LLMService()
+    internal let llmService = LLMService()
     
     // MARK: - Development Mode
     
@@ -73,15 +73,25 @@ class MainViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
+        NSLog("🔧 DEBUG: MainViewModel init() started")
+        
         // Test blob serialization on startup
         Task {
+            NSLog("🔧 DEBUG: MainViewModel testing blob serialization")
             await supabaseService.testBlobSerialization()
+            NSLog("🔧 DEBUG: MainViewModel blob serialization test completed")
         }
         
+        NSLog("🔧 DEBUG: MainViewModel setting up auth listener")
         setupAuthListener()
+        
         Task {
+            NSLog("🔧 DEBUG: MainViewModel loading initial data")
             await loadInitialData()
+            NSLog("🔧 DEBUG: MainViewModel initial data loading completed")
         }
+        
+        NSLog("🔧 DEBUG: MainViewModel init() completed")
     }
     
     // MARK: - Authentication Setup
@@ -1053,7 +1063,7 @@ class MainViewModel: ObservableObject {
         
         // If all else fails, use mock data
         print("🔧 DEV BYPASS: Falling back to mock data")
-        await loadMockData()
+            await loadMockData()
     }
     
     func forceCreateDevAccount() async {

@@ -2,579 +2,386 @@ import Foundation
 import SwiftUI
 import Combine
 
-/// Calendar view model managing calendar state and operations
+/// ViewModel for calendar functionality following MVVM pattern
+/// 
+/// Handles:
+/// - Calendar view mode state (Day/Week/Month)
+/// - Date navigation and selection
+/// - Event data management and filtering
+/// - Toggl integration and synchronization
+/// - Loading states and error handling
+/// - Smart scheduling and buffer management
 @MainActor
 class CalendarViewModel: ObservableObject {
     
     // MARK: - Published Properties
     
-    @Published var viewMode: CalendarViewMode = .month
+    /// Current calendar view mode
+    @Published var viewMode: CalendarViewMode = .day
+    
+    /// Currently selected date
     @Published var selectedDate: Date = Date()
-    @Published var events: [CalendarEvent] = []
-    @Published var unscheduledTasks: [LifeTask] = []
-    @Published var allTasks: [LifeTask] = [] // All tasks from PARA categories
-    @Published var filter: CalendarFilter = CalendarFilter()
-    @Published var isLoading = false
+    
+    /// Loading state for calendar data
+    @Published var isLoading: Bool = false
+    
+    /// Error message for display
     @Published var errorMessage: String?
-    @Published var showingFilters = false
-    @Published var showingAutoSchedule = false
-    @Published var autoScheduleEnabled = false
     
-    // Motion AI-style features
-    @Published var smartSchedulingEnabled = true
-    @Published var lockedTimeBlocks: [CalendarEvent] = []
-    @Published var workingHours: ClosedRange<Int> = 9...18
-    @Published var focusTimeBlocks: [CalendarEvent] = []
+    /// All calendar events
+    @Published var events: [CalendarEvent] = []
     
-    // Drag and drop state
-    @Published var draggingTask: LifeTask?
-    @Published var dragOffset: CGSize = .zero
+    /// Filtered events based on current filters
+    @Published var filteredEvents: [CalendarEvent] = []
+    
+    /// Current filter settings
+    @Published var activeFilters: Set<CalendarFilter> = []
+    
+    /// Smart scheduling enabled state
+    @Published var isSmartSchedulingEnabled: Bool = true
+    
+    /// Drop target date for drag and drop operations
     @Published var dropTargetDate: Date?
+    
+    /// Toggl sync status
+    @Published var togglSyncStatus: TogglSyncStatus = .idle
+    
+    /// Filtered unscheduled tasks (placeholder for now)
+    @Published var filteredUnscheduledTasks: [LifeTask] = []
     
     // MARK: - Private Properties
     
-    private let taskRepository = TaskRepository()
-    private let projectRepository = ProjectRepository()
-    private let areaRepository = AreaRepository()
     private var cancellables = Set<AnyCancellable>()
-    
-    // Reference to MainViewModel for accessing PARA tasks
-    private weak var mainViewModel: MainViewModel?
-    
-    // MARK: - Computed Properties
-    
-    /// Get current date range based on view mode
-    var currentDateRange: (start: Date, end: Date) {
-        switch viewMode {
-        case .day:
-            return (selectedDate.startOfDay, selectedDate.endOfDay)
-        case .week:
-            return (selectedDate.startOfWeek, selectedDate.endOfWeek)
-        case .month:
-            return (selectedDate.startOfMonth, selectedDate.endOfMonth)
-        }
-    }
-    
-    /// Get filtered events for current view
-    var filteredEvents: [CalendarEvent] {
-        let range = currentDateRange
-        return events.filter { event in
-            event.startDate >= range.start && event.startDate <= range.end &&
-            passesFilter(event)
-        }
-    }
-    
-    /// Get filtered unscheduled tasks (tasks from all PARA categories without scheduled times)
-    var filteredUnscheduledTasks: [LifeTask] {
-        return allTasks.filter { task in
-            !task.isScheduled && !task.isArchived && !task.isDeleted && task.status != .completed && passesTaskFilter(task)
-        }
-    }
-    
-    /// Get all tasks for parking lot (all PARA tasks)
-    var allPARATasksForParkingLot: [LifeTask] {
-        return allTasks.filter { task in
-            !task.isArchived && !task.isDeleted && passesTaskFilter(task)
-        }
-    }
-    
-    /// Check if any filters are active
-    var hasActiveFilters: Bool {
-        filter.isActive
-    }
+    private let togglService = TogglService()
+    private let bufferService = BufferManagementService()
     
     // MARK: - Initialization
     
     init() {
-        setupAutoRefresh()
+        setupBindings()
+        loadInitialData()
     }
     
     // MARK: - Public Methods
     
-    /// Set reference to MainViewModel for accessing PARA tasks
-    func setMainViewModel(_ viewModel: MainViewModel) {
-        self.mainViewModel = viewModel
-    }
-    
-    /// Load calendar data including all PARA tasks
-    func loadCalendarData() async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            // Load all tasks from database
-            let tasks = try await taskRepository.fetchAllTasks()
-            
-            // Combine with tasks from MainViewModel (PARA tasks)
-            var allAvailableTasks = tasks
-            
-            // Add focus tasks from MainViewModel
-            if let mainViewModel = mainViewModel {
-                await MainActor.run {
-                    allAvailableTasks.append(contentsOf: mainViewModel.focusTasks)
-                }
-            }
-            
-            // Remove duplicates based on ID
-            allAvailableTasks = Array(Set(allAvailableTasks))
-            
-            let scheduledTasks = allAvailableTasks.filter { $0.isScheduled && !$0.isArchived && !$0.isDeleted }
-            let unscheduled = allAvailableTasks.filter { !$0.isScheduled && !$0.isArchived && !$0.isDeleted && $0.status != .completed }
-            
-            // Convert scheduled tasks to calendar events
-            let taskEvents = scheduledTasks.compactMap { $0.toCalendarEvent() }
-            
-            // Load locked time blocks and focus blocks
-            let lockedBlocks = await loadLockedTimeBlocks()
-            let focusBlocks = await loadFocusTimeBlocks()
-            
-            await MainActor.run {
-                self.events = taskEvents + lockedBlocks + focusBlocks
-                self.unscheduledTasks = unscheduled
-                self.allTasks = allAvailableTasks
-                self.lockedTimeBlocks = lockedBlocks
-                self.focusTimeBlocks = focusBlocks
-                self.isLoading = false
-            }
-            
-            // Auto-schedule if enabled
-            if autoScheduleEnabled {
-                await autoScheduleUnscheduledTasks()
-            }
-            
-        } catch {
-            await MainActor.run {
-                self.errorMessage = "Failed to load calendar data: \(error.localizedDescription)"
-                self.isLoading = false
-            }
-        }
-    }
-    
-    /// Change view mode
-    func changeViewMode(_ mode: CalendarViewMode) {
-        viewMode = mode
-    }
-    
-    /// Navigate to previous period
+    /// Navigate to the previous period based on current view mode
     func navigatePrevious() {
+        let calendar = Calendar.current
+        
         switch viewMode {
         case .day:
-            selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+            selectedDate = calendar.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
         case .week:
-            selectedDate = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: selectedDate) ?? selectedDate
+            selectedDate = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedDate) ?? selectedDate
         case .month:
-            selectedDate = Calendar.current.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
+            selectedDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
         }
+        
+        loadEventsForCurrentPeriod()
     }
     
-    /// Navigate to next period
+    /// Navigate to the next period based on current view mode
     func navigateNext() {
+        let calendar = Calendar.current
+        
         switch viewMode {
         case .day:
-            selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+            selectedDate = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
         case .week:
-            selectedDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: selectedDate) ?? selectedDate
+            selectedDate = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedDate) ?? selectedDate
         case .month:
-            selectedDate = Calendar.current.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
+            selectedDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
         }
+        
+        loadEventsForCurrentPeriod()
     }
     
-    /// Go to today
-    func goToToday() {
+    /// Navigate to today
+    func navigateToToday() {
         selectedDate = Date()
+        loadEventsForCurrentPeriod()
     }
     
-    /// Schedule task at specific time
-    func scheduleTask(_ task: LifeTask, at date: Date) async {
-        guard let duration = task.estimatedDuration else { return }
-        
-        let endDate = date.addingTimeInterval(TimeInterval(duration * 60))
-        
-        // Check for conflicts
-        let conflicts = events.filter { event in
-            event.startDate < endDate && event.endDate > date
-        }
-        
-        if !conflicts.isEmpty && !conflicts.allSatisfy({ !$0.isLocked }) {
-            errorMessage = "Cannot schedule task: conflicts with locked time block"
-            return
-        }
-        
-        do {
-            // Update task with new due date
-            let updatedTask = LifeTask(
-                id: task.id,
-                blobId: task.blobId,
-                title: task.title,
-                description: task.description,
-                priority: task.priority,
-                status: task.status,
-                dueDate: ISO8601DateFormatter().string(from: date),
-                estimatedDuration: task.estimatedDuration,
-                workPersonal: task.workPersonal,
-                projectId: task.projectId,
-                areaId: task.areaId,
-                resourceId: task.resourceId,
-                isFocus: task.isFocus,
-                isArchived: task.isArchived,
-                createdAt: task.createdAt,
-                updatedAt: ISO8601DateFormatter().string(from: Date()),
-                completedAt: task.completedAt,
-                archivedAt: task.archivedAt
-            )
-            
-            _ = try await taskRepository.updateTask(updatedTask)
-            
-            // Refresh calendar data
-            await loadCalendarData()
-            
-        } catch {
-            errorMessage = "Failed to schedule task: \(error.localizedDescription)"
+    /// Get events for a specific date
+    func events(for date: Date) -> [CalendarEvent] {
+        let calendar = Calendar.current
+        return filteredEvents.filter { event in
+            calendar.isDate(event.startDate, inSameDayAs: date)
         }
     }
     
-    /// Reschedule existing event
-    func rescheduleEvent(_ event: CalendarEvent, to newDate: Date) async {
-        guard let taskId = event.taskId else { return }
+    /// Get events for a specific date and hour
+    func events(for date: Date, hour: Int) -> [CalendarEvent] {
+        let calendar = Calendar.current
+        return events(for: date).filter { event in
+            let eventHour = calendar.component(.hour, from: event.startDate)
+            return eventHour == hour
+        }
+    }
+    
+    /// Toggle a filter on/off
+    func toggleFilter(_ filter: CalendarFilter) {
+        if activeFilters.contains(filter) {
+            activeFilters.remove(filter)
+        } else {
+            activeFilters.insert(filter)
+        }
+        applyFilters()
+    }
+    
+    /// Clear all filters
+    func clearAllFilters() {
+        activeFilters.removeAll()
+        applyFilters()
+    }
+    
+    /// Sync with Toggl
+    func syncWithToggl() async {
+        togglSyncStatus = .syncing
         
         do {
-            if let task = try await taskRepository.fetchTask(id: taskId) {
-                await scheduleTask(task, at: newDate)
+            let togglEvents = try await togglService.fetchTodaysEntries()
+            await MainActor.run {
+                // Update events with Toggl data
+                updateEventsWithTogglData(togglEvents)
+                togglSyncStatus = .success
             }
         } catch {
-            errorMessage = "Failed to reschedule event: \(error.localizedDescription)"
-        }
-    }
-    
-    /// Auto-schedule unscheduled tasks using Motion AI-style logic
-    func autoScheduleUnscheduledTasks() async {
-        guard !unscheduledTasks.isEmpty else { return }
-        
-        let range = currentDateRange
-        let availableSlots = SmartScheduler.generateAvailableSlots(
-            from: range.start,
-            to: range.end,
-            existingEvents: events,
-            workingHours: workingHours
-        )
-        
-        let newEvents = SmartScheduler.autoScheduleTasks(
-            unscheduled: unscheduledTasks,
-            existingEvents: events,
-            availableSlots: availableSlots,
-            workingHours: workingHours
-        )
-        
-        // Update tasks in database
-        for event in newEvents {
-            if let taskId = event.taskId,
-               let task = unscheduledTasks.first(where: { $0.id == taskId }) {
-                await scheduleTask(task, at: event.startDate)
+            await MainActor.run {
+                errorMessage = "Failed to sync with Toggl: \(error.localizedDescription)"
+                togglSyncStatus = .error
             }
         }
     }
     
-    /// Create locked time block
-    func createLockedTimeBlock(
+    /// Handle drop operation for scheduling
+    func handleDrop(on date: Date) async {
+        // Placeholder for drop handling logic
+        print("Handling drop on \(date)")
+        
+        // Clear drop target after handling
+        await MainActor.run {
+            dropTargetDate = nil
+        }
+    }
+    
+    /// Create a new event
+    func createEvent(
         title: String,
+        description: String? = nil,
         startDate: Date,
-        duration: Int,
-        description: String? = nil
-    ) async {
-        let endDate = startDate.addingTimeInterval(TimeInterval(duration * 60))
+        duration: TimeInterval,
+        workPersonal: WorkPersonalType = .work,
+        color: Color = .blue
+    ) {
+        let endDate = startDate.addingTimeInterval(duration)
         
-        let lockedBlock = CalendarEvent(
+        let newEvent = CalendarEvent(
             title: title,
             description: description,
             startDate: startDate,
             endDate: endDate,
-            type: CalendarEventType.timeBlock,
-            priority: TaskPriority.high,
-            workPersonal: WorkPersonalType.work,
-            projectId: nil,
-            areaId: nil,
-            taskId: nil,
-            isLocked: true,
-            color: Color.gray
+            workPersonal: workPersonal,
+            color: color,
+            source: .user,
+            duration: duration
         )
         
-        lockedTimeBlocks.append(lockedBlock)
-        events.append(lockedBlock)
-        
-        // TODO: Persist locked time blocks to database
+        events.append(newEvent)
+        applyFilters()
     }
     
-    /// Create focus time block
-    func createFocusTimeBlock(
-        title: String,
-        startDate: Date,
-        duration: Int,
-        projectId: UUID? = nil
-    ) async {
-        let endDate = startDate.addingTimeInterval(TimeInterval(duration * 60))
-        
-        let focusBlock = CalendarEvent(
-            title: title,
-            description: "Deep focus time",
-            startDate: startDate,
-            endDate: endDate,
-            type: CalendarEventType.timeBlock,
-            priority: TaskPriority.high,
-            workPersonal: WorkPersonalType.work,
-            projectId: projectId,
-            areaId: nil,
-            taskId: nil,
-            isLocked: false,
-            color: Color.green
-        )
-        
-        focusTimeBlocks.append(focusBlock)
-        events.append(focusBlock)
-        
-        // TODO: Persist focus time blocks to database
+    /// Delete an event
+    func deleteEvent(_ event: CalendarEvent) {
+        events.removeAll { $0.id == event.id }
+        applyFilters()
     }
     
-    /// Update filter settings
-    func updateFilter(_ newFilter: CalendarFilter) {
-        filter = newFilter
-    }
-    
-    /// Clear all filters
-    func clearFilters() {
-        filter = CalendarFilter()
-    }
-    
-    /// Toggle auto-scheduling
-    func toggleAutoSchedule() {
-        autoScheduleEnabled.toggle()
-        if autoScheduleEnabled {
-            Task {
-                await autoScheduleUnscheduledTasks()
-            }
+    /// Update an event
+    func updateEvent(_ event: CalendarEvent) {
+        if let index = events.firstIndex(where: { $0.id == event.id }) {
+            events[index] = event
+            applyFilters()
         }
     }
     
-    // MARK: - Drag and Drop Methods
-    
-    /// Start dragging a task
-    func startDragging(_ task: LifeTask) {
-        draggingTask = task
-        dragOffset = .zero
-    }
-    
-    /// Update drag position
-    func updateDragPosition(_ offset: CGSize) {
-        dragOffset = offset
-    }
-    
-    /// Handle drop on date
-    func handleDrop(on date: Date) async {
-        guard let task = draggingTask else { return }
+    /// Load calendar data (placeholder for now)
+    func loadCalendarData() async {
+        await MainActor.run {
+            isLoading = true
+        }
         
-        await scheduleTask(task, at: date)
+        // Simulate loading
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
         
-        // Reset drag state
-        draggingTask = nil
-        dragOffset = .zero
-        dropTargetDate = nil
+        await MainActor.run {
+            isLoading = false
+        }
     }
     
-    /// Cancel drag operation
-    func cancelDrag() {
-        draggingTask = nil
-        dragOffset = .zero
-        dropTargetDate = nil
+    /// Reschedule an event to a new date
+    func rescheduleEvent(_ event: CalendarEvent, to newDate: Date) async {
+        await MainActor.run {
+            if let index = events.firstIndex(where: { $0.id == event.id }) {
+                var updatedEvent = event
+                let duration = event.endDate.timeIntervalSince(event.startDate)
+                updatedEvent.startDate = newDate
+                updatedEvent.endDate = newDate.addingTimeInterval(duration)
+                events[index] = updatedEvent
+                applyFilters()
+            }
+        }
     }
     
     // MARK: - Private Methods
     
-    /// Setup auto-refresh timer
-    private func setupAutoRefresh() {
-        // Refresh every minute to keep calendar current
-        Timer.publish(every: 60, on: .main, in: .common)
-            .autoconnect()
-            .sink { _ in
-                Task {
-                    await self.loadCalendarData()
-                }
+    private func setupBindings() {
+        // React to view mode changes
+        $viewMode
+            .sink { [weak self] _ in
+                self?.loadEventsForCurrentPeriod()
+            }
+            .store(in: &cancellables)
+        
+        // React to date changes
+        $selectedDate
+            .sink { [weak self] _ in
+                self?.loadEventsForCurrentPeriod()
             }
             .store(in: &cancellables)
     }
     
-    /// Check if event passes current filter
-    private func passesFilter(_ event: CalendarEvent) -> Bool {
-        // Project filter
-        if !filter.selectedProjects.isEmpty {
-            guard let projectId = event.projectId,
-                  filter.selectedProjects.contains(projectId) else {
-                return false
-            }
-        }
+    private func loadInitialData() {
+        // Load sample data for now
+        loadSampleEvents()
+        applyFilters()
         
-        // Area filter
-        if !filter.selectedAreas.isEmpty {
-            guard let areaId = event.areaId,
-                  filter.selectedAreas.contains(areaId) else {
-                return false
-            }
+        // Start Toggl sync
+        Task {
+            await syncWithToggl()
         }
-        
-        // Priority filter
-        if !filter.selectedPriorities.isEmpty {
-            guard filter.selectedPriorities.contains(event.priority) else {
-                return false
-            }
-        }
-        
-        // Work/Personal filter
-        if let workPersonalFilter = filter.workPersonalFilter {
-            guard event.workPersonal == workPersonalFilter else {
-                return false
-            }
-        }
-        
-        // Focus filter
-        if filter.showOnlyFocus {
-            guard event.type == .timeBlock || 
-                  (event.taskId != nil && events.contains { $0.taskId == event.taskId && $0.type == .timeBlock }) else {
-                return false
-            }
-        }
-        
-        return true
     }
     
-    /// Check if task passes current filter
-    private func passesTaskFilter(_ task: LifeTask) -> Bool {
-        // Project filter
-        if !filter.selectedProjects.isEmpty {
-            guard let projectId = task.projectId,
-                  filter.selectedProjects.contains(projectId) else {
-                return false
-            }
-        }
+    private func loadEventsForCurrentPeriod() {
+        isLoading = true
         
-        // Area filter
-        if !filter.selectedAreas.isEmpty {
-            guard let areaId = task.areaId,
-                  filter.selectedAreas.contains(areaId) else {
-                return false
-            }
+        // Simulate loading delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            self.isLoading = false
         }
-        
-        // Priority filter
-        if !filter.selectedPriorities.isEmpty {
-            guard filter.selectedPriorities.contains(task.priority) else {
-                return false
-            }
-        }
-        
-        // Work/Personal filter
-        if let workPersonalFilter = filter.workPersonalFilter {
-            guard task.workPersonal == workPersonalFilter else {
-                return false
-            }
-        }
-        
-        // Focus filter
-        if filter.showOnlyFocus {
-            guard task.isFocus else {
-                return false
-            }
-        }
-        
-        // Completed filter
-        if !filter.showCompleted {
-            guard task.status != .completed else {
-                return false
-            }
-        }
-        
-        return true
     }
     
-    /// Load locked time blocks (placeholder - implement with persistence)
-    private func loadLockedTimeBlocks() async -> [CalendarEvent] {
-        // TODO: Load from database
-        return []
+    private func applyFilters() {
+        if activeFilters.isEmpty {
+            filteredEvents = events
+        } else {
+            filteredEvents = events.filter { event in
+                // Apply active filters
+                for filter in activeFilters {
+                    switch filter {
+                    case .work:
+                        if event.workPersonal != .work && event.workPersonal != .both {
+                            return false
+                        }
+                    case .personal:
+                        if event.workPersonal != .personal && event.workPersonal != .both {
+                            return false
+                        }
+                    case .toggl:
+                        if event.source != .toggl {
+                            return false
+                        }
+                    case .user:
+                        if event.source != .user {
+                            return false
+                        }
+                    case .locked:
+                        if !event.isLocked {
+                            return false
+                        }
+                    case .unlocked:
+                        if event.isLocked {
+                            return false
+                        }
+                    }
+                }
+                return true
+            }
+        }
     }
     
-    /// Load focus time blocks (placeholder - implement with persistence)
-    private func loadFocusTimeBlocks() async -> [CalendarEvent] {
-        // TODO: Load from database or generate from focus tasks
-        return []
+    private func updateEventsWithTogglData(_ togglEvents: [TogglTimeEntry]) {
+        // Remove existing Toggl events
+        events.removeAll { $0.source == .toggl }
+        
+        // Add new Toggl events
+        let calendarEvents = togglEvents.map { togglEntry in
+            CalendarEvent(
+                title: togglEntry.description ?? "Toggl Entry",
+                description: "Toggl time entry",
+                startDate: togglEntry.startDate,
+                endDate: togglEntry.endDate ?? Date(),
+                workPersonal: .work, // Default to work for Toggl entries
+                color: .green,
+                source: .toggl,
+                togglEntryId: togglEntry.id,
+                duration: togglEntry.actualDuration
+            )
+        }
+        
+        events.append(contentsOf: calendarEvents)
+        applyFilters()
+    }
+    
+    private func loadSampleEvents() {
+        let now = Date()
+        let calendar = Calendar.current
+        
+        // Create some sample events for demonstration
+        let sampleEvents = [
+            CalendarEvent(
+                title: "Morning Standup",
+                description: "Daily team sync",
+                startDate: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: now) ?? now,
+                endDate: calendar.date(bySettingHour: 9, minute: 30, second: 0, of: now) ?? now,
+                workPersonal: .work,
+                color: .blue,
+                source: .user,
+                duration: 1800 // 30 minutes
+            ),
+            CalendarEvent(
+                title: "Lunch Break",
+                description: "Time to recharge",
+                startDate: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now,
+                endDate: calendar.date(bySettingHour: 13, minute: 0, second: 0, of: now) ?? now,
+                workPersonal: .personal,
+                color: .green,
+                source: .user,
+                duration: 3600 // 1 hour
+            ),
+            CalendarEvent(
+                title: "Code Review",
+                description: "Review pending PRs",
+                startDate: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: now) ?? now,
+                endDate: calendar.date(bySettingHour: 15, minute: 30, second: 0, of: now) ?? now,
+                workPersonal: .work,
+                color: .orange,
+                source: .user,
+                isLocked: true,
+                duration: 5400 // 1.5 hours
+            )
+        ]
+        
+        events = sampleEvents
     }
 }
 
-// MARK: - Calendar Helper Methods
+// MARK: - Supporting Types
 
-extension CalendarViewModel {
-    
-    /// Get events for a specific date
-    func events(for date: Date) -> [CalendarEvent] {
-        let dayStart = date.startOfDay
-        let dayEnd = date.endOfDay
-        
-        return filteredEvents.filter { event in
-            event.startDate >= dayStart && event.startDate <= dayEnd
-        }.sorted { $0.startDate < $1.startDate }
-    }
-    
-    /// Get events for a specific hour
-    func events(for date: Date, hour: Int) -> [CalendarEvent] {
-        guard let hourStart = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: date),
-              let hourEnd = Calendar.current.date(byAdding: .hour, value: 1, to: hourStart) else {
-            return []
-        }
-        
-        return filteredEvents.filter { event in
-            event.startDate < hourEnd && event.endDate > hourStart
-        }
-    }
-    
-    /// Check if a time slot is available
-    func isSlotAvailable(at date: Date, duration: Int) -> Bool {
-        let endDate = date.addingTimeInterval(TimeInterval(duration * 60))
-        
-        return !events.contains { event in
-            event.startDate < endDate && event.endDate > date
-        }
-    }
-    
-    /// Get suggested time slots for a task
-    func suggestedSlots(for task: LifeTask) -> [Date] {
-        guard let duration = task.estimatedDuration else { return [] }
-        
-        let range = currentDateRange
-        let availableSlots = SmartScheduler.generateAvailableSlots(
-            from: range.start,
-            to: range.end,
-            existingEvents: events,
-            workingHours: workingHours
-        )
-        
-        return availableSlots
-            .filter { $0.isAvailable && $0.durationMinutes >= duration }
-            .prefix(5) // Top 5 suggestions
-            .map { $0.startTime }
-    }
-    
-    /// Format date for current view mode
-    func formatDateForView(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        
-        switch viewMode {
-        case .day:
-            formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        case .week:
-            let weekStart = date.startOfWeek
-            let weekEnd = date.endOfWeek
-            formatter.dateFormat = "MMM d"
-            return "\(formatter.string(from: weekStart)) - \(formatter.string(from: weekEnd))"
-        case .month:
-            formatter.dateFormat = "MMMM yyyy"
-        }
-        
-        return formatter.string(from: date)
-    }
+/// Toggl sync status
+enum TogglSyncStatus {
+    case idle
+    case syncing
+    case success
+    case error
 } 

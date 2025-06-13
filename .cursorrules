@@ -77,13 +77,63 @@
 - Relationships: blob_categories, blob_tags, task_tags
 - Audit: blob_history, task_history
 
-### Development Standards
+## DEVELOPMENT STANDARDS
+
 - Use UUIDs for all primary keys
 - Implement comprehensive audit trails for all changes
 - Maintain work/personal classification for all content
 - Enable natural language querying
 - Support multiple filtering and view modes
 - Preserve complete version history
+
+---
+
+### SWIFT/SWIFTUI ARCHITECTURE & MODULARIZATION (MANDATORY)
+
+- You are a senior Swift and SwiftUI engineer, working on a large, production-quality macOS app (LifeManager) using best practices and a modular, scalable codebase architecture.
+- **Do NOT put all code into a single ContentView.swift or a single file.**
+
+#### Coding requirements:
+
+- **Follow the MVVM (Model-View-ViewModel) pattern strictly.**
+- Each view (UI) has a dedicated ViewModel file for its state/logic.
+- Split all UI into small, composable, reusable SwiftUI Views.
+- Example: CalendarView, CalendarDayCell, TaskRow, ParkingLotSidebar, NotificationBanner, BufferWarningBar, etc.
+- Each view goes in its own file.
+- All business logic (scheduling, bumping, buffer management, Toggl integration, LLM interaction) goes into dedicated service or engine files (e.g., SchedulingEngine.swift, TogglService.swift).
+- All models and data structures have their own files (e.g., Task.swift, Event.swift, CalendarEventType.swift).
+- Never repeat or duplicate code—use extensions, helper functions, and computed properties.
+- Use protocol-oriented and type-safe code; avoid “stringly-typed” APIs.
+- Group files in Xcode project by responsibility:
+  - /Views
+  - /ViewModels
+  - /Models
+  - /Services
+  - /Repositories
+  - /Utils
+- Write extensive comments, documentation, and mark sections clearly for maintainability.
+- Ensure each file is under 400 lines if possible; if larger, split further.
+- **Do NOT put all features in one file, ever.**
+- All code must be ready for production, maintainable, extensible, and written to the standards of a professional macOS/iOS Swift developer.
+
+#### Special Instructions for Feature Implementation:
+
+- Implement the intelligent, adaptive scheduling calendar as described above (buffer rule, auto-bumping, parking lot, notifications, etc.).
+- All stateful logic goes in the appropriate ViewModel or service, not the View.
+- The calendar UI should be modular and performance-optimized, following best practices for SwiftUI.
+- Use clear data models and types for planned events, actual events (Toggl), buffer periods, and parked items.
+- Ensure the app is robust and does not corrupt files or lose state if features are added.
+- If you encounter a large feature, break it into multiple files and components.
+- If any ambiguity, propose a breakdown/architecture before writing full code.
+- Write the code in small, reviewable chunks, and confirm each component before proceeding to the next.
+- If anything grows too large or unwieldy, refactor and modularize immediately.
+
+##### Never ever:
+
+- Output more than one View/Model/Service in a single file unless it’s a trivial helper.
+- Add any “just for demo” hacks or shortcuts; use only production-ready, idiomatic Swift.
+
+---
 
 ## FILE MANAGEMENT RULES
 

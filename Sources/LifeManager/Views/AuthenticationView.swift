@@ -160,12 +160,12 @@ struct AuthenticationView: View {
                             
                             // Development sign-in bypass
                             HStack(spacing: 8) {
-                                Button("Skip Authentication (Development)") {
-                                    viewModel.enableDevelopmentBypass()
-                                }
-                                .buttonStyle(.borderless)
-                                .foregroundColor(.orange)
-                                .font(.caption2)
+                            Button("Skip Authentication (Development)") {
+                                viewModel.enableDevelopmentBypass()
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundColor(.orange)
+                            .font(.caption2)
                                 
                                 Button("Force Create Dev Account") {
                                     Task {
@@ -258,7 +258,7 @@ struct AuthenticationView: View {
                                     
                                     // If sign in failed, try creating the account
                                     if !viewModel.isAuthenticated {
-                                        await viewModel.signUp(email: email, password: password)
+                                    await viewModel.signUp(email: email, password: password)
                                     }
                                 }
                             }
@@ -269,12 +269,12 @@ struct AuthenticationView: View {
                     }
                     
                     HStack(spacing: 16) {
-                        Button(isSignUp ? "Back to Password Sign In" : "Use Magic Link Instead") {
-                            isSignUp.toggle()
-                            viewModel.authError = nil
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundColor(.blue)
+                    Button(isSignUp ? "Back to Password Sign In" : "Use Magic Link Instead") {
+                        isSignUp.toggle()
+                        viewModel.authError = nil
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundColor(.blue)
                         
                         if !isSignUp {
                             Button("Reset Password") {

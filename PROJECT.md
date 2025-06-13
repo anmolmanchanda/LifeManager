@@ -66,6 +66,14 @@ This document specifies the feature set for each major version of LifeManager, i
 4. **Development bypass showing no content**: Now creates authenticated sessions for database access
 5. **Email delivery issues**: Added alternative account creation methods
 
+### Advanced Calendar System with Toggl Integration (Latest Update)
+- **Smart Calendar View**: New advanced calendar with real-time Toggl time tracking integration
+- **Buffer Management**: Automatic 5-minute per hour buffer enforcement to prevent overbooking
+- **Auto-Bumping Logic**: Automatic rescheduling when actual time entries conflict with planned events
+- **Enhanced Parking Lot**: LLM-powered importance ranking and intelligent overflow handling
+- **Smart Notifications**: Progressive alert system with push notifications, SMS, and email escalation
+- **Visual Cues**: Color-coded events showing actual vs planned time with "pushed by X minutes" labels
+
 ### Recently Deleted Tasks & Parking Lot Scheduling (Previous Update)
 - **Recently Deleted Section**: Added 24-hour recovery system for deleted tasks in archive
 - **Enhanced Scheduling Logic**: Fixed parking lot to only show tasks with both date AND time as "scheduled"

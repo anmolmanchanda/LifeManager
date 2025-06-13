@@ -617,7 +617,7 @@ class LLMService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let body: [String: Any] = [
-            "model": "gpt-4o-mini",
+                            "model": "gpt-4.1",
             "messages": [
                 ["role": "user", "content": prompt]
             ],
@@ -842,7 +842,7 @@ class LLMService: ObservableObject {
                 inputData: inputData,
                 promptText: promptText,
                 responseText: responseText,
-                modelName: preferredProvider == .openAI ? "gpt-4o-mini" : "claude-3-sonnet",
+                modelName: preferredProvider == .openAI ? "gpt-4.1" : "claude-3-sonnet",
                 tokensUsed: nil, // Could be parsed from API response
                 processingTimeMs: processingTime,
                 confidenceScore: confidenceScore
