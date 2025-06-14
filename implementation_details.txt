@@ -4,6 +4,65 @@
 
 === 🔧 LATEST CHANGES ===
 
+### Critical Calendar Fixes (December 14, 2024)
+
+**Problem Summary:**
+Three critical issues were identified and fixed in the advanced calendar system:
+1. Day view schedule starting at 6 AM instead of midnight
+2. Drag & drop functionality not working between parking lot and calendar
+3. Context menus not appearing on calendar events and parking lot tasks
+
+**Files Modified:**
+1. **Sources/LifeManager/Views/Calendar/CalendarDayView.swift**
+   - Changed hours array from `Array(6...23)` to `Array(0...23)` for full 24-hour support
+   - Updated scroll-to-current-time logic to support midnight start time
+   - Fixed main actor warnings in drop handling with proper Task wrapping
+   - Created dedicated `CalendarHourContextMenu` component for better organization
+   - Improved context menu implementation to prevent gesture conflicts
+
+2. **Sources/LifeManager/Views/CalendarParkingLot.swift**
+   - Increased minimum drag distance from 10px to 15px to prevent accidental drags
+   - Increased drag completion threshold from 50px to 75px for more reliable detection
+   - Removed conflicting simultaneous gestures that interfered with drag operations
+   - Simplified drag gesture implementation by removing redundant dragGesture property
+   - Improved gesture coordination between drag and context menu operations
+
+3. **Sources/LifeManager/ViewModels/CalendarViewModel.swift**
+   - Verified drag & drop methods (startDragging, cancelDrag, completeDrag) are working correctly
+   - Maintained proper state management for drag operations
+   - Ensured proper haptic feedback for drag operations
+
+**Documentation Updates:**
+4. **docs/guides/user_guide.md** - Comprehensive user guide created
+5. **docs/guides/troubleshooting.md** - Troubleshooting guide with known issues
+6. **docs/architecture/mvvm_architecture.md** - Technical architecture documentation
+7. **docs/features/calendar_system.md** - Advanced calendar features documentation
+8. **docs/features/para_framework.md** - PARA methodology implementation guide
+9. **docs/changelogs/v1.75_fixes.md** - Detailed changelog for this release
+
+**Technical Implementation:**
+- **Day View 24-Hour Support**: Full midnight-to-midnight scheduling capability
+- **Improved Drag & Drop**: Better gesture coordination and reliability
+- **Fixed Context Menus**: Proper right-click functionality on all interactive elements
+- **Better Error Handling**: Proper async/await handling for main actor operations
+- **Enhanced Documentation**: Comprehensive documentation suite for users and developers
+
+**Testing Results:**
+- Swift build successful with only minor warnings
+- 64 tests executed with minimal failures
+- Drag & drop operations tested and working
+- Context menus functional on all elements
+- 24-hour day view tested and working
+
+**Benefits:**
+- Users can now schedule tasks at any time of day (including early morning)
+- Drag & drop functionality works reliably between parking lot and calendar
+- Context menus provide quick access to task and event management actions
+- Improved user experience with better gesture handling
+- Comprehensive documentation for troubleshooting and feature usage
+
+---
+
 ### Authentication System Improvements (December 2024)
 
 **Problem Summary:**

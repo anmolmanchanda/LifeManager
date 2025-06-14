@@ -10,7 +10,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 > **LifeManager's evolution from core productivity tool to comprehensive AI-powered knowledge management system**
 
-### **v1.0 - Foundation** *(June 9, 2024 - June 10, 2024)*
+### **v1.0 - Foundation** *(9-10 June 2025)*
 **Status: SHIPPED** ✅
 
 **Core Infrastructure:**
@@ -30,7 +30,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ---
 
-### **v1.25 - Intelligence & UI** *(June 10, 2024)*
+### **v1.25 - Intelligence & UI** *(10 June 2025)*
 **Status: SHIPPED** ✅
 
 **Enhanced AI Processing:**
@@ -54,7 +54,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ---
 
-### **v1.5 - Advanced Features** *(June 10-11, 2024)*
+### **v1.5 - Advanced Features** *(10-11 June 2025)*
 **Status: SHIPPED** ✅
 
 **PARA System Enhancements:**
@@ -77,7 +77,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ---
 
-### **v1.75 - Calendar Revolution** *(June 11-13, 2024)*
+### **v1.75 - Calendar Revolution** *(11-13 June 2025)*
 **Status: SHIPPED** ✅
 
 **Modular MVVM Architecture:**
@@ -110,7 +110,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ## 🔮 Future Roadmap
 
-### **v2.0 - Intelligence Expansion** *(Planned: Q3 2024)*
+### **v2.0 - Intelligence Expansion** *(Planned: 14-17 June 2025)*
 **Enhanced AI Capabilities:**
 - Multi-LLM support (Claude, GPT-4, Gemini)
 - Advanced natural language understanding
@@ -142,7 +142,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ---
 
-### **v2.25 - Mobile & Sync** *(Planned: Q4 2024)*
+### **v2.25 - Mobile & Sync** *(Planned: 18-23 June 2025)*
 **Cross-Platform Expansion:**
 - iOS companion app
 - Apple Watch integration
@@ -162,7 +162,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ---
 
-### **v2.5 - Enterprise Ready** *(Planned: Q1 2025)*
+### **v2.5 - Enterprise Ready** *(Planned: 24 June - 1 July 2025)*
 **Enterprise Features:**
 - Multi-tenant architecture
 - Advanced security controls
@@ -183,7 +183,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ---
 
-### **v2.75 - Automation & AI** *(Planned: Q2 2025)*
+### **v2.75 - Automation & AI** *(Planned: 2-12 July 2025)*
 **Intelligent Automation:**
 - Smart task creation from emails
 - Automated project planning
@@ -204,7 +204,7 @@ LifeManager is a native macOS application that revolutionizes personal productiv
 
 ---
 
-### **v3.0 - Next Generation** *(Vision: Q3 2025)*
+### **v3.0 - Next Generation** *(Vision: 13-25 July 2025)*
 **Revolutionary Features:**
 - Neural productivity optimization
 - Quantum task scheduling algorithms

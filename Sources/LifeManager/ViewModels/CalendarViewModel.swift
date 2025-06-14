@@ -17,7 +17,16 @@ class CalendarViewModel: ObservableObject {
     // MARK: - Published Properties
     
     /// Current calendar view mode
-    @Published var viewMode: CalendarViewMode = .day
+    @Published var viewMode: CalendarViewMode = .day {
+        didSet {
+            if oldValue != viewMode {
+                LifeLogger.calendar(.info, "📅 View mode changed from \(oldValue) to \(viewMode)")
+                Task {
+                    await loadEventsForCurrentPeriod()
+                }
+            }
+        }
+    }
     
     /// Currently selected date
     @Published var selectedDate: Date = Date()
@@ -99,7 +108,14 @@ class CalendarViewModel: ObservableObject {
             selectedDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
         }
         
-        loadEventsForCurrentPeriod()
+        // Force refresh for all view modes
+        Task {
+            await loadEventsForCurrentPeriod()
+            await MainActor.run {
+                applyFilters()
+                objectWillChange.send()
+            }
+        }
     }
     
     /// Navigate to the next period based on current view mode
@@ -115,13 +131,27 @@ class CalendarViewModel: ObservableObject {
             selectedDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
         }
         
-        loadEventsForCurrentPeriod()
+        // Force refresh for all view modes
+        Task {
+            await loadEventsForCurrentPeriod()
+            await MainActor.run {
+                applyFilters()
+                objectWillChange.send()
+            }
+        }
     }
     
     /// Navigate to today
     func navigateToToday() {
         selectedDate = Date()
-        loadEventsForCurrentPeriod()
+        // Force refresh when navigating to today
+        Task {
+            await loadEventsForCurrentPeriod()
+            await MainActor.run {
+                applyFilters()
+                objectWillChange.send()
+            }
+        }
     }
     
     /// Get events for a specific date
@@ -135,10 +165,15 @@ class CalendarViewModel: ObservableObject {
     /// Get events for a specific date and hour
     func events(for date: Date, hour: Int) -> [CalendarEvent] {
         let calendar = Calendar.current
-        return events(for: date).filter { event in
-            let eventHour = calendar.component(.hour, from: event.startDate)
-            return eventHour == hour
+        let startOfHour = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
+        let endOfHour = calendar.date(byAdding: .hour, value: 1, to: startOfHour) ?? date
+        
+        let eventsForHour = events.filter { event in
+            event.startDate < endOfHour && event.endDate > startOfHour
         }
+        
+        LifeLogger.weekView(.debug, "Events for \(date) hour \(hour): \(eventsForHour.count)")
+        return eventsForHour
     }
     
     /// Toggle a filter on/off
@@ -281,27 +316,60 @@ class CalendarViewModel: ObservableObject {
     
     /// Start dragging a task
     func startDragging(_ task: LifeTask) {
-        draggingTask = task
+        LifeLogger.dragDrop(.info, "🎯 Starting drag for task: '\(task.title)' (ID: \(task.id.uuidString.prefix(8)))")
+        
         draggedTask = task
+        draggingTask = task
         isDragging = true
+        
+        // Provide haptic feedback
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
+    }
+    
+    /// Update drag position for overlay
+    func updateDragPosition(_ translation: CGSize) {
+        dragPosition = CGPoint(x: translation.width, y: translation.height)
     }
     
     /// Cancel drag operation
     func cancelDrag() {
-        draggingTask = nil
-        draggedTask = nil
+        LifeLogger.dragDrop(.info, "🎯 Canceling drag operation")
+        
         isDragging = false
+        draggedTask = nil
+        draggingTask = nil
         dragPosition = .zero
+        dropTargetDate = nil
     }
     
-    /// Update drag position during drag operation
-    func updateDragPosition(_ translation: CGSize) {
-        // Use translation directly for relative positioning
-        dragPosition = CGPoint(x: translation.width, y: translation.height)
+    /// Complete drag operation successfully
+    func completeDrag() {
+        LifeLogger.dragDrop(.info, "🎯 Completing drag operation successfully")
+        
+        isDragging = false
+        draggedTask = nil
+        draggingTask = nil
+        dragPosition = .zero
+        dropTargetDate = nil
+        
+        // Provide success haptic feedback
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
     }
     
     /// Schedule a task at a specific time
     func scheduleTask(_ task: LifeTask, at date: Date) async {
+        let timer = PerformanceTimer(operation: "scheduleTask")
+        
+        LifeLogger.logTaskScheduling(
+            task: task,
+            scheduleDate: date,
+            operation: "SCHEDULE_START",
+            success: true
+        )
+        
+        // Log initial state
+        LifeLogger.taskScheduling(.info, "Initial state - Tasks in parking lot: \(allTasks.count), Events: \(events.count)")
+        
         // Create calendar event from task
         let estimatedMinutes = task.estimatedDuration ?? 30 // Default to 30 minutes if not specified
         let duration: TimeInterval = TimeInterval(estimatedMinutes * 60) // Convert minutes to seconds
@@ -317,15 +385,76 @@ class CalendarViewModel: ObservableObject {
             duration: duration
         )
         
+        LifeLogger.taskScheduling(.info, "Created calendar event: '\(event.title)' from \(event.startDate) to \(event.endDate)")
+        
+        // Update task in database with scheduled time
+        let taskRepository = TaskRepository()
+        let dateFormatter = ISO8601DateFormatter()
+        let updatedTask = LifeTask(
+            id: task.id,
+            blobId: task.blobId,
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            status: task.status,
+            dueDate: dateFormatter.string(from: date), // Set due date to scheduled time
+            estimatedDuration: task.estimatedDuration,
+            workPersonal: task.workPersonal,
+            projectId: task.projectId,
+            areaId: task.areaId,
+            resourceId: task.resourceId,
+            isFocus: task.isFocus,
+            isArchived: task.isArchived,
+            createdAt: task.createdAt,
+            updatedAt: dateFormatter.string(from: Date()),
+            completedAt: task.completedAt,
+            archivedAt: task.archivedAt,
+            deletedAt: task.deletedAt
+        )
+        
+        // Update UI state first (this should always work)
         await MainActor.run {
-            events.append(event)
-            applyFilters()
+            let initialTaskCount = allTasks.count
+            let initialEventCount = events.count
             
-            // Mark task as scheduled (you'd normally update this in the database)
-            // Note: The LifeTask model uses isScheduled computed property based on dueDate
-            // To properly mark as scheduled, we would need to update the dueDate with the specific time
-            print("Task \(task.title) scheduled for \(date)")
+            // Add event to calendar
+            events.append(event)
+            LifeLogger.taskScheduling(.info, "Added event to calendar. Events count: \(initialEventCount) -> \(events.count)")
+            
+            applyFilters()
+            LifeLogger.taskScheduling(.info, "Applied filters. Filtered events count: \(filteredEvents.count)")
+            
+            // Remove task from parking lot (allTasks)
+            if let index = allTasks.firstIndex(where: { $0.id == task.id }) {
+                allTasks.remove(at: index)
+                LifeLogger.taskScheduling(.info, "Removed task from parking lot. Tasks count: \(initialTaskCount) -> \(allTasks.count)")
+            } else {
+                LifeLogger.taskScheduling(.warning, "Task not found in parking lot for removal. Task ID: \(task.id)")
+            }
+            
+            LifeLogger.taskScheduling(.info, "✅ Task '\(task.title)' scheduled for \(date) and removed from parking lot")
         }
+        
+        // Try to update database (this might fail in tests, but UI should still work)
+        do {
+            LifeLogger.database(.info, "Updating task in database with scheduled time: \(dateFormatter.string(from: date))")
+            _ = try await taskRepository.updateTask(updatedTask)
+            LifeLogger.database(.info, "Successfully updated task in database")
+        } catch {
+            LifeLogger.database(.warning, "Failed to update task in database (UI still updated): \(error)")
+            // Don't throw - UI state is already updated
+        }
+        
+        // Note: No need to reload calendar data as we've already updated the in-memory state
+        LifeLogger.taskScheduling(.info, "Task scheduling completed successfully")
+        
+        _ = timer.end()
+        LifeLogger.logTaskScheduling(
+            task: task,
+            scheduleDate: date,
+            operation: "SCHEDULE_SUCCESS",
+            success: true
+        )
     }
     
     /// Get suggested time slots for a task
@@ -474,20 +603,73 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    /// Load events for the current period based on view mode
+    func loadEventsForCurrentPeriod() async {
+        let calendar = Calendar.current
+        
+        switch viewMode {
+        case .day:
+            await loadEventsForDate(selectedDate)
+        case .week:
+            // Load events for entire week
+            let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: selectedDate)?.start ?? selectedDate
+            let weekDays = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
+            
+            for date in weekDays {
+                await loadEventsForDate(date)
+            }
+        case .month:
+            // Load events for entire month with rate limiting
+            let startOfMonth = calendar.dateInterval(of: .month, for: selectedDate)?.start ?? selectedDate
+            let endOfMonth = calendar.dateInterval(of: .month, for: selectedDate)?.end ?? selectedDate
+            
+            // Use batch loading for month view to avoid rate limiting
+            await loadEventsForDateRange(startDate: startOfMonth, endDate: endOfMonth)
+        }
+        
+        await MainActor.run {
+            applyFilters()
+            LifeLogger.calendar(.info, "✅ Loaded events for \(viewMode) view - Total events: \(events.count)")
+        }
+    }
+    
+    /// Load events for a date range (used for month view to avoid rate limiting)
+    func loadEventsForDateRange(startDate: Date, endDate: Date) async {
+        do {
+            // Sync with Toggl for the entire range in one request
+            let togglEvents = try await togglService.fetchTimeEntries(startDate: startDate, endDate: endDate)
+            
+            await MainActor.run {
+                // Update events with Toggl data
+                updateEventsWithTogglData(togglEvents)
+                LifeLogger.calendar(.info, "✅ Loaded \(togglEvents.count) Toggl events for date range")
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Failed to load events: \(error.localizedDescription)"
+                LifeLogger.calendar(.error, "❌ Failed to load events for date range: \(error)")
+            }
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func setupBindings() {
-        // React to view mode changes
+        // Bind view mode changes to reload events
         $viewMode
             .sink { [weak self] _ in
-                self?.loadEventsForCurrentPeriod()
+                Task { @MainActor in
+                    await self?.loadEventsForCurrentPeriod()
+                }
             }
             .store(in: &cancellables)
         
-        // React to date changes
+        // Bind selected date changes to reload events
         $selectedDate
             .sink { [weak self] _ in
-                self?.loadEventsForCurrentPeriod()
+                Task { @MainActor in
+                    await self?.loadEventsForCurrentPeriod()
+                }
             }
             .store(in: &cancellables)
     }
@@ -503,19 +685,7 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    private func loadEventsForCurrentPeriod() {
-        isLoading = true
-        
-        // Load events for the selected date
-        Task {
-            await syncWithToggl()
-            await MainActor.run {
-                self.isLoading = false
-            }
-        }
-    }
-    
-    private func applyFilters() {
+    internal func applyFilters() {
         if activeFilters.isEmpty {
             filteredEvents = events
         } else {

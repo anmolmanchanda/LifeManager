@@ -415,12 +415,60 @@ struct ParkingLotTaskRow: View {
         .onHover { hovering in
             isHovered = hovering
         }
-        .gesture(dragGesture)
+        .draggable(task.id.uuidString) {
+            // Custom drag preview
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                
+                if let description = task.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(8)
+            .background(Color(NSColor.controlAccentColor).opacity(0.9))
+            .foregroundColor(.white)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
         .contextMenu {
             TaskContextMenu(task: task)
                 .environmentObject(calendarViewModel)
                 .environmentObject(viewModel)
         }
+        .gesture(
+            // Use high priority drag gesture that doesn't interfere with context menu
+            DragGesture(minimumDistance: 15) // Increased minimum distance
+                .onChanged { value in
+                    if !isDragging {
+                        LifeLogger.dragDrop(.info, "🎯 Started dragging task: '\(task.title)' (ID: \(task.id.uuidString.prefix(8)))")
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isDragging = true
+                        }
+                        calendarViewModel.startDragging(task)
+                    }
+                    calendarViewModel.updateDragPosition(value.translation)
+                }
+                .onEnded { value in
+                    LifeLogger.dragDrop(.info, "🎯 Ended dragging task: '\(task.title)' at translation: \(value.translation)")
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isDragging = false
+                    }
+                    
+                    // Check if drag was successful (moved significant distance)
+                    let dragDistance = sqrt(value.translation.width * value.translation.width + value.translation.height * value.translation.height)
+                    if dragDistance > 75 { // Increased threshold
+                        calendarViewModel.completeDrag()
+                    } else {
+                        calendarViewModel.cancelDrag()
+                    }
+                }
+        )
     }
     
     private var taskBackgroundColor: Color {
@@ -433,24 +481,7 @@ struct ParkingLotTaskRow: View {
         }
     }
     
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                if !isDragging {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isDragging = true
-                    }
-                    calendarViewModel.startDragging(task)
-                }
-                calendarViewModel.updateDragPosition(value.translation)
-            }
-            .onEnded { value in
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    isDragging = false
-                }
-                calendarViewModel.cancelDrag()
-            }
-    }
+
     
     private func priorityColor(_ priority: TaskPriority) -> Color {
         switch priority {
@@ -575,9 +606,13 @@ struct TaskContextMenu: View {
     }
     
     private func scheduleTaskQuickly() async {
+        LifeLogger.contextMenu(.info, "⚡ Quick scheduling task: '\(task.title)'")
         let suggestedSlots = calendarViewModel.suggestedSlots(for: task)
         if let firstSlot = suggestedSlots.first {
+            LifeLogger.contextMenu(.info, "⚡ Found suggested slot: \(firstSlot)")
             await calendarViewModel.scheduleTask(task, at: firstSlot)
+        } else {
+            LifeLogger.contextMenu(.warning, "⚡ No suggested slots found for task: '\(task.title)'")
         }
     }
     

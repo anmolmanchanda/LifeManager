@@ -4,7 +4,7 @@ import Foundation
 /// Daily calendar view with detailed hourly timeline
 /// 
 /// Provides:
-/// - Hourly time slots from 6 AM to 11 PM
+/// - Hourly time slots from midnight (00:00) to 11 PM (23:00)
 /// - Event positioning within time slots
 /// - Current time indicator
 /// - Drag and drop support for scheduling
@@ -14,7 +14,7 @@ struct CalendarDayView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     
     // MARK: - Constants
-    private let hours = Array(6...23) // 6 AM to 11 PM
+    private let hours = Array(0...23) // Midnight to 11 PM (24-hour format)
     private let hourHeight: CGFloat = 320 // Quadrupled from 80 to prevent overlapping completely
     
     // MARK: - Body
@@ -54,8 +54,8 @@ struct CalendarDayView: View {
         
         if Calendar.current.isDateInToday(calendarViewModel.selectedDate) {
             let currentHour = Calendar.current.component(.hour, from: Date())
-            // Scroll to current hour, but ensure it's within our range
-            targetHour = max(6, min(23, currentHour))
+            // Scroll to current hour, now supporting full 24-hour range
+            targetHour = max(0, min(23, currentHour))
         } else {
             // Default to 8 AM for other days
             targetHour = 8
@@ -134,23 +134,22 @@ struct CalendarDayHourView: View {
             }
         }
         .onDrop(of: [.text], isTargeted: $isDragTargeted) { providers in
-            handleDrop()
+            handleDrop(providers: providers)
             return true
         }
         .onTapGesture {
             handleTap()
         }
         .contextMenu {
-            // Only show context menu for future events or non-Toggl events
-            if hourDate > Date() || events.allSatisfy({ $0.source != .toggl }) {
-                Button("Create Event") {
-                    handleCreateEvent()
-                }
-                
-                Button("Show Details") {
-                    handleShowDetails()
-                }
-            }
+            CalendarHourContextMenu(
+                hourDate: hourDate,
+                events: events,
+                onCreateEvent: handleCreateEvent,
+                onQuickSchedule: handleQuickSchedule,
+                onShowAvailableTasks: handleShowAvailableTasks,
+                onShowDetails: handleShowDetails,
+                onClearTimeSlot: handleClearTimeSlot
+            )
         }
     }
     
@@ -302,22 +301,202 @@ struct CalendarDayHourView: View {
         print("Tapped on hour \(hour)")
     }
     
-    private func handleDrop() {
+    private func handleDrop(providers: [NSItemProvider]) {
+        LifeLogger.dragDrop(.info, "Drop initiated at \(timeLabel)")
+        
         // Provide haptic feedback
         NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
         
-        // Handle drop scheduling - placeholder for now
-        print("Dropped on hour \(hour)")
+        // First try to use the dragged task from view model (most reliable)
+        if let draggedTask = calendarViewModel.draggedTask {
+            LifeLogger.logDragDropOperation(
+                operation: "DROP_FROM_VIEWMODEL",
+                taskId: draggedTask.id,
+                taskTitle: draggedTask.title,
+                sourceLocation: "ParkingLot",
+                targetLocation: timeLabel,
+                success: true
+            )
+            
+            Task {
+                await calendarViewModel.scheduleTask(draggedTask, at: hourDate)
+                await MainActor.run {
+                    calendarViewModel.completeDrag()
+                    LifeLogger.dragDrop(.info, "✅ Scheduled task '\(draggedTask.title)' at \(timeLabel)")
+                }
+            }
+            return
+        }
+        
+        // Fallback: try to get task from draggable data
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier("public.text") {
+                provider.loadItem(forTypeIdentifier: "public.text", options: nil) { item, error in
+                    if let taskIdString = item as? String,
+                       let taskId = UUID(uuidString: taskIdString) {
+                        
+                        Task { @MainActor in
+                            if let task = calendarViewModel.allTasks.first(where: { $0.id == taskId }) {
+                                LifeLogger.logDragDropOperation(
+                                    operation: "DROP_FROM_DRAGGABLE",
+                                    taskId: task.id,
+                                    taskTitle: task.title,
+                                    sourceLocation: "ParkingLot",
+                                    targetLocation: timeLabel,
+                                    success: true
+                                )
+                                
+                                await calendarViewModel.scheduleTask(task, at: hourDate)
+                                calendarViewModel.completeDrag()
+                                LifeLogger.dragDrop(.info, "✅ Scheduled task '\(task.title)' at \(timeLabel)")
+                            } else {
+                                LifeLogger.dragDrop(.error, "Failed to find task with ID: \(taskIdString)")
+                                calendarViewModel.cancelDrag()
+                            }
+                        }
+                    } else {
+                        LifeLogger.dragDrop(.error, "Failed to parse task ID from draggable data")
+                        Task { @MainActor in
+                            calendarViewModel.cancelDrag()
+                        }
+                    }
+                }
+                return
+            }
+        }
+        
+        // No valid drop data found
+        LifeLogger.dragDrop(.warning, "No valid drop data found")
+        Task { @MainActor in
+            calendarViewModel.cancelDrag()
+        }
     }
     
     private func handleCreateEvent() {
-        // Implementation of handleCreateEvent
-        print("Create Event tapped on hour \(hour)")
+        LifeLogger.contextMenu(.info, "Creating new event at \(timeLabel)")
+        
+        // Create a new event at this time slot
+        let estimatedDuration: TimeInterval = 3600 // 1 hour default
+        
+        let newEvent = CalendarEvent(
+            title: "New Event",
+            description: "Created at \(timeLabel)",
+            startDate: hourDate,
+            endDate: hourDate.addingTimeInterval(estimatedDuration),
+            workPersonal: .work,
+            color: .blue,
+            source: .user,
+            duration: estimatedDuration
+        )
+        
+        let initialEventCount = calendarViewModel.events.count
+        calendarViewModel.events.append(newEvent)
+        calendarViewModel.applyFilters()
+        
+        LifeLogger.logContextMenuAction(
+            action: "CREATE_EVENT",
+            timeSlot: hourDate,
+            eventCount: calendarViewModel.events.count,
+            taskCount: calendarViewModel.allTasks.count,
+            success: calendarViewModel.events.count > initialEventCount
+        )
+        
+        LifeLogger.contextMenu(.info, "✅ Created new event at \(timeLabel)")
+    }
+    
+    private func handleQuickSchedule() {
+        // Schedule the first available task from parking lot
+        if let firstTask = calendarViewModel.allTasks.first {
+            Task {
+                await calendarViewModel.scheduleTask(firstTask, at: hourDate)
+            }
+        } else {
+            print("No tasks available in parking lot")
+        }
+    }
+    
+    private func handleShowAvailableTasks() {
+        // Show available tasks in parking lot
+        let taskCount = calendarViewModel.allTasks.count
+        print("📋 Available tasks in parking lot: \(taskCount)")
+        for (index, task) in calendarViewModel.allTasks.prefix(5).enumerated() {
+            print("  \(index + 1). \(task.title)")
+        }
+        if taskCount > 5 {
+            print("  ... and \(taskCount - 5) more")
+        }
     }
     
     private func handleShowDetails() {
-        // Implementation of handleShowDetails
-        print("Show Details tapped on hour \(hour)")
+        // Show details for this time slot
+        if events.isEmpty {
+            print("📅 Time slot: \(timeLabel) - Available for scheduling")
+        } else {
+            print("📅 Time slot: \(timeLabel) - \(events.count) event(s)")
+            for event in events {
+                print("  • \(event.title) (\(event.source.rawValue))")
+            }
+        }
+    }
+    
+    private func handleClearTimeSlot() {
+        // Remove user-created events from this time slot
+        let userEvents = events.filter { $0.source == .user }
+        for event in userEvents {
+            if let index = calendarViewModel.events.firstIndex(where: { $0.id == event.id }) {
+                calendarViewModel.events.remove(at: index)
+            }
+        }
+        print("🗑️ Cleared \(userEvents.count) user event(s) from \(timeLabel)")
+    }
+}
+
+// MARK: - Calendar Hour Context Menu
+
+/// Context menu for calendar hour slots
+struct CalendarHourContextMenu: View {
+    let hourDate: Date
+    let events: [CalendarEvent]
+    let onCreateEvent: () -> Void
+    let onQuickSchedule: () -> Void
+    let onShowAvailableTasks: () -> Void
+    let onShowDetails: () -> Void
+    let onClearTimeSlot: () -> Void
+    
+    var body: some View {
+        Group {
+            // Only show context menu for future events or non-Toggl events
+            if hourDate > Date() || events.allSatisfy({ $0.source != .toggl }) {
+                Button("Create Event") {
+                    onCreateEvent()
+                }
+                
+                Button("Quick Schedule Task") {
+                    onQuickSchedule()
+                }
+                
+                Button("Show Available Tasks") {
+                    onShowAvailableTasks()
+                }
+                
+                Button("Show Details") {
+                    onShowDetails()
+                }
+                
+                if !events.isEmpty {
+                    Divider()
+                    
+                    Button("Clear Time Slot", role: .destructive) {
+                        onClearTimeSlot()
+                    }
+                }
+            } else {
+                // Show limited context menu for past/Toggl events
+                Button("Show Details") {
+                    onShowDetails()
+                }
+            }
+        }
     }
 }
 

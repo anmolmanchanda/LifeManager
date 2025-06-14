@@ -16,9 +16,22 @@ class TogglService: ObservableObject {
     private var workspaceId = "4310831"  // ⚠️ REPLACE WITH YOUR WORKSPACE ID
     private let baseURL = "https://api.track.toggl.com/api/v9"
     
-    // MARK: - Rate Limiting
+    // MARK: - Enhanced Rate Limiting & Request Queue
     private var lastRequestTime: Date = Date.distantPast
-    private let minimumRequestInterval: TimeInterval = 2.0 // 2 seconds between requests to avoid 429 errors
+    private let minimumRequestInterval: TimeInterval = 3.0 // Increased to 3 seconds
+    private var requestQueue: [APIRequest] = []
+    private var isProcessingQueue = false
+    
+    // Request queue item
+    private struct APIRequest {
+        let id = UUID()
+        let urlRequest: URLRequest
+        let completion: (Result<Data, Error>) -> Void
+    }
+    
+    // MARK: - Caching
+    private var cachedTimeEntries: [String: ([TogglTimeEntry], Date)] = [:]
+    private let cacheValidityDuration: TimeInterval = 300 // 5 minutes
     
     // MARK: - Properties
     
@@ -64,6 +77,70 @@ class TogglService: ObservableObject {
         }
     }
     
+    // MARK: - Enhanced Rate Limiting with Queue Processing
+    
+    /// Process request queue with proper rate limiting
+    private func processRequestQueue() async {
+        guard !isProcessingQueue && !requestQueue.isEmpty else { return }
+        
+        isProcessingQueue = true
+        
+        while !requestQueue.isEmpty {
+            let request = requestQueue.removeFirst()
+            
+            // Ensure minimum interval between requests
+            let timeSinceLastRequest = Date().timeIntervalSince(lastRequestTime)
+            if timeSinceLastRequest < minimumRequestInterval {
+                let waitTime = minimumRequestInterval - timeSinceLastRequest
+                NSLog("🔧 TOGGL: Queue processing - waiting \(waitTime)s for rate limit")
+                try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+            }
+            
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request.urlRequest)
+                
+                // Handle 429 Rate Limiting with exponential backoff
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 429 {
+                    NSLog("🔧 TOGGL: 429 Rate Limited - implementing exponential backoff")
+                    
+                    // Exponential backoff: 5, 10, 20 seconds
+                    let backoffDelay: TimeInterval = min(5.0 * pow(2.0, Double(requestQueue.count)), 20.0)
+                    NSLog("🔧 TOGGL: Backing off for \(backoffDelay)s")
+                    
+                    try await Task.sleep(nanoseconds: UInt64(backoffDelay * 1_000_000_000))
+                    
+                    // Re-queue the request
+                    requestQueue.insert(request, at: 0)
+                    continue
+                }
+                
+                lastRequestTime = Date()
+                request.completion(.success(data))
+                
+            } catch {
+                NSLog("🔧 TOGGL: Queue request failed: \(error)")
+                request.completion(.failure(error))
+            }
+        }
+        
+        isProcessingQueue = false
+    }
+    
+    /// Queue a request with rate limiting
+    private func queueRequest(_ urlRequest: URLRequest) async throws -> Data {
+        return try await withCheckedThrowingContinuation { continuation in
+            let request = APIRequest(urlRequest: urlRequest) { result in
+                continuation.resume(with: result)
+            }
+            
+            requestQueue.append(request)
+            
+            Task {
+                await processRequestQueue()
+            }
+        }
+    }
+    
     /// Test the API connection
     func testConnection() async throws -> Bool {
         let urlString = "\(baseURL)/me"
@@ -83,59 +160,42 @@ class TogglService: ObservableObject {
         
         NSLog("🔧 TOGGL: Testing connection to \(urlString)")
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data = try await queueRequest(request)
         
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw TogglError.invalidResponse
+        NSLog("🔧 TOGGL: ✅ API connection successful")
+        if let responseString = String(data: data, encoding: .utf8) {
+            NSLog("🔧 TOGGL: User info: \(responseString.prefix(200))...")
         }
-        
-        NSLog("🔧 TOGGL: Test response status: \(httpResponse.statusCode)")
-        
-        if httpResponse.statusCode == 401 {
-            throw TogglError.unauthorized
-        }
-        
-        if httpResponse.statusCode == 200 {
-            NSLog("🔧 TOGGL: ✅ API connection successful")
-            if let responseString = String(data: data, encoding: .utf8) {
-                NSLog("🔧 TOGGL: User info: \(responseString.prefix(200))...")
-            }
-            return true
-        } else {
-            throw TogglError.apiError(httpResponse.statusCode)
-        }
+        return true
     }
     
-    // MARK: - Rate Limiting Helper
+    // MARK: - Enhanced API Methods with Caching
     
-    /// Ensure minimum time between API requests to avoid rate limiting
-    private func ensureRateLimit() async {
-        let timeSinceLastRequest = Date().timeIntervalSince(lastRequestTime)
-        if timeSinceLastRequest < minimumRequestInterval {
-            let waitTime = minimumRequestInterval - timeSinceLastRequest
-            NSLog("🔧 TOGGL: Rate limiting - waiting \(waitTime)s")
-            try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
-        }
-        lastRequestTime = Date()
-    }
-    
-    // MARK: - API Methods
-    
-    /// Fetch time entries for a specific date range
+    /// Fetch time entries for a specific date range with caching
     func fetchTimeEntries(startDate: Date, endDate: Date) async throws -> [TogglTimeEntry] {
         guard isConnected else {
             throw TogglError.notConfigured
         }
         
-        // Rate limiting to prevent 429 errors
-        await ensureRateLimit()
-        
-        isLoading = true
-        defer { isLoading = false }
-        
+        // Create cache key
         let isoFormatter = ISO8601DateFormatter()
         let startString = isoFormatter.string(from: startDate)
         let endString = isoFormatter.string(from: endDate)
+        let cacheKey = "\(startString)-\(endString)"
+        
+        // Check cache first
+        if let (cachedEntries, cacheTime) = cachedTimeEntries[cacheKey],
+           Date().timeIntervalSince(cacheTime) < cacheValidityDuration {
+            NSLog("🔧 TOGGL: ✅ Using cached entries (\(cachedEntries.count) entries)")
+            await MainActor.run {
+                self.timeEntries = cachedEntries
+                self.lastSyncDate = cacheTime
+            }
+            return cachedEntries
+        }
+        
+        isLoading = true
+        defer { isLoading = false }
         
         let urlString = "\(baseURL)/me/time_entries?start_date=\(startString)&end_date=\(endString)"
         
@@ -144,7 +204,6 @@ class TogglService: ObservableObject {
         }
         
         var request = URLRequest(url: url)
-        // Fix authentication - use proper Basic auth format
         let credentials = "\(apiToken):api_token"
         let credentialsData = credentials.data(using: .utf8)!
         let base64Credentials = credentialsData.base64EncodedString()
@@ -156,24 +215,7 @@ class TogglService: ObservableObject {
         NSLog("🔧 TOGGL: URL: \(urlString)")
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw TogglError.invalidResponse
-            }
-            
-            NSLog("🔧 TOGGL: Response status: \(httpResponse.statusCode)")
-            
-            if httpResponse.statusCode == 401 {
-                throw TogglError.unauthorized
-            }
-            
-            if httpResponse.statusCode != 200 {
-                if let responseString = String(data: data, encoding: .utf8) {
-                    NSLog("🔧 TOGGL: Error response: \(responseString)")
-                }
-                throw TogglError.apiError(httpResponse.statusCode)
-            }
+            let data = try await queueRequest(request)
             
             // Debug: Print raw response
             if let responseString = String(data: data, encoding: .utf8) {
@@ -181,6 +223,9 @@ class TogglService: ObservableObject {
             }
             
             let entries = try JSONDecoder().decode([TogglTimeEntry].self, from: data)
+            
+            // Cache the results
+            cachedTimeEntries[cacheKey] = (entries, Date())
             
             await MainActor.run {
                 self.timeEntries = entries
@@ -238,32 +283,22 @@ class TogglService: ObservableObject {
             
             NSLog("🔧 TOGGL: Fetching projects from \(urlString)")
             
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let data = try await queueRequest(request)
+            let fetchedProjects = try JSONDecoder().decode([TogglProject].self, from: data)
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                NSLog("🔧 TOGGL: ❌ Invalid projects response")
-                return
-            }
-            
-            if httpResponse.statusCode == 200 {
-                let fetchedProjects = try JSONDecoder().decode([TogglProject].self, from: data)
+            await MainActor.run {
+                self.projects = fetchedProjects
                 
-                await MainActor.run {
-                    self.projects = fetchedProjects
-                    
-                    // Build project color map
-                    for project in fetchedProjects {
-                        if let colorHex = project.color {
-                            self.projectColors[project.id] = Color(hexString: colorHex) ?? Color.green
-                        } else {
-                            self.projectColors[project.id] = Color.green
-                        }
+                // Build project color map
+                for project in fetchedProjects {
+                    if let colorHex = project.color {
+                        self.projectColors[project.id] = Color(hexString: colorHex) ?? Color.green
+                    } else {
+                        self.projectColors[project.id] = Color.green
                     }
-                    
-                    NSLog("🔧 TOGGL: ✅ Fetched \(fetchedProjects.count) projects with colors")
                 }
-            } else {
-                NSLog("🔧 TOGGL: ❌ Failed to fetch projects: \(httpResponse.statusCode)")
+                
+                NSLog("🔧 TOGGL: ✅ Fetched \(fetchedProjects.count) projects with colors")
             }
             
         } catch {
@@ -292,24 +327,16 @@ class TogglService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let data = try await queueRequest(request)
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw TogglError.invalidResponse
-            }
-            
-            NSLog("🔧 TOGGL: Current entry response status: \(httpResponse.statusCode)")
-            
-            if httpResponse.statusCode == 200 {
-                let entry = try JSONDecoder().decode(TogglTimeEntry.self, from: data)
-                NSLog("🔧 TOGGL: Current entry: \(entry.description ?? "Unnamed")")
-                return entry
-            } else if httpResponse.statusCode == 204 {
+            if data.isEmpty {
                 NSLog("🔧 TOGGL: No current entry running")
                 return nil // No current entry
-            } else {
-                throw TogglError.apiError(httpResponse.statusCode)
             }
+            
+            let entry = try JSONDecoder().decode(TogglTimeEntry.self, from: data)
+            NSLog("🔧 TOGGL: Current entry: \(entry.description ?? "Unnamed")")
+            return entry
             
         } catch {
             NSLog("🔧 TOGGL: ❌ Error fetching current entry: \(error)")

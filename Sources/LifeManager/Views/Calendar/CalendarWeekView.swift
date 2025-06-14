@@ -4,6 +4,7 @@ import Foundation
 /// Weekly calendar view - completely rebuilt for reliability
 struct CalendarWeekView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @State private var refreshTrigger = UUID()
     
     private let hours = Array(0..<24)
     private var weekDays: [Date] {
@@ -47,6 +48,16 @@ struct CalendarWeekView: View {
         .onAppear {
             loadWeekData()
         }
+        .onChange(of: calendarViewModel.selectedDate) { _ in
+            // Force refresh when selected date changes
+            refreshTrigger = UUID()
+            loadWeekData()
+        }
+        .onChange(of: calendarViewModel.events) { _ in
+            // Force refresh when events change
+            refreshTrigger = UUID()
+        }
+        .id(refreshTrigger)
     }
     
     // MARK: - Components
@@ -99,9 +110,14 @@ struct CalendarWeekView: View {
         let events = calendarViewModel.events(for: date, hour: hour)
         let isCurrentHour = Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour
         
+        // Debug logging for week cell
+        if !events.isEmpty {
+            LifeLogger.weekView(.info, "📅 Week cell for \(hour):00 on \(date) has \(events.count) events")
+        }
+        
         return VStack(spacing: 1) {
             if !events.isEmpty {
-                ForEach(Array(events.prefix(2).enumerated()), id: \.offset) { _, event in
+                ForEach(Array(events.prefix(2).enumerated()), id: \.offset) { index, event in
                     HStack(spacing: 2) {
                         Rectangle()
                             .fill(event.color)
@@ -125,6 +141,10 @@ struct CalendarWeekView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
+            } else {
+                // Show placeholder for empty cells to help debug
+                Text("")
+                    .frame(height: 14)
             }
             
             Spacer()
@@ -135,6 +155,10 @@ struct CalendarWeekView: View {
         .overlay {
             Rectangle()
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
+        }
+        .onTapGesture {
+            // Add tap gesture for debugging
+            LifeLogger.weekView(.info, "🖱️ Tapped week cell: \(hour):00 on \(date) - Events: \(events.count)")
         }
     }
     
@@ -169,9 +193,28 @@ struct CalendarWeekView: View {
     }
     
     private func loadWeekData() {
+        let timer = PerformanceTimer(operation: "loadWeekData")
+        
+        LifeLogger.weekView(.info, "🔄 Loading week data for selected date: \(calendarViewModel.selectedDate)")
+        LifeLogger.weekView(.info, "Week days: \(weekDays.count)")
+        LifeLogger.weekView(.info, "Current events count: \(calendarViewModel.events.count)")
+        LifeLogger.weekView(.info, "Current tasks count: \(calendarViewModel.allTasks.count)")
+        
         Task {
-            for date in weekDays {
+            for (index, date) in weekDays.enumerated() {
+                LifeLogger.weekView(.debug, "Loading events for day \(index + 1)/7: \(date)")
                 await calendarViewModel.loadEventsForDate(date)
+            }
+            
+            await MainActor.run {
+                let duration = timer.end()
+                LifeLogger.logWeekViewOperation(
+                    operation: "LOAD_WEEK_DATA",
+                    selectedDate: calendarViewModel.selectedDate,
+                    eventCount: calendarViewModel.events.count,
+                    taskCount: calendarViewModel.allTasks.count,
+                    duration: duration
+                )
             }
         }
     }

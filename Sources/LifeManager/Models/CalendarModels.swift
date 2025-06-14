@@ -110,10 +110,10 @@ struct CalendarEvent: Identifiable, Equatable {
     
     let duration: TimeInterval // Duration in seconds
     
-    enum EventSource {
-        case user
-        case toggl
-        case lifeTask
+    enum EventSource: String {
+        case user = "user"
+        case toggl = "toggl"
+        case lifeTask = "lifeTask"
     }
     
     init(
