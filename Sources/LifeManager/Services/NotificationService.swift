@@ -98,6 +98,90 @@ class NotificationService: ObservableObject {
         )
     }
     
+    // MARK: - Enhanced Calendar Notifications
+    
+    /// Schedule event parked notification
+    func scheduleEventParkedNotification(
+        eventTitle: String,
+        reason: String,
+        isImportant: Bool
+    ) async {
+        let priority = isImportant ? "🔴" : "🟡"
+        sendLocalNotification(
+            title: "Event Parked \(priority)",
+            body: "'\(eventTitle)' moved to parking lot - \(reason)",
+            category: isImportant ? .criticalEvent : .eventParked
+        )
+    }
+    
+    /// Schedule event rescheduled notification
+    func scheduleEventRescheduledNotification(
+        eventTitle: String,
+        newTime: Date
+    ) async {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        
+        sendLocalNotification(
+            title: "Event Rescheduled ✅",
+            body: "'\(eventTitle)' moved to \(formatter.string(from: newTime))",
+            category: .eventRescheduled
+        )
+    }
+    
+    /// Schedule parking decision notification
+    func scheduleParkingDecisionNotification(eventCount: Int) async {
+        sendLocalNotification(
+            title: "Decision Required 🤔",
+            body: "\(eventCount) events need scheduling decisions. Which should be parked?",
+            category: .decisionRequired
+        )
+    }
+    
+    /// Schedule auto-bump notification
+    func scheduleAutoBumpNotification(
+        eventTitle: String,
+        bumpedByMinutes: Int,
+        reason: String
+    ) async {
+        sendLocalNotification(
+            title: "Event Auto-Bumped 📅",
+            body: "'\(eventTitle)' moved \(bumpedByMinutes)min later - \(reason)",
+            category: .eventBumped
+        )
+    }
+    
+    /// Schedule cascade bump notification
+    func scheduleCascadeBumpNotification(eventCount: Int) async {
+        sendLocalNotification(
+            title: "Multiple Events Bumped ⚡",
+            body: "\(eventCount) events rescheduled due to cascade effect",
+            category: .cascadeBump
+        )
+    }
+    
+    /// Schedule buffer violation warning
+    func scheduleBufferViolationWarning(
+        remainingBuffer: Int,
+        hoursAffected: Int
+    ) async {
+        sendLocalNotification(
+            title: "Buffer Violation ⚠️",
+            body: "Only \(remainingBuffer)min buffer left for \(hoursAffected)h period",
+            category: .bufferWarning
+        )
+    }
+    
+    /// Schedule stale parking lot notification
+    func scheduleStaleEventNotification(eventCount: Int) async {
+        sendLocalNotification(
+            title: "Stale Parked Events 📋",
+            body: "\(eventCount) events have been parked for over a week",
+            category: .staleEvents
+        )
+    }
+    
     /// Send critical event notification
     func sendCriticalEventNotification(eventTitle: String) {
         sendLocalNotification(
@@ -267,14 +351,19 @@ enum NotificationCategory: String, CaseIterable {
     case eventParked = "EVENT_PARKED"
     case criticalEvent = "CRITICAL_EVENT"
     case escalatedWarning = "ESCALATED_WARNING"
+    case eventRescheduled = "EVENT_RESCHEDULED"
+    case decisionRequired = "DECISION_REQUIRED"
+    case eventBumped = "EVENT_BUMPED"
+    case cascadeBump = "CASCADE_BUMP"
+    case staleEvents = "STALE_EVENTS"
     
     var sound: UNNotificationSound {
         switch self {
-        case .general, .eventParked:
+        case .general, .eventParked, .eventRescheduled, .eventBumped:
             return .default
-        case .bufferWarning:
+        case .bufferWarning, .staleEvents:
             return UNNotificationSound(named: UNNotificationSoundName("warning.caf"))
-        case .criticalEvent, .escalatedWarning:
+        case .criticalEvent, .escalatedWarning, .decisionRequired, .cascadeBump:
             return UNNotificationSound(named: UNNotificationSoundName("critical.caf"))
         }
     }

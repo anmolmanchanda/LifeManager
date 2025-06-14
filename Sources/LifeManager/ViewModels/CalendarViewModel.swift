@@ -55,6 +55,12 @@ class CalendarViewModel: ObservableObject {
     /// Currently dragging task
     @Published var draggingTask: LifeTask?
     
+    /// Orchestration service for advanced calendar features
+    private let orchestrationService = CalendarOrchestrationService()
+    
+    /// Parking lot service for overflow events
+    @Published var parkingLotService: EnhancedParkingLotService
+    
     // MARK: - Private Properties
     
     private var cancellables = Set<AnyCancellable>()
@@ -64,6 +70,7 @@ class CalendarViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
+        self.parkingLotService = EnhancedParkingLotService()
         setupBindings()
         loadInitialData()
     }
@@ -488,6 +495,94 @@ class CalendarViewModel: ObservableObject {
         ]
         
         events = sampleEvents
+    }
+    
+    // MARK: - Advanced Calendar Features
+    
+    /// Start advanced calendar monitoring with auto-bumping and parking lot
+    func startAdvancedCalendarFeatures() async {
+        print("🎭 CALENDAR: Starting advanced features - auto-bumping, parking lot, buffer management")
+        
+        // Start orchestration service
+        await orchestrationService.startContinuousMonitoring()
+        
+        // Process today's schedule
+        await orchestrationService.processScheduleForDate(selectedDate)
+        
+        // Set up data binding
+        setupOrchestrationBinding()
+    }
+    
+    /// Stop advanced calendar features
+    func stopAdvancedCalendarFeatures() {
+        orchestrationService.stopContinuousMonitoring()
+        print("🎭 CALENDAR: Stopped advanced features")
+    }
+    
+    /// Process schedule with intelligent bumping and parking
+    func processIntelligentScheduling() async {
+        await orchestrationService.processScheduleForDate(selectedDate)
+        
+        // Update UI with processed events
+        await MainActor.run {
+            self.events = orchestrationService.dailyEvents
+        }
+    }
+    
+    /// Update buffer settings through orchestration
+    func updateBufferSettings(minutesPerHour: Int, workingHours: Int) {
+        orchestrationService.updateBufferSettings(
+            minutesPerHour: minutesPerHour,
+            workingHours: workingHours
+        )
+    }
+    
+    /// Get current buffer status
+    var bufferStatus: BufferStatus {
+        return orchestrationService.bufferStatus
+    }
+    
+    /// Get parking lot events
+    var parkedEvents: [ParkingLotEvent] {
+        return parkingLotService.parkedEvents
+    }
+    
+    /// Attempt to reschedule a parked event
+    func rescheduleParkedEvent(_ eventId: UUID, to targetDate: Date) async -> Bool {
+        let success = await parkingLotService.attemptReschedule(
+            parkedEventId: eventId,
+            targetDate: targetDate,
+            allEvents: events
+        )
+        
+        if success {
+            // Refresh the schedule after rescheduling
+            await processIntelligentScheduling()
+        }
+        
+        return success
+    }
+    
+    /// Remove event from parking lot
+    func removeFromParkingLot(_ eventId: UUID) {
+        parkingLotService.removeFromParkingLot(eventId: eventId)
+    }
+    
+    /// Setup data binding between orchestration service and view model
+    private func setupOrchestrationBinding() {
+        // Update events when orchestration service updates
+        orchestrationService.$dailyEvents
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$events)
+        
+        // Update buffer status display
+        orchestrationService.$bufferStatus
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                // Could trigger UI updates for buffer warnings
+                print("🎭 CALENDAR: Buffer status changed to: \(status.rawValue)")
+            }
+            .store(in: &cancellables)
     }
 }
 

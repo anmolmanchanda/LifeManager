@@ -1,315 +1,306 @@
 import Foundation
 import SwiftUI
 
-/// Enhanced parking lot service with LLM-driven importance ranking
+/// Service for managing parking lot events and overflow handling
 @MainActor
 class EnhancedParkingLotService: ObservableObject {
     
-    // MARK: - Properties
+    // MARK: - Published Properties
     
-    @Published var parkedEvents: [ParkedEvent] = []
-    @Published var isAnalyzing: Bool = false
+    @Published var parkedEvents: [ParkingLotEvent] = []
+    @Published var isLoading: Bool = false
+    @Published var pendingDecisions: [ParkingDecision] = []
+    
+    // MARK: - Private Properties
     
     private let llmService: LLMService
-    private let taskRepository = TaskRepository()
+    private let bufferService = BufferManagementService()
+    private let notificationService = NotificationService.shared
     
-    init(llmService: LLMService) {
+    // MARK: - Initialization
+    
+    init(llmService: LLMService = LLMService()) {
         self.llmService = llmService
     }
     
-    // MARK: - Parking Logic
+    // MARK: - Core Functions
     
-    /// Park an event that couldn't be scheduled
+    /// Move an event to parking lot
     func parkEvent(
         _ event: CalendarEvent,
         reason: ParkingReason,
-        mustHappenToday: Bool = false
+        isImportant: Bool? = nil
     ) async {
+        isLoading = true
         
-        let importance = await analyzeEventImportance(event)
+        // Determine importance if not provided
+        let eventImportance: Bool
+        if let importance = isImportant {
+            eventImportance = importance
+        } else {
+            eventImportance = await determineEventImportance(event)
+        }
         
-        let parkedEvent = ParkedEvent(
+        let parkedEvent = ParkingLotEvent(
             originalEvent: event,
-            parkedDate: Date(),
             reason: reason,
-            importance: importance,
-            mustHappenToday: mustHappenToday,
-            daysParked: 1
+            isImportant: eventImportance,
+            dateParked: Date(),
+            daysInParkingLot: 0
         )
         
         parkedEvents.append(parkedEvent)
-        parkedEvents.sort { $0.importance.rawValue > $1.importance.rawValue }
         
-        print("🔧 PARKING: Parked '\(event.title)' with importance: \(importance)")
-        
-        // Send notification about parked event
-        NotificationService.shared.sendParkingNotification(
+        // Send notification about parking
+        await notificationService.scheduleEventParkedNotification(
             eventTitle: event.title,
-            reason: reason.description
+            reason: reason.displayName,
+            isImportant: eventImportance
         )
         
-        // If it's critical and must happen today, prompt user
-        if importance == .critical && mustHappenToday {
-            await promptUserForCriticalEvent(parkedEvent)
+        print("🅿️ PARKING: Parked '\(event.title)' - Reason: \(reason.displayName), Important: \(eventImportance)")
+        
+        isLoading = false
+    }
+    
+    /// Attempt to reschedule a parked event
+    func attemptReschedule(
+        parkedEventId: UUID,
+        targetDate: Date,
+        allEvents: [CalendarEvent]
+    ) async -> Bool {
+        
+        guard let parkedEventIndex = parkedEvents.firstIndex(where: { $0.id == parkedEventId }) else {
+            return false
+        }
+        
+        let parkedEvent = parkedEvents[parkedEventIndex]
+        let originalEvent = parkedEvent.originalEvent
+        
+        // Try to find available slot
+        if let newSlot = bufferService.findNextAvailableSlot(
+            duration: originalEvent.duration,
+            events: allEvents,
+            startingFrom: targetDate
+        ) {
+            // Create rescheduled event
+            var rescheduledEvent = originalEvent
+            rescheduledEvent.startDate = newSlot
+            rescheduledEvent.endDate = newSlot.addingTimeInterval(originalEvent.duration)
+            rescheduledEvent.isBumped = true
+            rescheduledEvent.daysInParkingLot = parkedEvent.daysInParkingLot
+            
+            // Remove from parking lot
+            parkedEvents.remove(at: parkedEventIndex)
+            
+            // Notify success
+            await notificationService.scheduleEventRescheduledNotification(
+                eventTitle: originalEvent.title,
+                newTime: newSlot
+            )
+            
+            print("🅿️ PARKING: ✅ Successfully rescheduled '\(originalEvent.title)' from parking lot")
+            return true
+        }
+        
+        print("🅿️ PARKING: ❌ Could not reschedule '\(originalEvent.title)' - no available slots")
+        return false
+    }
+    
+    /// Handle multiple events that need parking decisions
+    func handleParkingDecisions(
+        events: [CalendarEvent],
+        conflicts: [CalendarEvent]
+    ) async {
+        
+        // If only one event, auto-decide
+        if events.count == 1 {
+            let event = events[0]
+            let isImportant = await determineEventImportance(event)
+            await parkEvent(event, reason: .noAvailableSlots, isImportant: isImportant)
+            return
+        }
+        
+        // For multiple events, create decision request
+        let decision = ParkingDecision(
+            id: UUID(),
+            events: events,
+            conflicts: conflicts,
+            createdAt: Date(),
+            llmSuggestion: await generateLLMSuggestion(for: events)
+        )
+        
+        pendingDecisions.append(decision)
+        
+        // Notify user of decision needed
+        await notificationService.scheduleParkingDecisionNotification(
+            eventCount: events.count
+        )
+    }
+    
+    /// Process user's parking decision
+    func processUserDecision(
+        decisionId: UUID,
+        selectedEventIds: [UUID]
+    ) async {
+        
+        guard let decisionIndex = pendingDecisions.firstIndex(where: { $0.id == decisionId }) else {
+            return
+        }
+        
+        let decision = pendingDecisions[decisionIndex]
+        
+        // Park selected events
+        for eventId in selectedEventIds {
+            if let event = decision.events.first(where: { $0.id == eventId }) {
+                await parkEvent(event, reason: .userChoice)
+            }
+        }
+        
+        // Remove decision from pending
+        pendingDecisions.remove(at: decisionIndex)
+        
+        print("🅿️ PARKING: ✅ Processed user decision - parked \(selectedEventIds.count) events")
+    }
+    
+    /// Update days in parking lot for all parked events
+    func updateParkingLotDays() {
+        let calendar = Calendar.current
+        let today = Date()
+        
+        for i in 0..<parkedEvents.count {
+            let daysSinceParked = calendar.dateComponents([.day], from: parkedEvents[i].dateParked, to: today).day ?? 0
+            parkedEvents[i].daysInParkingLot = daysSinceParked
         }
     }
     
-    /// Analyze event importance using LLM
-    private func analyzeEventImportance(_ event: CalendarEvent) async -> EventImportance {
-        isAnalyzing = true
-        defer { isAnalyzing = false }
-        
+    /// Get events that have been parked for too long
+    func getStaleParkedEvents(daysThreshold: Int = 7) -> [ParkingLotEvent] {
+        return parkedEvents.filter { $0.daysInParkingLot >= daysThreshold }
+    }
+    
+    /// Remove an event from parking lot
+    func removeFromParkingLot(eventId: UUID) {
+        parkedEvents.removeAll { $0.id == eventId }
+        print("🅿️ PARKING: Removed event from parking lot")
+    }
+    
+    // MARK: - LLM Integration
+    
+    /// Determine if an event is important using LLM
+    private func determineEventImportance(_ event: CalendarEvent) async -> Bool {
         do {
-            // Use the task priority suggestion method as it's similar
+            // Use the task priority method as a proxy for importance determination
             let result = try await llmService.suggestTaskPriority(
                 title: event.title,
                 description: event.description,
                 context: [
                     "duration_minutes": .int(event.durationMinutes),
-                    "start_time": .string(formatDate(event.startDate)),
-                    "event_type": .string("calendar_event")
+                    "event_type": .string(event.type.displayName)
                 ]
             )
             
-            // Map task priority to event importance
-            switch result.priority {
-            case .urgent:
-                return .critical
-            case .high:
-                return .high
-            case .medium:
-                return .medium
-            case .low:
-                return .low
-            }
-        } catch {
-            print("🔧 PARKING: ❌ Error analyzing importance: \(error)")
-            return .medium // Default fallback
-        }
-    }
-    
-
-    
-    /// Prompt user for critical event that must happen today
-    private func promptUserForCriticalEvent(_ parkedEvent: ParkedEvent) async {
-        print("🔧 PARKING: 🚨 Critical event '\(parkedEvent.originalEvent.title)' needs attention!")
-        
-        // Send critical event notification
-        NotificationService.shared.sendCriticalEventNotification(
-            eventTitle: parkedEvent.originalEvent.title
-        )
-        
-        // TODO: Show user notification/modal for decision
-        // This would trigger a SwiftUI alert or modal in the UI
-    }
-    
-    // MARK: - Event Management
-    
-    /// Remove event from parking lot (when rescheduled or cancelled)
-    func removeParkedEvent(_ eventId: UUID) {
-        parkedEvents.removeAll { $0.id == eventId }
-        print("🔧 PARKING: Removed event from parking lot")
-    }
-    
-    /// Update days parked for all events
-    func updateDaysParked() {
-        let calendar = Calendar.current
-        
-        for i in 0..<parkedEvents.count {
-            let daysSince = calendar.dateComponents([.day], from: parkedEvents[i].parkedDate, to: Date()).day ?? 0
-            parkedEvents[i].daysParked = max(1, daysSince + 1)
-        }
-        
-        // Re-sort by importance and days parked
-        parkedEvents.sort { event1, event2 in
-            if event1.importance == event2.importance {
-                return event1.daysParked > event2.daysParked
-            }
-            return event1.importance.rawValue > event2.importance.rawValue
-        }
-    }
-    
-    /// Get events that should be prioritized for rescheduling
-    func getPriorityEvents() -> [ParkedEvent] {
-        return parkedEvents.filter { event in
-            event.importance == .critical || 
-            (event.importance == .high && event.daysParked >= 2) ||
-            event.mustHappenToday
-        }
-    }
-    
-    /// Suggest optimal rescheduling for parked events
-    func suggestRescheduling(
-        availableSlots: [DateInterval],
-        bufferService: BufferManagementService
-    ) async -> [ReschedulingSuggestion] {
-        
-        var suggestions: [ReschedulingSuggestion] = []
-        
-        for parkedEvent in parkedEvents.prefix(5) { // Limit to top 5 for performance
-            let eventDuration = parkedEvent.originalEvent.duration
+            // Consider urgent and high priority as important
+            let isImportant = result.priority == .urgent || result.priority == .high
             
-            // Find best available slot
-            for slot in availableSlots {
-                if slot.duration >= TimeInterval(eventDuration) {
-                    let suggestion = ReschedulingSuggestion(
-                        parkedEvent: parkedEvent,
-                        suggestedSlot: slot,
-                        confidence: calculateConfidence(parkedEvent: parkedEvent, slot: slot)
-                    )
-                    suggestions.append(suggestion)
-                    break // Take first available slot
-                }
-            }
+            print("🅿️ PARKING: LLM determined '\(event.title)' is \(isImportant ? "important" : "not important") (priority: \(result.priority))")
+            return isImportant
+            
+        } catch {
+            print("🅿️ PARKING: ❌ LLM error for importance - defaulting to important: \(error)")
+            return true // Default to important if LLM fails
         }
-        
-        return suggestions.sorted { $0.confidence > $1.confidence }
     }
     
-    /// Calculate confidence score for a rescheduling suggestion
-    private func calculateConfidence(parkedEvent: ParkedEvent, slot: DateInterval) -> Double {
-        var confidence: Double = 0.5 // Base confidence
-        
-        // Higher confidence for more important events
-        switch parkedEvent.importance {
-        case .critical: confidence += 0.4
-        case .high: confidence += 0.3
-        case .medium: confidence += 0.1
-        case .low: confidence += 0.0
-        }
-        
-        // Higher confidence for events parked longer
-        confidence += min(0.1 * Double(parkedEvent.daysParked), 0.3)
-        
-        // Lower confidence for slots that are far in the future
-        let daysUntilSlot = Calendar.current.dateComponents([.day], from: Date(), to: slot.start).day ?? 0
-        confidence -= min(0.05 * Double(daysUntilSlot), 0.2)
-        
-        return max(0.0, min(1.0, confidence))
-    }
-    
-    // MARK: - Integration with Tasks
-    
-    /// Convert parked calendar event to LifeTask if needed
-    func convertToTask(_ parkedEvent: ParkedEvent) async -> LifeTask? {
-        let task = LifeTask(
-            id: UUID(),
-            title: parkedEvent.originalEvent.title,
-            description: "Converted from parked calendar event",
-            priority: mapImportanceToPriority(parkedEvent.importance),
-            status: .todo,
-            dueDate: ISO8601DateFormatter().string(from: parkedEvent.originalEvent.endDate),
-            estimatedDuration: parkedEvent.originalEvent.durationMinutes,
-            workPersonal: parkedEvent.originalEvent.workPersonal,
-            projectId: parkedEvent.originalEvent.projectId,
-            areaId: parkedEvent.originalEvent.areaId,
-            isFocus: parkedEvent.importance == .critical,
-            isArchived: false
-        )
-        
+    /// Generate LLM suggestion for parking decisions
+    private func generateLLMSuggestion(for events: [CalendarEvent]) async -> ParkingSuggestion {
         do {
-            let savedTask = try await taskRepository.createTask(task)
-            print("🔧 PARKING: ✅ Converted parked event to task: \(savedTask.title)")
+            // Use task priority analysis for each event to determine parking recommendations
+            var eventPriorities: [(CalendarEvent, TaskPriorityResult)] = []
             
-            // Remove from parking lot after conversion
-            removeParkedEvent(parkedEvent.id)
+            for event in events {
+                let priorityResult = try await llmService.suggestTaskPriority(
+                    title: event.title,
+                    description: event.description,
+                    context: [
+                        "duration_minutes": .int(event.durationMinutes),
+                        "event_type": .string(event.type.displayName),
+                        "parking_decision": .bool(true)
+                    ]
+                )
+                eventPriorities.append((event, priorityResult))
+            }
             
-            return savedTask
+            // Recommend parking lower priority events
+            let lowPriorityEvents = eventPriorities.filter { _, priority in
+                priority.priority == .low || priority.priority == .medium
+            }
+            
+            let recommendedToPark = lowPriorityEvents.map { event, _ in event.id }
+            let reasoning = "Recommended parking \(lowPriorityEvents.count) lower priority events out of \(events.count) total"
+            
+            return ParkingSuggestion(
+                recommendedToPark: recommendedToPark,
+                reasoning: reasoning,
+                confidence: 0.8
+            )
+            
         } catch {
-            print("🔧 PARKING: ❌ Error converting to task: \(error)")
-            return nil
+            print("🅿️ PARKING: ❌ LLM error for suggestions - using default: \(error)")
+            return ParkingSuggestion(
+                recommendedToPark: events.map { $0.id },
+                reasoning: "Unable to analyze - defaulting to parking all events",
+                confidence: 0.5
+            )
         }
     }
-    
-    /// Map event importance to task priority
-    private func mapImportanceToPriority(_ importance: EventImportance) -> TaskPriority {
-        switch importance {
-        case .critical: return .urgent
-        case .high: return .high
-        case .medium: return .medium
-        case .low: return .low
-        }
-    }
-    
-    // MARK: - Utility Methods
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
+
 }
 
-// MARK: - Models
+// MARK: - Supporting Types
 
-/// Parked event with metadata
-struct ParkedEvent: Identifiable, Equatable {
-    let id = UUID()
+struct ParkingLotEvent: Identifiable {
+    let id: UUID = UUID()
     let originalEvent: CalendarEvent
-    let parkedDate: Date
     let reason: ParkingReason
-    var importance: EventImportance
-    let mustHappenToday: Bool
-    var daysParked: Int
+    let isImportant: Bool
+    let dateParked: Date
+    var daysInParkingLot: Int
     
-    static func == (lhs: ParkedEvent, rhs: ParkedEvent) -> Bool {
-        return lhs.id == rhs.id
+    var displayTitle: String {
+        let badge = daysInParkingLot > 0 ? " (\(daysInParkingLot)d)" : ""
+        return originalEvent.title + badge
     }
 }
 
-/// Reason why an event was parked
-enum ParkingReason {
-    case overbooking
-    case conflictWithActual
-    case noAvailableSlot
-    case userRequested
-    case lowImportance
+enum ParkingReason: String, CaseIterable {
+    case noAvailableSlots = "no_slots"
+    case bufferViolation = "buffer_violation"
+    case userChoice = "user_choice"
+    case bumpCascade = "bump_cascade"
+    case conflictResolution = "conflict_resolution"
     
-    var description: String {
+    var displayName: String {
         switch self {
-        case .overbooking: return "Day was overbooked"
-        case .conflictWithActual: return "Conflict with actual time entry"
-        case .noAvailableSlot: return "No available time slot"
-        case .userRequested: return "User requested"
-        case .lowImportance: return "Low importance, auto-parked"
+        case .noAvailableSlots: return "No Available Slots"
+        case .bufferViolation: return "Buffer Violation"
+        case .userChoice: return "User Choice"
+        case .bumpCascade: return "Bump Cascade"
+        case .conflictResolution: return "Conflict Resolution"
         }
     }
 }
 
-/// Event importance levels
-enum EventImportance: Int, CaseIterable {
-    case critical = 4
-    case high = 3
-    case medium = 2
-    case low = 1
-    
-    var description: String {
-        switch self {
-        case .critical: return "Critical"
-        case .high: return "High"
-        case .medium: return "Medium"
-        case .low: return "Low"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .critical: return .red
-        case .high: return .orange
-        case .medium: return .yellow
-        case .low: return .gray
-        }
-    }
+struct ParkingDecision: Identifiable {
+    let id: UUID
+    let events: [CalendarEvent]
+    let conflicts: [CalendarEvent]
+    let createdAt: Date
+    let llmSuggestion: ParkingSuggestion
 }
 
-/// Rescheduling suggestion
-struct ReschedulingSuggestion {
-    let parkedEvent: ParkedEvent
-    let suggestedSlot: DateInterval
+struct ParkingSuggestion {
+    let recommendedToPark: [UUID]
+    let reasoning: String
     let confidence: Double
-    
-    var confidencePercentage: Int {
-        return Int(confidence * 100)
-    }
 } 
