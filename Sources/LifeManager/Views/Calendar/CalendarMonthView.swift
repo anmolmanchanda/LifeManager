@@ -126,8 +126,8 @@ struct CalendarMonthDayCell: View {
                     .padding(.vertical, 2)
                     .background(Color.black.opacity(0.1))
                     .cornerRadius(4)
-                
-                Spacer()
+            
+            Spacer()
             }
             .padding(4)
         }

@@ -3540,14 +3540,14 @@ struct UnscheduledTaskRow: View {
     }
     
     private var suggestedTimesHeader: some View {
-        Text("Suggested times:")
-            .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.secondary)
+            Text("Suggested times:")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
     }
-    
+            
     private var suggestedTimesButtons: some View {
-        HStack(spacing: 8) {
-            ForEach(suggestedTimes.prefix(2), id: \.self) { time in
+            HStack(spacing: 8) {
+                ForEach(suggestedTimes.prefix(2), id: \.self) { time in
                 suggestedTimeButton(for: time)
             }
             
@@ -3558,35 +3558,35 @@ struct UnscheduledTaskRow: View {
     }
     
     private func suggestedTimeButton(for time: Date) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                // Schedule this for the next run loop to avoid Task conflict
-                DispatchQueue.main.async {
-                    Task.detached(priority: .background) {
-                        await calendarViewModel.scheduleTask(task, at: time)
+                    Button(action: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            // Schedule this for the next run loop to avoid Task conflict
+                            DispatchQueue.main.async {
+                                Task.detached(priority: .background) {
+                                    await calendarViewModel.scheduleTask(task, at: time)
+                                }
+                            }
+                        }
+                    }) {
+                        Text(time.calendarSuggestionFormat())
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                            }
                     }
+                    .buttonStyle(.plain)
                 }
-            }
-        }) {
-            Text(time.calendarSuggestionFormat())
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.blue)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                }
-        }
-        .buttonStyle(.plain)
-    }
-    
+                
     private var dragIndicator: some View {
-        Image(systemName: "line.3.horizontal")
-            .font(.system(size: 12))
-            .foregroundColor(.secondary.opacity(0.6))
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary.opacity(0.6))
     }
     
     private var dragGesture: some Gesture {

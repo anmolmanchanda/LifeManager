@@ -84,12 +84,12 @@ struct CalendarEventView: View {
                 .fontWeight(.medium)
             
             // Event title and duration
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(event.title)
+            Text(event.title)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
+                .foregroundColor(.primary)
+                .lineLimit(1)
                         .truncationMode(.tail)
                     
                     Spacer()
@@ -102,22 +102,22 @@ struct CalendarEventView: View {
                 }
                 
                 // Only show description if it exists and is meaningful
-                if let description = event.description, !description.isEmpty {
-                    Text(description)
+            if let description = event.description, !description.isEmpty {
+                Text(description)
                         .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
                         .truncationMode(.tail)
-                }
-            }
-            
+        }
+    }
+    
             Spacer()
             
 
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-    }
+        }
     
 
     

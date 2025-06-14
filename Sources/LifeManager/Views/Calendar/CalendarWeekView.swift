@@ -15,28 +15,28 @@ struct CalendarWeekView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
+                VStack(spacing: 0) {
             // Week header with day names and dates
             weekHeader
-            
+                    
             // Main week grid
             ScrollView {
                 LazyVGrid(columns: gridColumns, spacing: 1) {
                     // Time column header (empty space)
                     Color.clear.frame(height: 30)
-                    
-                    // Day headers
-                    ForEach(weekDays, id: \.self) { date in
-                        dayHeader(for: date)
-                    }
-                    
-                    // Hour rows
-                    ForEach(hours, id: \.self) { hour in
-                        // Time label
-                        timeLabel(for: hour)
                         
-                        // Day cells for this hour
+                        // Day headers
                         ForEach(weekDays, id: \.self) { date in
+                        dayHeader(for: date)
+                        }
+                        
+                        // Hour rows
+                        ForEach(hours, id: \.self) { hour in
+                            // Time label
+                        timeLabel(for: hour)
+                            
+                            // Day cells for this hour
+                            ForEach(weekDays, id: \.self) { date in
                             weekCell(date: date, hour: hour)
                         }
                     }
@@ -47,7 +47,7 @@ struct CalendarWeekView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             loadWeekData()
-        }
+            }
         .onChange(of: calendarViewModel.selectedDate) { _ in
             // Force refresh when selected date changes
             refreshTrigger = UUID()
@@ -56,10 +56,10 @@ struct CalendarWeekView: View {
         .onChange(of: calendarViewModel.events) { _ in
             // Force refresh when events change
             refreshTrigger = UUID()
-        }
-        .id(refreshTrigger)
     }
-    
+        .id(refreshTrigger)
+}
+
     // MARK: - Components
     
     private var weekHeader: some View {
@@ -204,8 +204,8 @@ struct CalendarWeekView: View {
             for (index, date) in weekDays.enumerated() {
                 LifeLogger.weekView(.debug, "Loading events for day \(index + 1)/7: \(date)")
                 await calendarViewModel.loadEventsForDate(date)
-            }
-            
+    }
+    
             await MainActor.run {
                 let duration = timer.end()
                 LifeLogger.logWeekViewOperation(

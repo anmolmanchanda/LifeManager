@@ -22,27 +22,27 @@ struct CalendarView: View {
     var body: some View {
         ZStack {
             // Main content layer
-            HSplitView {
-                // PARA Tasks Parking Lot Sidebar
-                PARATasksParkingLot()
-                    .environmentObject(viewModel)
+        HSplitView {
+            // PARA Tasks Parking Lot Sidebar
+            PARATasksParkingLot()
+                .environmentObject(viewModel)
+                .environmentObject(calendarViewModel)
+                .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
+                .clipped()
+            
+            // Main Calendar Content
+            VStack(spacing: 0) {
+                CalendarHeaderView()
                     .environmentObject(calendarViewModel)
-                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
-                    .clipped()
                 
-                // Main Calendar Content
-                VStack(spacing: 0) {
-                    CalendarHeaderView()
-                        .environmentObject(calendarViewModel)
-                    
-                    CalendarMainView()
-                        .environmentObject(calendarViewModel)
-                }
-                .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.windowBackgroundColor))
+                CalendarMainView()
+                    .environmentObject(calendarViewModel)
             }
-            .frame(minWidth: 900, minHeight: 600)
-            .background(Color(NSColor.controlBackgroundColor))
+            .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(NSColor.windowBackgroundColor))
+        }
+        .frame(minWidth: 900, minHeight: 600)
+        .background(Color(NSColor.controlBackgroundColor))
             
             // Drag overlay layer - appears above everything when dragging
             if calendarViewModel.isDragging, let draggedTask = calendarViewModel.draggedTask {

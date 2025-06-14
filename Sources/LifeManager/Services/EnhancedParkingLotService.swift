@@ -92,7 +92,7 @@ class EnhancedParkingLotService: ObservableObject {
             
             // Remove from parking lot
             parkedEvents.remove(at: parkedEventIndex)
-            
+        
             // Notify success
             await notificationService.scheduleEventRescheduledNotification(
                 eventTitle: originalEvent.title,
@@ -229,8 +229,8 @@ class EnhancedParkingLotService: ObservableObject {
                     ]
                 )
                 eventPriorities.append((event, priorityResult))
-            }
-            
+    }
+    
             // Recommend parking lower priority events
             let lowPriorityEvents = eventPriorities.filter { _, priority in
                 priority.priority == .low || priority.priority == .medium
