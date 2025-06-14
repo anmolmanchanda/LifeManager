@@ -55,6 +55,15 @@ class CalendarViewModel: ObservableObject {
     /// Currently dragging task
     @Published var draggingTask: LifeTask?
     
+    /// Drag state for overlay system
+    @Published var isDragging: Bool = false
+    
+    /// Dragged task for overlay display
+    @Published var draggedTask: LifeTask?
+    
+    /// Current drag position for overlay
+    @Published var dragPosition: CGPoint = .zero
+    
     /// Orchestration service for advanced calendar features
     private let orchestrationService = CalendarOrchestrationService()
     
@@ -273,18 +282,22 @@ class CalendarViewModel: ObservableObject {
     /// Start dragging a task
     func startDragging(_ task: LifeTask) {
         draggingTask = task
+        draggedTask = task
+        isDragging = true
     }
     
     /// Cancel drag operation
     func cancelDrag() {
         draggingTask = nil
+        draggedTask = nil
+        isDragging = false
+        dragPosition = .zero
     }
     
     /// Update drag position during drag operation
     func updateDragPosition(_ translation: CGSize) {
-        // Handle drag position updates for visual feedback
-        // This could be used to show drop targets, preview scheduling, etc.
-        print("Drag position updated: \(translation)")
+        // Convert translation to screen position for overlay
+        dragPosition = CGPoint(x: translation.width, y: translation.height)
     }
     
     /// Schedule a task at a specific time
@@ -429,18 +442,21 @@ class CalendarViewModel: ObservableObject {
             let startOfDay = calendar.startOfDay(for: startDate)
             let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) ?? endDate
             
+            // Add 3-second delay before API call to prevent rate limiting
+            try await Task.sleep(nanoseconds: 3_000_000_000)
+            
             // Fetch entries for the entire month view range with rate limiting
             let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
             
-            // Group by date and get top 5 longest projects per day to reduce data
+            // Group by date and get top 3 longest projects per day to reduce data further
             let entriesByDate = Dictionary(grouping: togglEntries) { entry in
                 calendar.startOfDay(for: entry.startDate)
             }
             
             var optimizedEntries: [TogglTimeEntry] = []
             for (_, dayEntries) in entriesByDate {
-                // Sort by duration and take top 5 longest entries per day
-                let topEntries = dayEntries.sorted { $0.actualDuration > $1.actualDuration }.prefix(5)
+                // Sort by duration and take top 3 longest entries per day (reduced from 5)
+                let topEntries = dayEntries.sorted { $0.actualDuration > $1.actualDuration }.prefix(3)
                 optimizedEntries.append(contentsOf: topEntries)
             }
             
@@ -448,7 +464,7 @@ class CalendarViewModel: ObservableObject {
                 // Update events with optimized Toggl data
                 updateEventsWithTogglData(optimizedEntries)
                 togglSyncStatus = .success
-                print("🔧 TOGGL: Optimized sync - \(optimizedEntries.count) entries from \(togglEntries.count) total")
+                print("🔧 TOGGL: Ultra-optimized sync - \(optimizedEntries.count) entries from \(togglEntries.count) total")
             }
         } catch {
             await MainActor.run {

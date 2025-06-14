@@ -21,6 +21,7 @@ struct CalendarView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
+            // Main content layer
             HSplitView {
                 // PARA Tasks Parking Lot Sidebar
                 PARATasksParkingLot()
@@ -28,7 +29,6 @@ struct CalendarView: View {
                     .environmentObject(calendarViewModel)
                     .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
                     .clipped()
-                    .zIndex(1) // Ensure parking lot is above calendar
                 
                 // Main Calendar Content
                 VStack(spacing: 0) {
@@ -40,10 +40,16 @@ struct CalendarView: View {
                 }
                 .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(NSColor.windowBackgroundColor))
-                .zIndex(0) // Calendar content below parking lot
             }
             .frame(minWidth: 900, minHeight: 600)
             .background(Color(NSColor.controlBackgroundColor))
+            
+            // Drag overlay layer - appears above everything when dragging
+            if calendarViewModel.isDragging, let draggedTask = calendarViewModel.draggedTask {
+                DragOverlay(task: draggedTask, dragPosition: calendarViewModel.dragPosition)
+                    .allowsHitTesting(false) // Don't interfere with drop zones
+                    .zIndex(999999) // Highest z-index for dragged items
+            }
         }
         .onAppear {
             setupCalendar()
@@ -111,6 +117,55 @@ struct CalendarView: View {
             } catch {
                 print("🔄 Failed to refresh parking lot tasks: \(error)")
             }
+        }
+    }
+}
+
+// MARK: - Drag Overlay Component
+
+/// Overlay component that shows the dragged task above everything else
+struct DragOverlay: View {
+    let task: LifeTask
+    let dragPosition: CGPoint
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Circle()
+                    .fill(priorityColor(task.priority))
+                    .frame(width: 8, height: 8)
+                
+                Text(task.title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                
+                Spacer()
+            }
+            
+            if let description = task.description, !description.isEmpty {
+                Text(description)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(8)
+        .background(Color(NSColor.controlAccentColor).opacity(0.9))
+        .foregroundColor(.white)
+        .cornerRadius(8)
+        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+        .frame(width: 200)
+        .position(x: dragPosition.x, y: dragPosition.y)
+        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: dragPosition)
+    }
+    
+    private func priorityColor(_ priority: TaskPriority) -> Color {
+        switch priority {
+        case .urgent: return .red
+        case .high: return .orange
+        case .medium: return .blue
+        case .low: return .green
         }
     }
 }
