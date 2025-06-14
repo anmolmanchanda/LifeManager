@@ -49,6 +49,12 @@ class CalendarViewModel: ObservableObject {
     /// Filtered unscheduled tasks (placeholder for now)
     @Published var filteredUnscheduledTasks: [LifeTask] = []
     
+    /// All tasks for parking lot display
+    @Published var allTasks: [LifeTask] = []
+    
+    /// Currently dragging task
+    @Published var draggingTask: LifeTask?
+    
     // MARK: - Private Properties
     
     private var cancellables = Set<AnyCancellable>()
@@ -233,6 +239,110 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    /// Auto-schedule unscheduled tasks using AI
+    func autoScheduleUnscheduledTasks() async {
+        isLoading = true
+        
+        // Get unscheduled tasks
+        let unscheduledTasks = allTasks.filter { !$0.isScheduled && $0.status != .completed && !$0.isArchived }
+        
+        for task in unscheduledTasks {
+            // Find best time slot for this task
+            if let suggestedTime = findBestTimeSlot(for: task) {
+                await scheduleTask(task, at: suggestedTime)
+            }
+        }
+        
+        await MainActor.run {
+            isLoading = false
+        }
+    }
+    
+    /// Start dragging a task
+    func startDragging(_ task: LifeTask) {
+        draggingTask = task
+    }
+    
+    /// Cancel drag operation
+    func cancelDrag() {
+        draggingTask = nil
+    }
+    
+    /// Update drag position during drag operation
+    func updateDragPosition(_ translation: CGSize) {
+        // Handle drag position updates for visual feedback
+        // This could be used to show drop targets, preview scheduling, etc.
+        print("Drag position updated: \(translation)")
+    }
+    
+    /// Schedule a task at a specific time
+    func scheduleTask(_ task: LifeTask, at date: Date) async {
+        // Create calendar event from task
+        let estimatedMinutes = task.estimatedDuration ?? 30 // Default to 30 minutes if not specified
+        let duration: TimeInterval = TimeInterval(estimatedMinutes * 60) // Convert minutes to seconds
+        
+        let event = CalendarEvent(
+            title: task.title,
+            description: task.description,
+            startDate: date,
+            endDate: date.addingTimeInterval(duration),
+            workPersonal: task.workPersonal,
+            color: task.workPersonal == .work ? .blue : .green,
+            source: .user,
+            duration: duration
+        )
+        
+        await MainActor.run {
+            events.append(event)
+            applyFilters()
+            
+            // Mark task as scheduled (you'd normally update this in the database)
+            // Note: The LifeTask model uses isScheduled computed property based on dueDate
+            // To properly mark as scheduled, we would need to update the dueDate with the specific time
+            print("Task \(task.title) scheduled for \(date)")
+        }
+    }
+    
+    /// Get suggested time slots for a task
+    func suggestedSlots(for task: LifeTask) -> [Date] {
+        let calendar = Calendar.current
+        let now = Date()
+        var suggestions: [Date] = []
+        
+        // Get task duration in minutes
+        let taskDuration = task.estimatedDuration ?? 30 // Default to 30 minutes if not specified
+        
+        // Look for free slots in the next 7 days
+        for dayOffset in 0..<7 {
+            guard let targetDate = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
+            
+            // Check working hours (9 AM to 6 PM)
+            for hour in 9..<18 {
+                guard let slotStart = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: targetDate) else { continue }
+                let slotEnd = slotStart.addingTimeInterval(TimeInterval(taskDuration * 60))
+                
+                // Check if this slot conflicts with existing events
+                let hasConflict = events.contains { event in
+                    let eventStart = event.startDate
+                    let eventEnd = event.endDate
+                    
+                    return (slotStart < eventEnd && slotEnd > eventStart)
+                }
+                
+                if !hasConflict {
+                    suggestions.append(slotStart)
+                    
+                    // Limit to 5 suggestions
+                    if suggestions.count >= 5 {
+                        return suggestions
+                    }
+                }
+            }
+        }
+        
+        return suggestions
+    }
+    
     // MARK: - Private Methods
     
     private func setupBindings() {
@@ -333,6 +443,11 @@ class CalendarViewModel: ObservableObject {
         applyFilters()
     }
     
+    private func findBestTimeSlot(for task: LifeTask) -> Date? {
+        let suggestions = suggestedSlots(for: task)
+        return suggestions.first // Return the first available slot
+    }
+    
     private func loadSampleEvents() {
         let now = Date()
         let calendar = Calendar.current
@@ -365,9 +480,9 @@ class CalendarViewModel: ObservableObject {
                 startDate: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: now) ?? now,
                 endDate: calendar.date(bySettingHour: 15, minute: 30, second: 0, of: now) ?? now,
                 workPersonal: .work,
+                isLocked: true,
                 color: .orange,
                 source: .user,
-                isLocked: true,
                 duration: 5400 // 1.5 hours
             )
         ]
