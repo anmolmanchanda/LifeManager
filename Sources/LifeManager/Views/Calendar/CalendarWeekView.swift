@@ -168,6 +168,8 @@ struct WeekHourCell: View {
         let hourEvents = calendarViewModel.events(for: date, hour: hour)
         let isCurrentHour = Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour
         
+
+        
         VStack(spacing: 2) {
             // Events display
             if !hourEvents.isEmpty {

@@ -20,27 +20,31 @@ struct CalendarView: View {
     
     // MARK: - Body
     var body: some View {
-        HSplitView {
-            // PARA Tasks Parking Lot Sidebar
-            PARATasksParkingLot()
-                .environmentObject(viewModel)
-                .environmentObject(calendarViewModel)
-                .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
-                .clipped()
-            
-            // Main Calendar Content
-            VStack(spacing: 0) {
-                CalendarHeaderView()
+        ZStack {
+            HSplitView {
+                // PARA Tasks Parking Lot Sidebar
+                PARATasksParkingLot()
+                    .environmentObject(viewModel)
                     .environmentObject(calendarViewModel)
+                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
+                    .clipped()
+                    .zIndex(1) // Ensure parking lot is above calendar
                 
-                CalendarMainView()
-                    .environmentObject(calendarViewModel)
+                // Main Calendar Content
+                VStack(spacing: 0) {
+                    CalendarHeaderView()
+                        .environmentObject(calendarViewModel)
+                    
+                    CalendarMainView()
+                        .environmentObject(calendarViewModel)
+                }
+                .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(NSColor.windowBackgroundColor))
+                .zIndex(0) // Calendar content below parking lot
             }
-            .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(NSColor.windowBackgroundColor))
+            .frame(minWidth: 900, minHeight: 600)
+            .background(Color(NSColor.controlBackgroundColor))
         }
-        .frame(minWidth: 900, minHeight: 600)
-        .background(Color(NSColor.controlBackgroundColor))
         .onAppear {
             setupCalendar()
             // Refresh parking lot with latest PARA tasks

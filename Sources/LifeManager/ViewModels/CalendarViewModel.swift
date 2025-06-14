@@ -414,7 +414,7 @@ class CalendarViewModel: ObservableObject {
         print("🔧 TOGGL: Updated \(togglEvents.count) events for date \(date)")
     }
     
-    /// Sync with Toggl for all visible dates in month view
+    /// Sync with Toggl for all visible dates in month view (optimized for rate limiting)
     func syncMonthViewWithToggl(_ visibleDates: [Date]) async {
         togglSyncStatus = .syncing
         
@@ -429,12 +429,26 @@ class CalendarViewModel: ObservableObject {
             let startOfDay = calendar.startOfDay(for: startDate)
             let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) ?? endDate
             
-            // Fetch entries for the entire month view range
+            // Fetch entries for the entire month view range with rate limiting
             let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            
+            // Group by date and get top 5 longest projects per day to reduce data
+            let entriesByDate = Dictionary(grouping: togglEntries) { entry in
+                calendar.startOfDay(for: entry.startDate)
+            }
+            
+            var optimizedEntries: [TogglTimeEntry] = []
+            for (_, dayEntries) in entriesByDate {
+                // Sort by duration and take top 5 longest entries per day
+                let topEntries = dayEntries.sorted { $0.actualDuration > $1.actualDuration }.prefix(5)
+                optimizedEntries.append(contentsOf: topEntries)
+            }
+            
             await MainActor.run {
-                // Update events with Toggl data for all dates
-                updateEventsWithTogglData(togglEntries)
+                // Update events with optimized Toggl data
+                updateEventsWithTogglData(optimizedEntries)
                 togglSyncStatus = .success
+                print("🔧 TOGGL: Optimized sync - \(optimizedEntries.count) entries from \(togglEntries.count) total")
             }
         } catch {
             await MainActor.run {

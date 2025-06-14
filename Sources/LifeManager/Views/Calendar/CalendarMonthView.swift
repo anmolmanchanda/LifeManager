@@ -107,17 +107,32 @@ struct CalendarMonthDayCell: View {
     @State private var isHovered = false
     
     var body: some View {
-        VStack(spacing: 4) {
-            // Day number
-            Text("\(Calendar.current.component(.day, from: date))")
-                .font(.system(size: 14, weight: isToday ? .bold : .medium))
-                .foregroundColor(dayTextColor)
+        ZStack {
+            // Multi-colored background based on project colors
+            if !dayEvents.isEmpty {
+                multiColoredBackground
+            } else {
+                // Default background for days without events
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(cellBackgroundColor)
+            }
             
-            Spacer()
+            VStack(spacing: 4) {
+                // Day number with background for readability
+                Text("\(Calendar.current.component(.day, from: date))")
+                    .font(.system(size: 14, weight: isToday ? .bold : .medium))
+                    .foregroundColor(dayTextColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.black.opacity(0.1))
+                    .cornerRadius(4)
+                
+                Spacer()
+            }
+            .padding(4)
         }
         .frame(height: 80)
         .frame(maxWidth: .infinity)
-        .background(cellBackgroundColor)
         .overlay {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(cellBorderColor, lineWidth: isToday ? 2 : 0.5)
@@ -163,25 +178,39 @@ struct CalendarMonthDayCell: View {
         }
     }
     
-    private var cellBackgroundColor: Color {
-        if !dayEvents.isEmpty {
-            // Fill entire cell with dominant project color
-            let totalDayTime = dayEvents.reduce(0) { total, event in
-                total + event.duration
-            }
+    private var multiColoredBackground: some View {
+        GeometryReader { geometry in
+            let totalDuration = dayEvents.reduce(0) { $0 + $1.duration }
             
-            if totalDayTime > 0 {
-                // Find the event with the longest duration (dominant color)
-                let dominantEvent = dayEvents.max { event1, event2 in
-                    event1.duration < event2.duration
+            if totalDuration > 0 {
+                // Group events by color and sum their durations
+                let colorGroups = Dictionary(grouping: dayEvents) { $0.color }
+                let colorDurations = colorGroups.mapValues { events in
+                    events.reduce(0) { $0 + $1.duration }
                 }
                 
-                if let dominant = dominantEvent {
-                    return dominant.color.opacity(0.3) // Semi-transparent fill
+                // Sort by duration (longest first) and take top 5
+                let sortedColors = colorDurations.sorted { $0.value > $1.value }.prefix(5)
+                
+                HStack(spacing: 0) {
+                    ForEach(Array(sortedColors.enumerated()), id: \.offset) { index, colorDuration in
+                        let percentage = colorDuration.value / totalDuration
+                        let width = geometry.size.width * percentage
+                        
+                        Rectangle()
+                            .fill(colorDuration.key.opacity(0.7))
+                            .frame(width: width)
+                    }
                 }
+                .cornerRadius(8)
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(cellBackgroundColor)
             }
         }
-        
+    }
+    
+    private var cellBackgroundColor: Color {
         if isToday {
             return Color.blue.opacity(0.1)
         } else if isHovered {
