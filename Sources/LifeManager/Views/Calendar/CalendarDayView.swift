@@ -15,13 +15,13 @@ struct CalendarDayView: View {
     
     // MARK: - Constants
     private let hours = Array(6...23) // 6 AM to 11 PM
-    private let hourHeight: CGFloat = 80
+    private let hourHeight: CGFloat = 320 // Quadrupled from 80 to prevent overlapping completely
     
     // MARK: - Body
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: true) {
-                LazyVStack(spacing: 0) {
+                LazyVStack(spacing: 12) {
                     ForEach(hours, id: \.self) { hour in
                         CalendarDayHourView(
                             hour: hour
@@ -82,7 +82,7 @@ struct CalendarDayHourView: View {
     @State private var isDragTargeted = false
     
     // MARK: - Constants
-    private let hourHeight: CGFloat = 80
+    private let hourHeight: CGFloat = 320 // Quadrupled from 80 to prevent overlapping completely
     
     // MARK: - Computed Properties
     
@@ -137,6 +137,21 @@ struct CalendarDayHourView: View {
             handleDrop()
             return true
         }
+        .onTapGesture {
+            handleTap()
+        }
+        .contextMenu {
+            // Only show context menu for future events or non-Toggl events
+            if hourDate > Date() || events.allSatisfy({ $0.source != .toggl }) {
+                Button("Create Event") {
+                    handleCreateEvent()
+                }
+                
+                Button("Show Details") {
+                    handleShowDetails()
+                }
+            }
+        }
     }
     
     // MARK: - Time Column
@@ -184,9 +199,6 @@ struct CalendarDayHourView: View {
             }
         }
         .padding(.trailing, 16)
-        .onTapGesture {
-            handleTap()
-        }
     }
     
     // MARK: - Current Time Indicator
@@ -211,7 +223,7 @@ struct CalendarDayHourView: View {
     // MARK: - Events Stack
     
     private var eventsStack: some View {
-        LazyVStack(spacing: 4) {
+        LazyVStack(spacing: 6) {
             ForEach(events) { event in
                 CalendarEventView(event: event)
                     .environmentObject(calendarViewModel)
@@ -272,7 +284,8 @@ struct CalendarDayHourView: View {
     private var eventAreaBackgroundColor: Color {
         if isDragTargeted {
             return Color.blue.opacity(0.1)
-        } else if isHovered {
+        } else if isHovered && hourDate >= Date() {
+            // Only show blue hover effect for current and future times
             return Color(NSColor.controlAccentColor).opacity(0.05)
         } else {
             return Color(NSColor.controlBackgroundColor).opacity(0.3)
@@ -295,6 +308,16 @@ struct CalendarDayHourView: View {
         
         // Handle drop scheduling - placeholder for now
         print("Dropped on hour \(hour)")
+    }
+    
+    private func handleCreateEvent() {
+        // Implementation of handleCreateEvent
+        print("Create Event tapped on hour \(hour)")
+    }
+    
+    private func handleShowDetails() {
+        // Implementation of handleShowDetails
+        print("Show Details tapped on hour \(hour)")
     }
 }
 

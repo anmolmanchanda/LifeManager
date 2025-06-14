@@ -76,56 +76,61 @@ struct CalendarEventView: View {
     // MARK: - Event Content
     
     private var eventContent: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            // Title
-            Text(event.title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.primary)
-                .lineLimit(1)
+        HStack(spacing: 8) {
+            // Time display before title
+            Text(startTimeText)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fontWeight(.medium)
             
-            // Description (if available)
-            if let description = event.description, !description.isEmpty {
-                Text(description)
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
+            // Event title and duration
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(event.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    
+                    Spacer()
+                    
+                    // Duration after title
+                    Text(durationText)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .fontWeight(.medium)
+                }
+                
+                // Only show description if it exists and is meaningful
+                if let description = event.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
             
-            // Time and duration
-            timeAndDurationInfo
-        }
-    }
-    
-    // MARK: - Time and Duration Info
-    
-    private var timeAndDurationInfo: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "clock")
-                .font(.system(size: 9))
-                .foregroundColor(.secondary)
+            Spacer()
             
-            Text(timeDisplayText)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundColor(.secondary)
+
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
     }
+    
+
     
     // MARK: - Status Indicators
     
     private var statusIndicators: some View {
         VStack(spacing: 3) {
-            // Work/Personal indicator
-            workPersonalIndicator
-            
-            // Lock indicator (if locked)
+            // Only show lock indicator for locked events
             if event.isLocked {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 8))
                     .foregroundColor(.orange)
             }
-            
-            // Source indicator (Toggl vs User)
-            sourceIndicator
         }
     }
     
@@ -147,14 +152,29 @@ struct CalendarEventView: View {
     
     private var sourceIndicator: some View {
         Group {
-            if event.source == .toggl {
-                Image(systemName: "timer")
+            switch event.eventType {
+            case .actualToggl:
+                Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 8))
                     .foregroundColor(.green)
-            } else {
-                Image(systemName: "person")
+            case .plannedFuture:
+                Image(systemName: "clock.badge")
+                    .font(.system(size: 8))
+                    .foregroundColor(.orange)
+            case .userEvent:
+                Image(systemName: "person.circle")
                     .font(.system(size: 8))
                     .foregroundColor(.blue)
+            default:
+                if event.source == .toggl {
+                    Image(systemName: "timer")
+                        .font(.system(size: 8))
+                        .foregroundColor(.green)
+                } else {
+                    Image(systemName: "person")
+                        .font(.system(size: 8))
+                        .foregroundColor(.blue)
+                }
             }
         }
     }
@@ -162,20 +182,22 @@ struct CalendarEventView: View {
     // MARK: - Computed Properties
     
     private var eventBackgroundColor: Color {
-        if isPressed {
-            return event.color.opacity(0.2)
-        } else if isHovered {
-            return event.color.opacity(0.15)
-        } else {
-            return event.color.opacity(0.1)
+        let baseOpacity: Double = isPressed ? 0.2 : (isHovered ? 0.15 : 0.1)
+        
+        // Adjust color based on event type
+        switch event.eventType {
+        case .actualToggl:
+            // Past/actual events - more solid, completed feel
+            return event.color.opacity(baseOpacity + 0.05)
+        case .plannedFuture:
+            // Future/planned events - lighter, tentative feel
+            return event.color.opacity(baseOpacity - 0.02)
+        case .userEvent:
+            // User events - standard appearance
+            return event.color.opacity(baseOpacity)
+        default:
+            return event.color.opacity(baseOpacity)
         }
-    }
-    
-    private var timeDisplayText: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        let startTime = formatter.string(from: event.startDate)
-        return "\(startTime) • \(Int(event.duration / 60))min"
     }
     
     private var workPersonalColor: Color {
@@ -197,6 +219,27 @@ struct CalendarEventView: View {
             return "P"
         case .both:
             return "B"
+        }
+    }
+    
+    private var startTimeText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm"
+        return formatter.string(from: event.startDate)
+    }
+    
+    private var durationText: String {
+        let minutes = Int(event.duration / 60)
+        if minutes >= 60 {
+            let hours = minutes / 60
+            let remainingMinutes = minutes % 60
+            if remainingMinutes == 0 {
+                return "\(hours)h"
+            } else {
+                return "\(hours)h \(remainingMinutes)m"
+            }
+        } else {
+            return "\(minutes)m"
         }
     }
     

@@ -59,7 +59,7 @@ struct CalendarWeekView: View {
                             
                             // Day cells for this hour
                             ForEach(weekDays, id: \.self) { date in
-                                CalendarHourCell(date: date, hour: hour)
+                                WeekHourCell(date: date, hour: hour)
                                     .environmentObject(calendarViewModel)
                             }
                         }
@@ -71,6 +71,12 @@ struct CalendarWeekView: View {
             // Scroll to current time
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 scrollToCurrentHour()
+            }
+            // Load events for all days in the week
+            Task {
+                for date in weekDays {
+                    await calendarViewModel.loadEventsForDate(date)
+                }
             }
         }
     }
@@ -150,145 +156,59 @@ struct WeekHeaderView: View {
 
 // MARK: - Calendar Hour Cell Component
 
-/// Individual hour cell in the week view
-struct CalendarHourCell: View {
+/// Simplified week hour cell that actually shows events
+struct WeekHourCell: View {
     let date: Date
     let hour: Int
     
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @State private var isHovered = false
-    @State private var isDragTargeted = false
     
     var body: some View {
-        let _ = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
-        let events = calendarViewModel.events(for: date, hour: hour)
+        let hourEvents = calendarViewModel.events(for: date, hour: hour)
         let isCurrentHour = Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour
         
-        ZStack(alignment: .topLeading) {
-            // Cell background
-            RoundedRectangle(cornerRadius: isHovered ? 8 : 4)
-                .fill(cellBackgroundColor)
-                .frame(height: 60)
-                .overlay {
-                    RoundedRectangle(cornerRadius: isHovered ? 8 : 4)
-                        .stroke(cellBorderColor, lineWidth: isCurrentHour ? 2 : 0.5)
-                }
-                .shadow(color: .black.opacity(isHovered ? 0.1 : 0), radius: isHovered ? 4 : 0, x: 0, y: 2)
-                .animation(.easeInOut(duration: 0.2), value: isHovered)
-            
-            // Current time indicator
-            if isCurrentHour {
-                Rectangle()
-                    .fill(LinearGradient(
-                        colors: [.blue, .blue.opacity(0.3)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ))
-                    .frame(height: 2)
-                    .offset(y: timeIndicatorOffset)
-                    .animation(.easeInOut(duration: 0.3), value: timeIndicatorOffset)
-            }
-            
-            // Events
-            if !events.isEmpty {
-                LazyVStack(spacing: 2) {
-                    ForEach(events) { event in
-                        CalendarEventView(event: event)
-                            .environmentObject(calendarViewModel)
-                            .transition(.asymmetric(
-                                insertion: .scale.combined(with: .opacity),
-                                removal: .opacity
-                            ))
-                    }
-                }
-                .padding(4)
-            }
-            
-            // Hover placeholder
-            if isHovered && events.isEmpty {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.blue.opacity(0.7))
-                        Text("Schedule here")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+        VStack(spacing: 2) {
+            // Events display
+            if !hourEvents.isEmpty {
+                ForEach(Array(hourEvents.prefix(2).enumerated()), id: \.offset) { _, event in
+                    HStack(spacing: 3) {
+                        Rectangle()
+                            .fill(event.color)
+                            .frame(width: 3, height: 16)
+                        
+                        Text(event.title)
+                            .font(.caption2)
+                            .lineLimit(1)
+                            .foregroundColor(.primary)
+                        
                         Spacer()
                     }
-                    Spacer()
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 2)
+                    .background(event.color.opacity(0.1))
+                    .cornerRadius(3)
                 }
-                .opacity(0.8)
+                
+                if hourEvents.count > 2 {
+                    Text("+\(hourEvents.count - 2)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
             
-            // Drop target indicator
-            if isDragTargeted {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.blue.opacity(0.2))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.blue, lineWidth: 2)
-                            .scaleEffect(isDragTargeted ? 1.05 : 1.0)
-                            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isDragTargeted)
-                    }
-            }
+            Spacer()
+        }
+        .frame(height: 120)
+        .frame(maxWidth: .infinity)
+        .background(isCurrentHour ? Color.blue.opacity(0.08) : Color.clear)
+        .overlay {
+            Rectangle()
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
         }
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
-        .onTapGesture {
-            handleTap()
-        }
-        .onDrop(of: [.text], isTargeted: $isDragTargeted) { providers in
-            handleDrop()
-            return true
-        }
-    }
-    
-    // MARK: - Computed Properties
-    
-    private var cellBackgroundColor: Color {
-        if Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour {
-            return Color.blue.opacity(0.08)
-        } else if isHovered {
-            return Color(NSColor.controlAccentColor).opacity(0.05)
-        } else {
-            return Color(NSColor.controlBackgroundColor).opacity(0.3)
-        }
-    }
-    
-    private var cellBorderColor: Color {
-        let isCurrentHour = Calendar.current.isDateInToday(date) && Calendar.current.component(.hour, from: Date()) == hour
-        
-        if isCurrentHour {
-            return .blue
-        } else if isHovered {
-            return Color.secondary.opacity(0.5)
-        } else {
-            return Color.secondary.opacity(0.2)
-        }
-    }
-    
-    private var timeIndicatorOffset: CGFloat {
-        let now = Date()
-        let currentMinute = Calendar.current.component(.minute, from: now)
-        return CGFloat(currentMinute) / 60.0 * 58.0 // Proportional to cell height minus padding
-    }
-    
-    // MARK: - Actions
-    
-    private func handleTap() {
-        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
-        print("Tapped on \(date) at hour \(hour)")
-    }
-    
-    private func handleDrop() {
-        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
-        print("Dropped on \(date) at hour \(hour)")
     }
 }
 

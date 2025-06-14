@@ -21,6 +21,25 @@ struct CalendarMonthView: View {
                 .environmentObject(calendarViewModel)
         }
         .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            // Sync all visible month dates with Toggl when month view appears
+            Task {
+                let calendar = Calendar.current
+                let startOfMonth = calendar.dateInterval(of: .month, for: calendarViewModel.selectedDate)?.start ?? calendarViewModel.selectedDate
+                let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: startOfMonth)?.start ?? startOfMonth
+                
+                var visibleDates: [Date] = []
+                var currentDate = startOfWeek
+                
+                // Generate 6 weeks worth of dates (42 days) - same as monthDays
+                for _ in 0..<42 {
+                    visibleDates.append(currentDate)
+                    currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+                }
+                
+                await calendarViewModel.syncMonthViewWithToggl(visibleDates)
+            }
+        }
     }
 }
 
@@ -94,23 +113,6 @@ struct CalendarMonthDayCell: View {
                 .font(.system(size: 14, weight: isToday ? .bold : .medium))
                 .foregroundColor(dayTextColor)
             
-            // Event indicators
-            if !dayEvents.isEmpty {
-                HStack(spacing: 2) {
-                    ForEach(Array(dayEvents.prefix(3)), id: \.id) { event in
-                        Circle()
-                            .fill(event.color)
-                            .frame(width: 6, height: 6)
-                    }
-                    
-                    if dayEvents.count > 3 {
-                        Text("+\(dayEvents.count - 3)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            
             Spacer()
         }
         .frame(height: 80)
@@ -128,6 +130,12 @@ struct CalendarMonthDayCell: View {
         }
         .onTapGesture {
             handleTap()
+        }
+        .task {
+            // Load events for this date if not already loaded
+            if dayEvents.isEmpty {
+                await calendarViewModel.loadEventsForDate(date)
+            }
         }
     }
     
@@ -156,6 +164,24 @@ struct CalendarMonthDayCell: View {
     }
     
     private var cellBackgroundColor: Color {
+        if !dayEvents.isEmpty {
+            // Fill entire cell with dominant project color
+            let totalDayTime = dayEvents.reduce(0) { total, event in
+                total + event.duration
+            }
+            
+            if totalDayTime > 0 {
+                // Find the event with the longest duration (dominant color)
+                let dominantEvent = dayEvents.max { event1, event2 in
+                    event1.duration < event2.duration
+                }
+                
+                if let dominant = dominantEvent {
+                    return dominant.color.opacity(0.3) // Semi-transparent fill
+                }
+            }
+        }
+        
         if isToday {
             return Color.blue.opacity(0.1)
         } else if isHovered {

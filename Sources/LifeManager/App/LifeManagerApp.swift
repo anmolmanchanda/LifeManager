@@ -33,12 +33,20 @@ struct LifeManagerApp: App {
     
     var body: some Scene {
         NSLog("🔧 DEBUG: LifeManagerApp body computed property accessed")
-        return WindowGroup {
+        return         WindowGroup {
             ContentView()
                 .environmentObject(urlHandler)
                 .onOpenURL { url in
                     Task {
                         await urlHandler.handleIncomingURL(url)
+                    }
+                }
+                .onAppear {
+                    // Set window to full screen on launch
+                    DispatchQueue.main.async {
+                        if let window = NSApp.windows.first {
+                            window.toggleFullScreen(nil)
+                        }
                     }
                 }
         }

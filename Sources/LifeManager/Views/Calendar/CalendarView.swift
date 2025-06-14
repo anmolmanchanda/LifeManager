@@ -43,6 +43,13 @@ struct CalendarView: View {
         .background(Color(NSColor.controlBackgroundColor))
         .onAppear {
             setupCalendar()
+            // Refresh parking lot with latest PARA tasks
+            refreshParkingLotTasks()
+        }
+        .onChange(of: viewModel.selectedView) { _ in
+            if viewModel.selectedView == .calendar {
+                refreshParkingLotTasks()
+            }
         }
         .sheet(isPresented: $showingCreateEvent) {
             CreateEventView(calendarViewModel: calendarViewModel)
@@ -68,6 +75,39 @@ struct CalendarView: View {
     private func setupCalendar() {
         // Calendar setup is handled by the ViewModel's initialization
         // No additional setup needed here
+    }
+    
+    /// Refreshes parking lot tasks from all PARA categories
+    private func refreshParkingLotTasks() {
+        Task {
+            do {
+                // Fetch all tasks from the database
+                let taskRepository = TaskRepository()
+                let allDatabaseTasks = try await taskRepository.fetchAllTasks()
+                
+                await MainActor.run {
+                    // Combine focus tasks and all database tasks
+                    var allTasks: [LifeTask] = []
+                    
+                    // Add focus tasks
+                    allTasks.append(contentsOf: viewModel.focusTasks)
+                    
+                    // Add all tasks from database
+                    allTasks.append(contentsOf: allDatabaseTasks)
+                    
+                    // Remove duplicates and filter out archived/deleted tasks
+                    let uniqueTasks = Array(Set(allTasks))
+                    let activeTasks = uniqueTasks.filter { !$0.isArchived && !$0.isDeleted }
+                    
+                    // Update calendar view model with tasks
+                    calendarViewModel.allTasks = activeTasks
+                    
+                    print("🔄 Refreshed parking lot with \(activeTasks.count) tasks from PARA")
+                }
+            } catch {
+                print("🔄 Failed to refresh parking lot tasks: \(error)")
+            }
+        }
     }
 }
 

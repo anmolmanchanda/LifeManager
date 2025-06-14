@@ -16,6 +16,10 @@ class TogglService: ObservableObject {
     private var workspaceId = "4310831"  // ⚠️ REPLACE WITH YOUR WORKSPACE ID
     private let baseURL = "https://api.track.toggl.com/api/v9"
     
+    // MARK: - Rate Limiting
+    private var lastRequestTime: Date = Date.distantPast
+    private let minimumRequestInterval: TimeInterval = 2.0 // 2 seconds between requests to avoid 429 errors
+    
     // MARK: - Properties
     
     @Published var isConnected: Bool = false
@@ -102,6 +106,19 @@ class TogglService: ObservableObject {
         }
     }
     
+    // MARK: - Rate Limiting Helper
+    
+    /// Ensure minimum time between API requests to avoid rate limiting
+    private func ensureRateLimit() async {
+        let timeSinceLastRequest = Date().timeIntervalSince(lastRequestTime)
+        if timeSinceLastRequest < minimumRequestInterval {
+            let waitTime = minimumRequestInterval - timeSinceLastRequest
+            NSLog("🔧 TOGGL: Rate limiting - waiting \(waitTime)s")
+            try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+        }
+        lastRequestTime = Date()
+    }
+    
     // MARK: - API Methods
     
     /// Fetch time entries for a specific date range
@@ -109,6 +126,9 @@ class TogglService: ObservableObject {
         guard isConnected else {
             throw TogglError.notConfigured
         }
+        
+        // Rate limiting to prevent 429 errors
+        await ensureRateLimit()
         
         isLoading = true
         defer { isLoading = false }

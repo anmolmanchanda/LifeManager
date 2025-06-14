@@ -53,6 +53,9 @@ enum CalendarEventType: String, CaseIterable {
     case timeBlock = "time_block"
     case meeting = "meeting"
     case reminder = "reminder"
+    case actualToggl = "actual_toggl"
+    case plannedFuture = "planned_future"
+    case userEvent = "user_event"
     
     var displayName: String {
         switch self {
@@ -60,6 +63,9 @@ enum CalendarEventType: String, CaseIterable {
         case .timeBlock: return "Time Block"
         case .meeting: return "Meeting"
         case .reminder: return "Reminder"
+        case .actualToggl: return "Actual Toggl"
+        case .plannedFuture: return "Planned Future"
+        case .userEvent: return "User Event"
         }
     }
     
@@ -69,6 +75,9 @@ enum CalendarEventType: String, CaseIterable {
         case .timeBlock: return "clock.fill"
         case .meeting: return "person.2.fill"
         case .reminder: return "bell.fill"
+        case .actualToggl: return "checkmark.circle"
+        case .plannedFuture: return "clock.fill"
+        case .userEvent: return "person.fill"
         }
     }
 }
@@ -168,6 +177,33 @@ struct CalendarEvent: Identifiable, Equatable {
     /// Check if event is within a date range
     func isWithin(start: Date, end: Date) -> Bool {
         startDate >= start && endDate <= end
+    }
+    
+    /// Determines if this event is in the past relative to current time
+    var isInPast: Bool {
+        return endDate < Date()
+    }
+    
+    /// Determines if this event is currently happening
+    var isHappening: Bool {
+        let now = Date()
+        return startDate <= now && endDate > now
+    }
+    
+    /// Determines if this event is in the future
+    var isInFuture: Bool {
+        return startDate > Date()
+    }
+    
+    /// Returns the appropriate event type based on time and source
+    var eventType: CalendarEventType {
+        if source == .toggl && (isInPast || isHappening) {
+            return .actualToggl
+        } else if isInFuture {
+            return .plannedFuture
+        } else {
+            return .userEvent
+        }
     }
     
     // Equatable conformance

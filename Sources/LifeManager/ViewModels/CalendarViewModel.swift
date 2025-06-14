@@ -148,12 +148,17 @@ class CalendarViewModel: ObservableObject {
         applyFilters()
     }
     
-    /// Sync with Toggl
+    /// Sync with Toggl for the selected date
     func syncWithToggl() async {
         togglSyncStatus = .syncing
         
         do {
-            let togglEvents = try await togglService.fetchTodaysEntries()
+            // Fetch entries for the selected date, not just today
+            let calendar = Calendar.current
+            let startOfDay = calendar.startOfDay(for: selectedDate)
+            let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? selectedDate
+            
+            let togglEvents = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
             await MainActor.run {
                 // Update events with Toggl data
                 updateEventsWithTogglData(togglEvents)
@@ -350,6 +355,95 @@ class CalendarViewModel: ObservableObject {
         return suggestions
     }
     
+    /// Load events for a specific date
+    func loadEventsForDate(_ date: Date) async {
+        // First sync with Toggl for this specific date
+        await syncWithTogglForDate(date)
+    }
+    
+    /// Sync with Toggl for a specific date
+    private func syncWithTogglForDate(_ date: Date) async {
+        do {
+            let calendar = Calendar.current
+            let startOfDay = calendar.startOfDay(for: date)
+            let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
+            
+            let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            
+            // Convert TogglTimeEntry to CalendarEvent
+            let calendarEvents = togglEntries.map { togglEntry in
+                // Get project color from TogglService
+                let projectColor = togglEntry.projectId.flatMap { projectId in
+                    togglService.projectColors[projectId]
+                } ?? .green  // Default to green if no project color found
+                
+                return CalendarEvent(
+                    title: togglEntry.description ?? "Untitled Activity",
+                    description: nil,
+                    startDate: togglEntry.startDate,
+                    endDate: togglEntry.endDate ?? Date(),
+                    workPersonal: .work,
+                    color: projectColor,
+                    source: .toggl,
+                    togglEntryId: togglEntry.id,
+                    duration: togglEntry.actualDuration
+                )
+            }
+            
+            await MainActor.run {
+                updateEventsWithTogglDataForDate(calendarEvents, date: date)
+            }
+        } catch {
+            print("🔧 TOGGL: Failed to sync specific date \(date): \(error.localizedDescription)")
+        }
+    }
+    
+    /// Update events with Toggl data for a specific date
+    private func updateEventsWithTogglDataForDate(_ togglEvents: [CalendarEvent], date: Date) {
+        let calendar = Calendar.current
+        
+        // Remove existing Toggl events for this date
+        events.removeAll { event in
+            event.source == .toggl && calendar.isDate(event.startDate, inSameDayAs: date)
+        }
+        
+        // Add new Toggl events
+        events.append(contentsOf: togglEvents)
+        applyFilters()
+        
+        print("🔧 TOGGL: Updated \(togglEvents.count) events for date \(date)")
+    }
+    
+    /// Sync with Toggl for all visible dates in month view
+    func syncMonthViewWithToggl(_ visibleDates: [Date]) async {
+        togglSyncStatus = .syncing
+        
+        do {
+            // Get date range for all visible dates
+            guard let startDate = visibleDates.min(),
+                  let endDate = visibleDates.max() else {
+                return
+            }
+            
+            let calendar = Calendar.current
+            let startOfDay = calendar.startOfDay(for: startDate)
+            let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: endDate)) ?? endDate
+            
+            // Fetch entries for the entire month view range
+            let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            await MainActor.run {
+                // Update events with Toggl data for all dates
+                updateEventsWithTogglData(togglEntries)
+                togglSyncStatus = .success
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Failed to sync month view with Toggl: \(error.localizedDescription)"
+                togglSyncStatus = .error
+            }
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func setupBindings() {
@@ -382,9 +476,12 @@ class CalendarViewModel: ObservableObject {
     private func loadEventsForCurrentPeriod() {
         isLoading = true
         
-        // Simulate loading delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            self.isLoading = false
+        // Load events for the selected date
+        Task {
+            await syncWithToggl()
+            await MainActor.run {
+                self.isLoading = false
+            }
         }
     }
     
@@ -431,15 +528,20 @@ class CalendarViewModel: ObservableObject {
         // Remove existing Toggl events
         events.removeAll { $0.source == .toggl }
         
-        // Add new Toggl events
+        // Add new Toggl events with project colors
         let calendarEvents = togglEvents.map { togglEntry in
-            CalendarEvent(
-                title: togglEntry.description ?? "Toggl Entry",
-                description: "Toggl time entry",
+            // Get project color from TogglService
+            let projectColor = togglEntry.projectId.flatMap { projectId in
+                togglService.projectColors[projectId]
+            } ?? .green  // Default to green if no project color found
+            
+            return CalendarEvent(
+                title: togglEntry.description ?? "Untitled Activity",
+                description: nil, // Remove "Toggl time entry" description
                 startDate: togglEntry.startDate,
                 endDate: togglEntry.endDate ?? Date(),
                 workPersonal: .work, // Default to work for Toggl entries
-                color: .green,
+                color: projectColor, // Use Toggl project color
                 source: .toggl,
                 togglEntryId: togglEntry.id,
                 duration: togglEntry.actualDuration

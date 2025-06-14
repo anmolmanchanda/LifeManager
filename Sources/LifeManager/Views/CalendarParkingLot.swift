@@ -161,6 +161,7 @@ struct PARATasksParkingLot: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
         .clipped() // Prevent overflow outside bounds
+        .zIndex(100) // Ensure parking lot appears above calendar views
     }
     
     private var filteredTasks: [LifeTask] {
@@ -406,6 +407,9 @@ struct ParkingLotTaskRow: View {
         .shadow(color: .black.opacity(isDragging ? 0.15 : 0.05), radius: isDragging ? 4 : 2, x: 0, y: 1)
         .scaleEffect(isDragging ? 0.98 : (isHovered ? 1.02 : 1.0))
         .offset(dragOffset)
+        .zIndex(isDragging ? 1000000 : 1) // Extremely high z-index when dragging, base 1 otherwise
+        .allowsHitTesting(true) // Always allow hit testing
+        .background(isDragging ? Color.clear : Color.clear) // Ensure transparent background
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
         .onHover { hovering in
