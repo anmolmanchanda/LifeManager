@@ -288,7 +288,6 @@ struct ParkingLotTaskRow: View {
     let task: LifeTask
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @EnvironmentObject var viewModel: MainViewModel
-    @State private var dragOffset = CGSize.zero
     @State private var isDragging = false
     @State private var isHovered = false
     
@@ -406,8 +405,9 @@ struct ParkingLotTaskRow: View {
         .cornerRadius(8)
         .shadow(color: .black.opacity(isDragging ? 0.15 : 0.05), radius: isDragging ? 4 : 2, x: 0, y: 1)
         .scaleEffect(isDragging ? 0.98 : (isHovered ? 1.02 : 1.0))
-        .offset(dragOffset)
-        .zIndex(isDragging ? 1000000 : 1) // Extremely high z-index when dragging, base 1 otherwise
+        .offset(isDragging ? .zero : .zero) // Don't offset the original task when dragging
+        .opacity(isDragging ? 0.3 : 1.0) // Make original task semi-transparent when dragging
+        .zIndex(1) // Keep consistent z-index
         .allowsHitTesting(true) // Always allow hit testing
         .background(isDragging ? Color.clear : Color.clear) // Ensure transparent background
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
@@ -442,13 +442,11 @@ struct ParkingLotTaskRow: View {
                     }
                     calendarViewModel.startDragging(task)
                 }
-                dragOffset = value.translation
                 calendarViewModel.updateDragPosition(value.translation)
             }
             .onEnded { value in
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     isDragging = false
-                    dragOffset = .zero
                 }
                 calendarViewModel.cancelDrag()
             }

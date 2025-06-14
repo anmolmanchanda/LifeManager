@@ -156,7 +156,7 @@ struct DragOverlay: View {
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
         .frame(width: 200)
-        .position(x: dragPosition.x, y: dragPosition.y)
+        .offset(x: dragPosition.x, y: dragPosition.y)
         .animation(.spring(response: 0.2, dampingFraction: 0.8), value: dragPosition)
     }
     

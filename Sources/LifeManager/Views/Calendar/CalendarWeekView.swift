@@ -6,12 +6,12 @@ struct CalendarWeekView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     
     private let hours = Array(0..<24)
-    private let weekDays: [Date] = {
+    private var weekDays: [Date] {
         let calendar = Calendar.current
-        let today = Date()
-        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
+        let selectedDate = calendarViewModel.selectedDate
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: selectedDate)?.start ?? selectedDate
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
-    }()
+    }
     
     var body: some View {
         VStack(spacing: 0) {

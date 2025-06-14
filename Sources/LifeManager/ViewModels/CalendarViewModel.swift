@@ -296,7 +296,7 @@ class CalendarViewModel: ObservableObject {
     
     /// Update drag position during drag operation
     func updateDragPosition(_ translation: CGSize) {
-        // Convert translation to screen position for overlay
+        // Use translation directly for relative positioning
         dragPosition = CGPoint(x: translation.width, y: translation.height)
     }
     
