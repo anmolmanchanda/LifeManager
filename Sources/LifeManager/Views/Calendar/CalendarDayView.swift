@@ -104,6 +104,10 @@ struct CalendarDayHourView: View {
         Calendar.current.component(.hour, from: Date()) == hour
     }
     
+    private var isToday: Bool {
+        Calendar.current.isDateInToday(calendarViewModel.selectedDate)
+    }
+    
     private var timeLabel: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h a"
@@ -159,7 +163,7 @@ struct CalendarDayHourView: View {
         VStack(alignment: .trailing, spacing: 2) {
             Text(timeLabel)
                 .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(isCurrentHour ? .blue : .secondary)
+                .foregroundColor(isCurrentHour ? .blue : (isToday ? .primary : .secondary))
             
             if isCurrentHour {
                 Text("now")
@@ -274,7 +278,9 @@ struct CalendarDayHourView: View {
     
     private var backgroundColor: Color {
         if isCurrentHour {
-            return Color.blue.opacity(0.05)
+            return Color.blue.opacity(0.1)
+        } else if isToday {
+            return Color.blue.opacity(0.02)
         } else {
             return Color.clear
         }

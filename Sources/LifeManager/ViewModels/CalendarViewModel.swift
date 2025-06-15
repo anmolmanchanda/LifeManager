@@ -202,6 +202,9 @@ class CalendarViewModel: ObservableObject {
             let startOfDay = calendar.startOfDay(for: selectedDate)
             let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? selectedDate
             
+            // First ensure projects are fetched for colors
+            await togglService.fetchProjects()
+            
             let togglEvents = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
             await MainActor.run {
                 // Update events with Toggl data

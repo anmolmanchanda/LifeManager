@@ -413,7 +413,23 @@ struct ExecutionSummaryView: View {
                     Button("Done") {
                         onDismiss()
                     }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.return, modifiers: [])
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                // Additional prominent Done button at bottom
+                HStack {
+                    Spacer()
+                    Button("Done") {
+                        onDismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .font(.headline)
+                    .padding()
+                    Spacer()
+                }
+                .background(.regularMaterial)
             }
         }
         .frame(minWidth: 600, minHeight: 500)

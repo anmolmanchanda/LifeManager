@@ -61,12 +61,32 @@ class LLMService: ObservableObject {
                 if let content = try? String(contentsOfFile: path).trimmingCharacters(in: .whitespacesAndNewlines),
                    !content.isEmpty {
                     print("🔧 LLM CONFIG: ✅ Found config file at: \(path)")
-                    print("🔧 LLM CONFIG: API key length: \(content.count)")
-                    return content
+                    print("🔧 LLM CONFIG: Raw content length: \(content.count)")
+                    
+                    // Extract API key from config file format
+                    if content.contains("OPENAI_API_KEY=") {
+                        let lines = content.components(separatedBy: .newlines)
+                        for line in lines {
+                            if line.hasPrefix("OPENAI_API_KEY=") {
+                                let apiKey = String(line.dropFirst("OPENAI_API_KEY=".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                                if !apiKey.isEmpty && !apiKey.contains("YOUR_API_KEY_HERE") {
+                                    print("🔧 LLM CONFIG: ✅ Extracted API key, length: \(apiKey.count)")
+                                    return apiKey
+                                }
+                            }
+                        }
+                        print("🔧 LLM CONFIG: ❌ Found OPENAI_API_KEY= but no valid key")
+                    } else {
+                        // Assume entire file content is the API key (for simple format)
+                        if !content.contains("YOUR_API_KEY_HERE") && content.hasPrefix("sk-") {
+                            print("🔧 LLM CONFIG: ✅ Using entire file as API key")
+                            return content
+                        }
+                    }
                 }
             }
             
-            print("🔧 LLM CONFIG: ❌ No config file found in any location")
+            print("🔧 LLM CONFIG: ❌ No valid API key found in any config file")
             return nil
         }
     }
@@ -645,7 +665,7 @@ class LLMService: ObservableObject {
     }
     
     /// Call LLM API based on configured provider
-    private func callLLM(prompt: String) async throws -> String {
+    func callLLM(prompt: String) async throws -> String {
         switch preferredProvider {
         case .openAI:
             return try await callOpenAI(prompt: prompt)
@@ -654,7 +674,7 @@ class LLMService: ObservableObject {
         }
     }
     
-    /// Call OpenAI API
+    /// Call OpenAI API with retry logic
     private func callOpenAI(prompt: String) async throws -> String {
         print("🔧 LLM: Checking API key...")
         guard !APIConfig.openAIKey.isEmpty else {
@@ -666,18 +686,42 @@ class LLMService: ObservableObject {
         let url = URL(string: "\(APIConfig.openAIBaseURL)/chat/completions")!
         print("🔧 LLM: Making request to: \(url)")
         
+        // Retry logic for network reliability
+        var lastError: Error?
+        for attempt in 1...3 {
+            do {
+                print("🔧 LLM: Attempt \(attempt)/3")
+                return try await performOpenAIRequest(url: url, prompt: prompt)
+            } catch {
+                lastError = error
+                print("🔧 LLM: ❌ Attempt \(attempt) failed: \(error)")
+                if attempt < 3 {
+                    print("🔧 LLM: Waiting 2 seconds before retry...")
+                    try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                }
+            }
+        }
+        
+        throw lastError ?? LLMError.networkError
+    }
+    
+    /// Perform the actual OpenAI API request
+    private func performOpenAIRequest(url: URL, prompt: String) async throws -> String {
+        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(APIConfig.openAIKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120.0 // Increase timeout to 120 seconds for complex brain dump processing
         
         let body: [String: Any] = [
             "model": "gpt-4",
             "messages": [
+                ["role": "system", "content": "You are a precise JSON generator. CRITICAL: Respond ONLY with a valid JSON array. No markdown, no explanations, no extra text. Start with [ and end with ]. Use double quotes for all strings. No trailing commas."],
                 ["role": "user", "content": prompt]
             ],
-            "max_tokens": 2000,
-            "temperature": 0.3
+            "max_tokens": 4000,
+            "temperature": 0.0
         ]
         
         do {
@@ -745,6 +789,7 @@ class LLMService: ObservableObject {
         request.setValue(APIConfig.claudeKey, forHTTPHeaderField: "x-api-key")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.timeoutInterval = 120.0 // Increase timeout to 120 seconds for complex brain dump processing
         
         let body: [String: Any] = [
             "model": "claude-3-sonnet-20240229",
@@ -939,7 +984,7 @@ class LLMService: ObservableObject {
     /// Create comprehensive processing prompt
     private func createComprehensivePrompt(for blob: Blob, availableAreas: [String], availableProjects: [String], confidenceThreshold: Double) -> String {
         let currentDate = ISO8601DateFormatter().string(from: Date())
-        let currentTime = DateFormatter().string(from: Date())
+        _ = DateFormatter().string(from: Date()) // Reserved for future use
         
         return """
         You are an AI assistant specialized in the PARA methodology (Projects, Areas, Resources, Archives) for personal knowledge management and intelligent task management.
@@ -1179,7 +1224,7 @@ class LLMService: ObservableObject {
             if let dueDateString = taskData["suggested_due_date"] as? String {
                 // Try to parse and validate the date
                 let isoFormatter = ISO8601DateFormatter()
-                if let parsedDate = isoFormatter.date(from: dueDateString) {
+                if isoFormatter.date(from: dueDateString) != nil {
                     suggestedDueDate = dueDateString
                     print("🔧 LLM PARSE: ✅ Parsed due date: \(dueDateString)")
                 } else {
@@ -1385,67 +1430,191 @@ class LLMService: ObservableObject {
         )
     }
     
-    /// Extract JSON array from LLM response with safe string parsing
+    /// Extract JSON array from LLM response with robust parsing
     private func extractJSONArray(from response: String) -> String {
-        print("🔧 LLM EXTRACT: Extracting JSON array from response")
+        Logger.shared.debug("LLM EXTRACT: Extracting JSON array from response")
         
-        // Look for JSON array between ```json and ```
+        // First, try to find JSON in code blocks
         if let jsonStart = response.range(of: "```json") {
             let searchStart = jsonStart.upperBound
             guard searchStart < response.endIndex else {
-                print("🔧 LLM EXTRACT: ⚠️ Invalid range after ```json")
+                Logger.shared.warning("LLM EXTRACT: Invalid range after ```json")
                 return response.trimmingCharacters(in: .whitespacesAndNewlines)
             }
             
             let searchRange = searchStart..<response.endIndex
             if let jsonEnd = response.range(of: "```", range: searchRange) {
                 let extracted = String(response[searchStart..<jsonEnd.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-                print("🔧 LLM EXTRACT: ✅ Found JSON in code block")
+                Logger.shared.success("LLM EXTRACT: Found JSON in code block")
                 return extracted
             }
         }
         
-        // Look for JSON array brackets with safe parsing
-        if let firstBracket = response.range(of: "[") {
-            let startIndex = firstBracket.lowerBound
+        // Try to extract just the JSON array part with aggressive cleaning
+        if let arrayStart = response.range(of: "[") {
+            let startIndex = arrayStart.lowerBound
             
-            // Find matching closing bracket by counting brackets
-            var bracketCount = 0
-            var currentIndex = startIndex
+            // Find the last occurrence of ] to get the complete array
+            _ = startIndex..<response.endIndex // Reserved for future use
             var lastBracketIndex: String.Index? = nil
+            var currentIndex = startIndex
             
+            // Find the last ] in the string
             while currentIndex < response.endIndex {
-                let char = response[currentIndex]
-                if char == "[" {
-                    bracketCount += 1
-                } else if char == "]" {
-                    bracketCount -= 1
+                if response[currentIndex] == "]" {
                     lastBracketIndex = currentIndex
-                    if bracketCount == 0 {
-                        // Found matching closing bracket
-                        break
-                    }
                 }
-                
-                // Safe index advancement
-                let nextIndex = response.index(after: currentIndex)
-                guard nextIndex <= response.endIndex else { break }
+                guard let nextIndex = response.index(currentIndex, offsetBy: 1, limitedBy: response.endIndex) else { break }
                 currentIndex = nextIndex
             }
             
-            if bracketCount == 0, let endIndex = lastBracketIndex {
-                let extracted = String(response[startIndex...endIndex])
-                print("🔧 LLM EXTRACT: ✅ Found JSON array brackets")
+            if let arrayEnd = lastBracketIndex {
+                let candidateJSON = String(response[startIndex...arrayEnd])
+                
+                // Try to validate and clean this JSON
+                if let cleanedJSON = cleanAndValidateJSON(candidateJSON) {
+                    Logger.shared.success("LLM EXTRACT: Successfully cleaned and validated JSON")
+                    return cleanedJSON
+                }
+            }
+            
+            // Fallback: try bracket counting with better error recovery
+            let extracted = extractWithBracketCounting(from: response, startIndex: startIndex)
+            if !extracted.isEmpty {
                 return extracted
-            } else {
-                print("🔧 LLM EXTRACT: ⚠️ Unmatched brackets, bracket count: \(bracketCount)")
             }
         }
         
-        // If no clear JSON found, try to clean up the response
-        let cleaned = response.trimmingCharacters(in: .whitespacesAndNewlines)
-        print("🔧 LLM EXTRACT: ⚠️ Using cleaned response as fallback")
-        return cleaned
+        // Last resort: try to find any JSON-like structure
+        Logger.shared.warning("LLM EXTRACT: Using fallback JSON extraction")
+        return extractFallbackJSON(from: response)
+    }
+    
+    /// Clean and validate JSON string with aggressive fixing
+    private func cleanAndValidateJSON(_ jsonString: String) -> String? {
+        var cleaned = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Remove markdown code blocks if present
+        if cleaned.hasPrefix("```json") {
+            cleaned = cleaned.replacingOccurrences(of: "```json", with: "")
+        }
+        if cleaned.hasSuffix("```") {
+            cleaned = cleaned.replacingOccurrences(of: "```", with: "")
+        }
+        
+        // Remove any text before the first [ or after the last ]
+        if let firstBracket = cleaned.firstIndex(of: "["),
+           let lastBracket = cleaned.lastIndex(of: "]") {
+            cleaned = String(cleaned[firstBracket...lastBracket])
+        }
+        
+        // Normalize whitespace
+        cleaned = cleaned.replacingOccurrences(of: "\n", with: " ")
+        cleaned = cleaned.replacingOccurrences(of: "\r", with: " ")
+        cleaned = cleaned.replacingOccurrences(of: "\t", with: " ")
+        cleaned = cleaned.replacingOccurrences(of: "  ", with: " ")
+        
+        // Fix common JSON issues
+        cleaned = cleaned.replacingOccurrences(of: ",}", with: "}")
+        cleaned = cleaned.replacingOccurrences(of: ",]", with: "]")
+        cleaned = cleaned.replacingOccurrences(of: ",,", with: ",")
+        
+        // Remove trailing commas before closing brackets
+        cleaned = cleaned.replacingOccurrences(of: ",\\s*}", with: "}", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: ",\\s*]", with: "]", options: .regularExpression)
+        
+        // Fix missing quotes around keys (common LLM error)
+        cleaned = cleaned.replacingOccurrences(of: "([{,]\\s*)([a-zA-Z_][a-zA-Z0-9_]*):", with: "$1\"$2\":", options: .regularExpression)
+        
+        // Try to parse to validate
+        if let data = cleaned.data(using: .utf8),
+           let _ = try? JSONSerialization.jsonObject(with: data) {
+            Logger.shared.success("LLM EXTRACT: Successfully validated and cleaned JSON")
+            return cleaned
+        }
+        
+        Logger.shared.warning("LLM EXTRACT: JSON validation failed even after cleaning")
+        return nil
+    }
+    
+    /// Extract JSON with bracket counting
+    private func extractWithBracketCounting(from response: String, startIndex: String.Index) -> String {
+        var bracketCount = 0
+        var currentIndex = startIndex
+        var lastBracketIndex: String.Index? = nil
+        var inString = false
+        var escapeNext = false
+        
+        while currentIndex < response.endIndex {
+            let char = response[currentIndex]
+            
+            if escapeNext {
+                escapeNext = false
+            } else if char == "\\" && inString {
+                escapeNext = true
+            } else if char == "\"" && !escapeNext {
+                inString.toggle()
+            } else if !inString {
+                if char == "[" || char == "{" {
+                    bracketCount += 1
+                } else if char == "]" || char == "}" {
+                    bracketCount -= 1
+                    lastBracketIndex = currentIndex
+                    if bracketCount == 0 {
+                        break
+                    }
+                }
+            }
+            
+            guard let nextIndex = response.index(currentIndex, offsetBy: 1, limitedBy: response.endIndex) else { break }
+            currentIndex = nextIndex
+        }
+        
+        if bracketCount == 0, let endIndex = lastBracketIndex {
+            let extracted = String(response[startIndex...endIndex])
+            Logger.shared.success("LLM EXTRACT: Found complete JSON with bracket counting")
+            return extracted
+        } else if bracketCount > 0, let lastIndex = lastBracketIndex {
+            // Try to fix by adding missing brackets
+            let partialJSON = String(response[startIndex...lastIndex])
+            let fixedJSON = partialJSON + String(repeating: "]", count: bracketCount)
+            Logger.shared.warning("LLM EXTRACT: Fixed JSON with \(bracketCount) missing brackets")
+            return fixedJSON
+        }
+        
+        return ""
+    }
+    
+    /// Fallback JSON extraction for malformed responses
+    private func extractFallbackJSON(from response: String) -> String {
+        // Look for anything that looks like a JSON array
+        let lines = response.components(separatedBy: .newlines)
+        var jsonLines: [String] = []
+        var inArray = false
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if trimmed.hasPrefix("[") {
+                inArray = true
+                jsonLines.append(trimmed)
+            } else if inArray {
+                jsonLines.append(trimmed)
+                if trimmed.hasSuffix("]") {
+                    break
+                }
+            }
+        }
+        
+        if !jsonLines.isEmpty {
+            let fallbackJSON = jsonLines.joined(separator: " ")
+            Logger.shared.warning("LLM EXTRACT: Using fallback extraction")
+            return fallbackJSON
+        }
+        
+        // Ultimate fallback: return empty array
+        Logger.shared.error("LLM EXTRACT: Could not extract any JSON, returning empty array")
+        return "[]"
     }
     
     private func buildComprehensivePrompt(input: String, context: PARAContext) -> String {
@@ -1518,23 +1687,22 @@ class LLMService: ObservableObject {
         - Flag uncertain items for review
         - Be honest about classification uncertainty
 
-        **REQUIRED OUTPUT (JSON Array Only):**
-        [
-          {
-            "title": "Clear, actionable title (max 60 chars)",
-            "content": "Full original text segment",
-            "content_type": "task|project|appointment|resource|goal|archive",
-            "para_category": "project|area|resource|archive",
-            "suggested_area": "Specific area name",
-            "suggested_project": "Specific project name or null",
-            "work_personal": "work|personal",
-            "priority": "urgent|high|medium|low",
-            "due_date": "YYYY-MM-DD or null",
-            "tags": ["specific", "descriptive", "tags"],
-            "confidence": 0.85,
-            "reasoning": "1-2 sentence explanation of type and PARA choice"
-          }
-        ]
+        **CRITICAL: RESPOND WITH VALID JSON ARRAY ONLY - NO MARKDOWN, NO EXPLANATIONS, NO EXTRA TEXT**
+        
+        OUTPUT FORMAT: Pure JSON array starting with [ and ending with ]
+        
+        EXAMPLE OUTPUT:
+        [{"title":"Email Maria about June invoice","content":"Email Maria the June invoice","content_type":"task","para_category":"project","suggested_area":"Work Administration","suggested_project":"Monthly Invoicing","work_personal":"work","priority":"high","due_date":"2025-06-16","tags":["email","invoice","urgent"],"confidence":0.9,"reasoning":"Clear work task with deadline"}]
+        
+        **STRICT JSON RULES:**
+        - Start response with [ and end with ]
+        - Use double quotes for ALL strings
+        - NO trailing commas anywhere
+        - NO line breaks inside strings
+        - NO markdown formatting
+        - NO explanatory text before or after JSON
+        - Use null (not "null") for empty values
+        - Escape quotes in content: "She said \"hello\""
 
         **PRODUCTION QUALITY REQUIREMENTS:**
         1. Split input into distinct items (each sentence = one item)

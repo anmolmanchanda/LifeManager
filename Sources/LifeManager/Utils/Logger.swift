@@ -1,6 +1,205 @@
 import Foundation
 import os.log
 
+/// Centralized logging system for LifeManager
+class Logger {
+    static let shared = Logger()
+    
+    private let logFileURL: URL
+    private let dateFormatter: DateFormatter
+    private let fileManager = FileManager.default
+    private let logQueue = DispatchQueue(label: "com.lifemanager.logging", qos: .utility)
+    
+    private init() {
+        // Create logs directory in user's Documents
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let logsDirectory = documentsPath.appendingPathComponent("LifeManager/Logs")
+        
+        // Create directory if it doesn't exist
+        try? fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
+        
+        // Create log file with current date
+        let dateString = DateFormatter().string(from: Date()).replacingOccurrences(of: "/", with: "-")
+        self.logFileURL = logsDirectory.appendingPathComponent("lifemanager-\(dateString).log")
+        
+        // Setup date formatter for log entries
+        self.dateFormatter = DateFormatter()
+        self.dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+        
+        // Log startup
+        self.info("🚀 LifeManager Logger initialized - Log file: \(logFileURL.path)")
+    }
+    
+    /// Log levels
+    enum Level: String, CaseIterable {
+        case debug = "DEBUG"
+        case info = "INFO"
+        case warning = "WARN"
+        case error = "ERROR"
+        case success = "SUCCESS"
+        case progress = "PROGRESS"
+        
+        var emoji: String {
+            switch self {
+            case .debug: return "🔧"
+            case .info: return "ℹ️"
+            case .warning: return "⚠️"
+            case .error: return "❌"
+            case .success: return "✅"
+            case .progress: return "⏳"
+            }
+        }
+    }
+    
+    /// Main logging function
+    private func log(_ level: Level, _ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        let timestamp = dateFormatter.string(from: Date())
+        let fileName = URL(fileURLWithPath: file).lastPathComponent
+        let logMessage = "[\(timestamp)] \(level.emoji) \(level.rawValue) [\(fileName):\(line)] \(message)"
+        
+        // Print to console
+        print(logMessage)
+        
+        // Write to file asynchronously
+        logQueue.async {
+            self.writeToFile(logMessage)
+        }
+    }
+    
+    /// Write log message to file
+    private func writeToFile(_ message: String) {
+        let logEntry = message + "\n"
+        
+        if let data = logEntry.data(using: .utf8) {
+            if fileManager.fileExists(atPath: logFileURL.path) {
+                // Append to existing file
+                if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                }
+            } else {
+                // Create new file
+                try? data.write(to: logFileURL)
+            }
+        }
+    }
+    
+    // MARK: - Public Logging Methods
+    
+    func debug(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        log(.debug, message, file: file, function: function, line: line)
+    }
+    
+    func info(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        log(.info, message, file: file, function: function, line: line)
+    }
+    
+    func warning(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        log(.warning, message, file: file, function: function, line: line)
+    }
+    
+    func error(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        log(.error, message, file: file, function: function, line: line)
+    }
+    
+    func success(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        log(.success, message, file: file, function: function, line: line)
+    }
+    
+    func progress(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+        log(.progress, message, file: file, function: function, line: line)
+    }
+    
+    // MARK: - Brain Dump Specific Logging
+    
+    func brainDumpStart(_ input: String) {
+        progress("BRAIN DUMP: Starting processing of \(input.count) characters: '\(input.prefix(100))...'")
+    }
+    
+    func brainDumpProgress(_ stage: String) {
+        progress("BRAIN DUMP: \(stage)")
+    }
+    
+    func brainDumpSuccess(_ itemCount: Int, processingTime: TimeInterval) {
+        success("BRAIN DUMP: ✅ SUCCESS - Created \(itemCount) items in \(String(format: "%.2f", processingTime))s")
+    }
+    
+    func brainDumpError(_ error: Error, processingTime: TimeInterval) {
+        self.error("BRAIN DUMP: ❌ FAILED after \(String(format: "%.2f", processingTime))s - \(error.localizedDescription)")
+    }
+    
+    func brainDumpFallback(_ itemCount: Int, reason: String) {
+        warning("BRAIN DUMP: ⚠️ FALLBACK - Used simple processing (\(itemCount) items) - Reason: \(reason)")
+    }
+    
+    // MARK: - Utility Methods
+    
+    /// Get current log file path
+    func getLogFilePath() -> String {
+        return logFileURL.path
+    }
+    
+    /// Get recent log entries
+    func getRecentLogs(lines: Int = 50) -> String {
+        guard let content = try? String(contentsOf: logFileURL) else {
+            return "No log file found"
+        }
+        
+        let allLines = content.components(separatedBy: .newlines)
+        let recentLines = Array(allLines.suffix(lines))
+        return recentLines.joined(separator: "\n")
+    }
+    
+    /// Clear old log files (keep last 7 days)
+    func cleanupOldLogs() {
+        let logsDirectory = logFileURL.deletingLastPathComponent()
+        
+        do {
+            let files = try fileManager.contentsOfDirectory(at: logsDirectory, includingPropertiesForKeys: [.creationDateKey])
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            
+            for file in files {
+                if let creationDate = try file.resourceValues(forKeys: [.creationDateKey]).creationDate,
+                   creationDate < cutoffDate {
+                    try fileManager.removeItem(at: file)
+                    info("Cleaned up old log file: \(file.lastPathComponent)")
+                }
+            }
+        } catch {
+            self.error("Failed to cleanup old logs: \(error)")
+        }
+    }
+}
+
+// MARK: - Global Logging Functions for Convenience
+
+func logDebug(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+    Logger.shared.debug(message, file: file, function: function, line: line)
+}
+
+func logInfo(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+    Logger.shared.info(message, file: file, function: function, line: line)
+}
+
+func logWarning(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+    Logger.shared.warning(message, file: file, function: function, line: line)
+}
+
+func logError(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+    Logger.shared.error(message, file: file, function: function, line: line)
+}
+
+func logSuccess(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+    Logger.shared.success(message, file: file, function: function, line: line)
+}
+
+func logProgress(_ message: String, file: String = #file, function: String = #function, line: Int = #line) {
+    Logger.shared.progress(message, file: file, function: function, line: line)
+}
+
+// MARK: - Comprehensive Logging System for LifeManager
+
 /// Comprehensive logging system for LifeManager
 public struct LifeLogger {
     

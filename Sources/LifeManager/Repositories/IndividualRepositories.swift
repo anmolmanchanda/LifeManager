@@ -108,4 +108,31 @@ class ArchiveRepository {
         // For now, we'll just delete from archives (implementation would be more complex)
         try await deleteArchive(id: id)
     }
+}
+
+/// Repository for managing Journal Entries data
+class JournalRepository {
+    
+    private let supabaseService = SupabaseService.shared
+    
+    func fetchAllJournalEntries() async throws -> [JournalEntry] {
+        return try await supabaseService.fetch(JournalEntry.self, from: SupabaseService.TableName.journalEntries.rawValue)
+    }
+    
+    func fetchJournalEntry(id: UUID) async throws -> JournalEntry? {
+        let entries: [JournalEntry] = try await supabaseService.fetch(JournalEntry.self, from: SupabaseService.TableName.journalEntries.rawValue)
+        return entries.first { $0.id == id }
+    }
+    
+    func createJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry {
+        return try await supabaseService.insert(entry, into: SupabaseService.TableName.journalEntries.rawValue)
+    }
+    
+    func updateJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry {
+        return try await supabaseService.update(entry, in: SupabaseService.TableName.journalEntries.rawValue, matching: "id", value: entry.id.uuidString)
+    }
+    
+    func deleteJournalEntry(id: UUID) async throws {
+        try await supabaseService.delete(from: SupabaseService.TableName.journalEntries.rawValue, matching: "id", value: id.uuidString)
+    }
 } 

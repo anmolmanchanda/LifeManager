@@ -1,3 +1,4 @@
 .build/
 .swiftpm/
 LifeManager.app/
+config.txt

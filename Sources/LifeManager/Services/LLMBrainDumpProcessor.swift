@@ -8,6 +8,7 @@ class LLMBrainDumpProcessor {
     private let taskRepository: TaskRepository
     private let paraRepository: PARARepository
     private let resourceRepository: ResourceRepository
+    private let journalRepository: JournalRepository
     
     init() {
         self.llmService = LLMService()
@@ -15,15 +16,71 @@ class LLMBrainDumpProcessor {
         self.taskRepository = TaskRepository()
         self.paraRepository = PARARepository()
         self.resourceRepository = ResourceRepository()
+        self.journalRepository = JournalRepository()
+    }
+    
+    /// Check if a valid API key is available (same logic as LLMService)
+    private func hasValidAPIKey() -> Bool {
+        // Try to load from config file first
+        if let configKey = loadFromConfigFile(), !configKey.isEmpty, !configKey.contains("YOUR_API_KEY_HERE") {
+            print("🧠 BRAIN DUMP: ✅ Found valid API key in config file")
+            return true
+        }
+        
+        // Try environment variable
+        if let envKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"], !envKey.isEmpty, !envKey.contains("your-openai-api-key-here") {
+            print("🧠 BRAIN DUMP: ✅ Found valid API key in environment")
+            return true
+        }
+        
+        print("🧠 BRAIN DUMP: ❌ No valid API key found")
+        return false
+    }
+    
+    /// Load API key from config file (same logic as LLMService)
+    private func loadFromConfigFile() -> String? {
+        let configPaths = [
+            "config.txt",
+            "api_key.txt",
+            Bundle.main.bundlePath + "/config.txt",
+            Bundle.main.bundlePath + "/api_key.txt",
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".lifemanager_config").path,
+            FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("config.txt").path ?? "",
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("LifeManager/config.txt").path ?? ""
+        ]
+        
+        for path in configPaths {
+            if let content = try? String(contentsOfFile: path).trimmingCharacters(in: .whitespacesAndNewlines),
+               !content.isEmpty {
+                // Extract API key from config file format
+                if content.contains("OPENAI_API_KEY=") {
+                    let lines = content.components(separatedBy: .newlines)
+                    for line in lines {
+                        if line.hasPrefix("OPENAI_API_KEY=") {
+                            let apiKey = String(line.dropFirst("OPENAI_API_KEY=".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !apiKey.isEmpty {
+                                return apiKey
+                            }
+                        }
+                    }
+                } else {
+                    // Assume entire file content is the API key
+                    return content
+                }
+            }
+        }
+        
+        return nil
     }
     
     /// Process brain dump input with comprehensive analysis
     func processBrainDump(_ input: String) async throws -> BrainDumpResult {
-        print("🧠 BRAIN DUMP: Starting comprehensive processing of \(input.count) characters")
+        Logger.shared.brainDumpProgress("Starting comprehensive processing of \(input.count) characters")
         
-        // Check if API key is available
-        guard ProcessInfo.processInfo.environment["OPENAI_API_KEY"] != nil else {
-            print("🧠 BRAIN DUMP: No API key found, using fallback processing")
+        // Check if API key is available (use same logic as LLMService)
+        let hasAPIKey = hasValidAPIKey()
+        guard hasAPIKey else {
+            Logger.shared.brainDumpFallback(0, reason: "No valid API key found")
             return try await processBrainDumpFallback(input)
         }
         
@@ -43,30 +100,30 @@ class LLMBrainDumpProcessor {
             requiresReview: analysisResult.confidence < 0.8 || analysisResult.hasAmbiguousItems
         )
         
-            print("🧠 BRAIN DUMP: ✅ LLM Analysis complete - found \(result.suggestedItems.count) items")
+            Logger.shared.success("LLM Analysis complete - found \(result.suggestedItems.count) items")
             return result
             
         } catch LLMError.missingAPIKey {
-            print("🧠 BRAIN DUMP: ❌ API key missing, falling back to simple processing")
-            return try await processBrainDumpFallback(input)
+            Logger.shared.error("BRAIN DUMP: ❌ CRITICAL - API key missing. Cannot proceed without LLM.")
+            throw LLMError.missingAPIKey
         } catch LLMError.networkError {
-            print("🧠 BRAIN DUMP: ❌ Network error, falling back to simple processing")
-            return try await processBrainDumpFallback(input)
+            Logger.shared.error("BRAIN DUMP: ❌ CRITICAL - Network error. Check internet connection.")
+            throw LLMError.networkError
         } catch LLMError.invalidResponse {
-            print("🧠 BRAIN DUMP: ❌ Invalid LLM response, falling back to simple processing")
-            return try await processBrainDumpFallback(input)
+            Logger.shared.error("BRAIN DUMP: ❌ CRITICAL - Invalid LLM response. API returned unexpected format.")
+            throw LLMError.invalidResponse
         } catch LLMError.parsingError {
-            print("🧠 BRAIN DUMP: ❌ LLM parsing error, falling back to simple processing")
-            return try await processBrainDumpFallback(input)
+            Logger.shared.error("BRAIN DUMP: ❌ CRITICAL - JSON parsing error. LLM response malformed.")
+            throw LLMError.parsingError
         } catch {
-            print("🧠 BRAIN DUMP: ❌ Unexpected error: \(error), falling back to simple processing")
-            return try await processBrainDumpFallback(input)
+            Logger.shared.error("BRAIN DUMP: ❌ CRITICAL - Unexpected error: \(error.localizedDescription)")
+            throw error
         }
     }
     
     /// Fallback processing when no API key is available
     private func processBrainDumpFallback(_ input: String) async throws -> BrainDumpResult {
-        print("🧠 BRAIN DUMP: Using fallback processing without LLM")
+        Logger.shared.brainDumpProgress("Using fallback processing without LLM")
         
         // Simple rule-based parsing for common patterns
         let sentences = input.components(separatedBy: CharacterSet(charactersIn: ".!?")).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
@@ -115,7 +172,7 @@ class LLMBrainDumpProcessor {
             requiresReview: true
         )
         
-        print("🧠 BRAIN DUMP: Fallback processing complete - created \(result.suggestedItems.count) items")
+        Logger.shared.brainDumpFallback(result.suggestedItems.count, reason: "Completed fallback processing")
         return result
     }
     
@@ -133,7 +190,7 @@ class LLMBrainDumpProcessor {
             priority = .high
             paraCategory = .project
         } else if lowercased.contains("feeling") || lowercased.contains("emotion") || lowercased.contains("happy") || lowercased.contains("sad") || lowercased.contains("worried") {
-            contentType = .journalEntry
+            contentType = .journal
             priority = .low
             paraCategory = .area
         } else if lowercased.contains("question") || lowercased.contains("wondering") || lowercased.contains("how") || lowercased.contains("what") || lowercased.contains("why") {
@@ -180,7 +237,7 @@ class LLMBrainDumpProcessor {
                     let task = try await createTaskFromItem(item)
                     summary.tasksCreated.append(task)
                     
-                case .journalEntry:
+                case .journal:
                     let journal = try await createJournalFromItem(item)
                     summary.journalEntriesCreated.append(journal)
                     
@@ -192,7 +249,7 @@ class LLMBrainDumpProcessor {
                     let resource = try await createResourceFromItem(item)
                     summary.resourcesCreated.append(resource)
                     
-                case .financialTransaction:
+                case .financial:
                     let transaction = try await createFinancialTransactionFromItem(item)
                     summary.financialTransactionsCreated.append(transaction)
                     
@@ -207,6 +264,14 @@ class LLMBrainDumpProcessor {
                 case .goal:
                     let goal = try await createGoalFromItem(item)
                     summary.goalsCreated.append(goal)
+                    
+                case .therapy:
+                    let therapy = try await createTherapyFromItem(item)
+                    summary.journalEntriesCreated.append(therapy) // Treat as journal for now
+                    
+                case .knowledge:
+                    let knowledge = try await createKnowledgeFromItem(item)
+                    summary.resourcesCreated.append(knowledge) // Treat as resource for now
                 }
                 
                 summary.successCount += 1
@@ -371,7 +436,7 @@ class LLMBrainDumpProcessor {
         if lowerText.contains("feeling") || lowerText.contains("nightmare") || 
            lowerText.contains("happy") || lowerText.contains("worried") ||
            lowerText.contains("sad") || lowerText.contains("excited") {
-            return .journalEntry
+                         return .journal
         }
         
         // Task indicators
@@ -407,7 +472,7 @@ class LLMBrainDumpProcessor {
                 return .project
             }
             return .area
-        case .journalEntry:
+        case .journal:
             return .area // Personal reflection area
         case .resource:
             return .resource // Knowledge and reference
@@ -518,7 +583,7 @@ class LLMBrainDumpProcessor {
         let truncated = text.count > 50 ? String(text.prefix(50)) + "..." : text
         
         switch contentType {
-        case .journalEntry:
+        case .journal:
             if text.contains("feeling") {
                 return "Feeling about \(extractSubject(from: text))"
             } else if text.contains("nightmare") {
@@ -595,12 +660,8 @@ class LLMBrainDumpProcessor {
     
     private func extractCommonTags(from tasks: [LifeTask]) -> [String] {
         // Extract common tags from recent tasks for context
-        var tagCounts: [String: Int] = [:]
-        
-        for task in tasks {
-            // This would extract tags if they were stored in the task model
-            // For now, we'll return some common categories
-        }
+        // For now, we'll return some common categories based on task analysis
+        _ = tasks // Acknowledge parameter for future use
         
         return ["work", "personal", "health", "finance", "learning", "social", "home"]
     }
@@ -745,7 +806,7 @@ class LLMBrainDumpProcessor {
             workPersonal: item.workPersonal
         )
         
-        let createdBlob = try await blobRepository.createBlob(blob)
+        _ = try await blobRepository.createBlob(blob)
         
         let targetDate = item.metadata["target_date"] as? Date
         
@@ -790,6 +851,59 @@ class LLMBrainDumpProcessor {
         }
         
         return nil
+    }
+    
+    private func createTherapyFromItem(_ item: BrainDumpItem) async throws -> JournalEntry {
+        print("🧠 BRAIN DUMP: Creating therapy entry: \(item.title)")
+        
+        // First create a blob for the therapy content
+        let blob = Blob(
+            content: item.content,
+            sourceType: .idea,
+            workPersonal: item.workPersonal
+        )
+        
+        let createdBlob = try await blobRepository.createBlob(blob)
+        
+        // Create therapy entries as journal entries with therapy tag
+        let journal = JournalEntry(
+            id: UUID(),
+            blobId: createdBlob.id,
+            summary: item.title,
+            mood: nil,
+            areaId: nil,
+            projectId: nil,
+            isArchived: false
+        )
+        
+        return try await journalRepository.createJournalEntry(journal)
+    }
+    
+    private func createKnowledgeFromItem(_ item: BrainDumpItem) async throws -> Resource {
+        print("🧠 BRAIN DUMP: Creating knowledge entry: \(item.title)")
+        
+        // First create a blob for the knowledge content
+        let blob = Blob(
+            content: item.content,
+            sourceType: .idea,
+            workPersonal: item.workPersonal
+        )
+        
+        let createdBlob = try await blobRepository.createBlob(blob)
+        
+        // Create knowledge entries as resources
+        let resource = Resource(
+            id: UUID(),
+            blobId: createdBlob.id,
+            title: item.title,
+            type: "article", // Default type for knowledge
+            areaId: nil,
+            projectId: nil,
+            workPersonal: item.workPersonal,
+            isArchived: false
+        )
+        
+        return try await resourceRepository.createResource(resource)
     }
 }
 
@@ -849,16 +963,7 @@ struct ExecutionSummary {
     var errors: [String] = []
 }
 
-enum ContentType: String, CaseIterable {
-    case task = "task"
-    case journalEntry = "journal_entry"
-    case note = "note"
-    case resource = "resource"
-    case financialTransaction = "financial_transaction"
-    case appointment = "appointment"
-    case habit = "habit"
-    case goal = "goal"
-}
+// ContentType is defined in CoreModels.swift
 
 enum BrainDumpError: Error {
     case invalidResponse(String)

@@ -65,6 +65,11 @@ class MainViewModel: ObservableObject {
     @Published var resourceBlobs: [Blob] = [] // All resource-categorized blobs
     @Published var archivedBlobs: [Blob] = [] // All archived blobs
     
+    // MARK: - PARA Tasks (Tasks assigned to categories)
+    
+    @Published var projectTasks: [UUID: [LifeTask]] = [:] // projectId -> tasks
+    @Published var areaTasks: [UUID: [LifeTask]] = [:] // areaId -> tasks
+    
     // MARK: - Navigation State for Sub-categories
     
     @Published var selectedProject: Project?
@@ -87,8 +92,11 @@ class MainViewModel: ObservableObject {
     @Published var isProcessingInbox = false
     @Published var showingBrainDumpReview = false
     @Published var brainDumpResult: BrainDumpResult?
+    @Published var brainDumpProgressMessage = ""
+    @Published var brainDumpElapsedTime = 0
     
     private let brainDumpProcessor = LLMBrainDumpProcessor()
+    private var brainDumpProgressTimer: Timer?
     
     // MARK: - Processing State
     
@@ -114,6 +122,9 @@ class MainViewModel: ObservableObject {
         NSLog("🔧 DEBUG: MainViewModel setting up auth listener")
         setupAuthListener()
         
+        // Start log monitoring automatically
+        startLogMonitoring()
+        
         Task {
             NSLog("🔧 DEBUG: MainViewModel loading initial data")
             await loadInitialData()
@@ -121,6 +132,25 @@ class MainViewModel: ObservableObject {
         }
         
         NSLog("🔧 DEBUG: MainViewModel init() completed")
+    }
+    
+    // MARK: - Log Monitoring
+    
+    /// Start automatic log monitoring
+    private func startLogMonitoring() {
+        Task {
+            do {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/Users/Shared/LifeManager/monitor_logs.sh")
+                process.arguments = ["-f"] // Follow mode for real-time monitoring
+                
+                // Run in background
+                try process.run()
+                print("🔧 MAIN: ✅ Log monitoring started automatically")
+            } catch {
+                print("🔧 MAIN: ❌ Failed to start log monitoring: \(error)")
+            }
+        }
     }
     
     // MARK: - Authentication Setup
@@ -386,6 +416,46 @@ class MainViewModel: ObservableObject {
                 print("🔧 LOAD DATA: ❌ PARA blobs fetch failed: \(error)")
             }
             
+            // Fetch and categorize tasks by PARA assignment
+            var loadedProjectTasks: [UUID: [LifeTask]] = [:]
+            var loadedAreaTasks: [UUID: [LifeTask]] = [:]
+            
+            do {
+                print("🔧 LOAD DATA: Fetching and categorizing tasks...")
+                
+                // Fetch all tasks
+                let allTasks = try await TaskRepository().fetchAllTasks()
+                print("🔧 LOAD DATA: ✅ Found \(allTasks.count) tasks")
+                
+                // Categorize tasks by their PARA assignment
+                for task in allTasks {
+                    if let projectId = task.projectId {
+                        if loadedProjectTasks[projectId] == nil {
+                            loadedProjectTasks[projectId] = []
+                        }
+                        loadedProjectTasks[projectId]?.append(task)
+                    } else if let areaId = task.areaId {
+                        if loadedAreaTasks[areaId] == nil {
+                            loadedAreaTasks[areaId] = []
+                        }
+                        loadedAreaTasks[areaId]?.append(task)
+                    }
+                }
+                
+                print("🔧 LOAD DATA: ✅ Categorized tasks - Projects: \(loadedProjectTasks.keys.count), Areas: \(loadedAreaTasks.keys.count)")
+                
+                // Debug: Log task assignments
+                for (areaId, tasks) in loadedAreaTasks {
+                    print("🔧 LOAD DATA: Area \(areaId) has \(tasks.count) tasks")
+                }
+                for (projectId, tasks) in loadedProjectTasks {
+                    print("🔧 LOAD DATA: Project \(projectId) has \(tasks.count) tasks")
+                }
+                
+            } catch {
+                print("🔧 LOAD DATA: ❌ Task categorization failed: \(error)")
+            }
+            
             await MainActor.run {
                 self.areas = loadedAreas
                 self.projects = loadedProjects
@@ -399,12 +469,17 @@ class MainViewModel: ObservableObject {
                 self.areaBlobs = loadedAreaBlobs
                 self.resourceBlobs = loadedResourceBlobs
                 self.archivedBlobs = loadedArchivedBlobs
+                
+                // Update PARA task assignments
+                self.projectTasks = loadedProjectTasks
+                self.areaTasks = loadedAreaTasks
             }
             
             print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
             
             // Enhance existing tasks with comprehensive LLM processing
-            await enhanceExistingTasks()
+            // DISABLED: Automatic task enhancement on startup to prevent unwanted API calls
+            // await enhanceExistingTasks()
             
             // If some data is empty, let's create some sample data for development
             if loadedAreas.isEmpty && loadedProjects.isEmpty {
@@ -1126,6 +1201,38 @@ class MainViewModel: ObservableObject {
                 print("🔧 REFRESH: ❌ PARA blobs refresh failed: \(error)")
             }
             
+            // Fetch and categorize tasks by PARA assignment
+            var loadedProjectTasks: [UUID: [LifeTask]] = [:]
+            var loadedAreaTasks: [UUID: [LifeTask]] = [:]
+            
+            do {
+                print("🔧 REFRESH: Fetching and categorizing tasks...")
+                
+                // Fetch all tasks
+                let allTasks = try await TaskRepository().fetchAllTasks()
+                print("🔧 REFRESH: ✅ Found \(allTasks.count) tasks")
+                
+                // Categorize tasks by their PARA assignment
+                for task in allTasks {
+                    if let projectId = task.projectId {
+                        if loadedProjectTasks[projectId] == nil {
+                            loadedProjectTasks[projectId] = []
+                        }
+                        loadedProjectTasks[projectId]?.append(task)
+                    } else if let areaId = task.areaId {
+                        if loadedAreaTasks[areaId] == nil {
+                            loadedAreaTasks[areaId] = []
+                        }
+                        loadedAreaTasks[areaId]?.append(task)
+                    }
+                }
+                
+                print("🔧 REFRESH: ✅ Categorized tasks - Projects: \(loadedProjectTasks.keys.count), Areas: \(loadedAreaTasks.keys.count)")
+                
+            } catch {
+                print("🔧 REFRESH: ❌ Task categorization failed: \(error)")
+            }
+            
             // Update all state at once on main thread
             await MainActor.run {
                 self.areas = loadedAreas
@@ -1140,6 +1247,10 @@ class MainViewModel: ObservableObject {
                 self.areaBlobs = loadedAreaBlobs
                 self.resourceBlobs = loadedResourceBlobs
                 self.archivedBlobs = loadedArchivedBlobs
+                
+                // Update PARA task assignments
+                self.projectTasks = loadedProjectTasks
+                self.areaTasks = loadedAreaTasks
                 
                 self.isLoading = false
                 self.successMessage = "✅ Data refreshed"
@@ -2118,39 +2229,119 @@ class MainViewModel: ObservableObject {
     /// Process inbox input using comprehensive brain dump processor
     func processInboxInput() {
         guard !inboxInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            print("🧠 BRAIN DUMP: Empty input, skipping processing")
+            Logger.shared.warning("BRAIN DUMP: Empty input, skipping processing")
             return
         }
         
-        print("🧠 BRAIN DUMP: Starting comprehensive processing of input: '\(inboxInput.prefix(50))...'")
+        let startTime = Date()
+        Logger.shared.brainDumpStart(inboxInput)
         isProcessingInbox = true
+        startBrainDumpProgressTimer()
+        
+        // Clear any previous messages
+        errorMessage = ""
+        successMessage = ""
         
         Task {
             do {
-                print("🧠 BRAIN DUMP: Calling brain dump processor...")
-                // Use comprehensive brain dump processor
-                let result = try await brainDumpProcessor.processBrainDump(inboxInput)
-                print("🧠 BRAIN DUMP: ✅ Processing successful, got \(result.suggestedItems.count) items")
+                // Show initial progress
+                await MainActor.run {
+                    self.successMessage = "🧠 Analyzing your input..."
+                }
+                Logger.shared.brainDumpProgress("UI: Showing analysis message")
+                
+                try await Task.sleep(nanoseconds: 800_000_000) // 0.8 second delay for UI feedback
                 
                 await MainActor.run {
-                    print("🧠 BRAIN DUMP: Setting result and showing review UI")
+                    self.successMessage = "🤖 Connecting to AI..."
+                }
+                Logger.shared.brainDumpProgress("UI: Showing AI connection message")
+                
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                
+                await MainActor.run {
+                    self.successMessage = "⚡ Processing with AI intelligence..."
+                }
+                Logger.shared.brainDumpProgress("UI: Showing AI processing message")
+                
+                Logger.shared.brainDumpProgress("Calling brain dump processor...")
+                // Use comprehensive brain dump processor
+                let result = try await brainDumpProcessor.processBrainDump(inboxInput)
+                
+                let processingTime = Date().timeIntervalSince(startTime)
+                Logger.shared.brainDumpSuccess(result.suggestedItems.count, processingTime: processingTime)
+                
+                await MainActor.run {
+                    Logger.shared.brainDumpProgress("Setting result and showing review UI")
+                    let finalElapsedTime = self.brainDumpElapsedTime
+                    self.stopBrainDumpProgressTimer()
+                    
+                    // Show completion message
+                    self.brainDumpProgressMessage = "Thought for \(finalElapsedTime) seconds"
+                    
                     self.brainDumpResult = result
                     self.showingBrainDumpReview = true
                     self.isProcessingInbox = false
-                    print("🧠 BRAIN DUMP: Review UI should now be visible: \(self.showingBrainDumpReview)")
+                    
+                    // Show success message with details
+                    if result.suggestedItems.count > 0 {
+                        self.successMessage = "✅ Success! Found \(result.suggestedItems.count) items to review"
+                        Logger.shared.success("BRAIN DUMP UI: Success message shown - \(result.suggestedItems.count) items")
+                    } else {
+                        self.successMessage = "✅ Processing complete - no items extracted"
+                        Logger.shared.warning("BRAIN DUMP UI: No items extracted from input")
+                    }
+                    
+                    Logger.shared.info("BRAIN DUMP UI: Review UI visible: \(self.showingBrainDumpReview)")
+                    
+                    // Keep success message visible for 3 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        if !self.showingBrainDumpReview {
+                            self.successMessage = ""
+                        }
+                    }
                 }
                 
             } catch LLMError.missingAPIKey {
-                print("🧠 BRAIN DUMP: ❌ Missing API key")
+                let processingTime = Date().timeIntervalSince(startTime)
+                Logger.shared.brainDumpError(LLMError.missingAPIKey, processingTime: processingTime)
+                
                 await MainActor.run {
+                    self.stopBrainDumpProgressTimer()
                     self.isProcessingInbox = false
-                    self.errorMessage = "Brain dump requires OpenAI API key. Please set OPENAI_API_KEY environment variable."
+                    self.successMessage = ""
+                    self.errorMessage = "❌ Brain dump requires OpenAI API key. Please check your config.txt file."
+                    
+                    // Keep error message visible for 5 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        self.errorMessage = ""
+                    }
                 }
             } catch {
+                let processingTime = Date().timeIntervalSince(startTime)
+                Logger.shared.brainDumpError(error, processingTime: processingTime)
+                
                 await MainActor.run {
-                    print("🧠 BRAIN DUMP: ❌ Processing failed: \(error)")
+                    self.stopBrainDumpProgressTimer()
                     self.isProcessingInbox = false
-                    self.errorMessage = "Failed to process brain dump: \(error.localizedDescription)"
+                    self.successMessage = ""
+                    
+                    // Show specific error messages based on error type
+                    if error.localizedDescription.contains("timed out") {
+                        self.errorMessage = "⏱️ Network timeout - AI processing took too long. Please try again."
+                        Logger.shared.error("BRAIN DUMP UI: Timeout error shown to user")
+                    } else if error.localizedDescription.contains("network") || error.localizedDescription.contains("connection") {
+                        self.errorMessage = "🌐 Network error - Please check your internet connection and try again."
+                        Logger.shared.error("BRAIN DUMP UI: Network error shown to user")
+                    } else {
+                        self.errorMessage = "❌ Processing failed: \(error.localizedDescription)"
+                        Logger.shared.error("BRAIN DUMP UI: Generic error shown to user")
+                    }
+                    
+                    // Keep error message visible for 5 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        self.errorMessage = ""
+                    }
                 }
             }
         }
@@ -2176,6 +2367,7 @@ class MainViewModel: ObservableObject {
         inboxInput = ""
         showingBrainDumpReview = false
         brainDumpResult = nil
+        brainDumpProgressMessage = ""
         
         // Show success message with details
         let itemCount = summary.successCount
@@ -2232,5 +2424,39 @@ class MainViewModel: ObservableObject {
         showingBrainDumpReview = false
         brainDumpResult = nil
         isProcessingInbox = false
+        stopBrainDumpProgressTimer()
+    }
+    
+    // MARK: - Brain Dump Progress Timer
+    
+    private func startBrainDumpProgressTimer() {
+        brainDumpElapsedTime = 0
+        brainDumpProgressMessage = "Thinking"
+        
+        brainDumpProgressTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            Task { @MainActor in
+                self.brainDumpElapsedTime += 5
+                
+                // Just show "Thinking" - no dots or other text
+                self.brainDumpProgressMessage = "Thinking"
+                
+                // Log progress every 15 seconds
+                if self.brainDumpElapsedTime % 15 == 0 {
+                    let minutes = self.brainDumpElapsedTime / 60
+                    let seconds = self.brainDumpElapsedTime % 60
+                    let timeString = minutes > 0 ? "\(minutes)m \(seconds)s" : "\(seconds)s"
+                    Logger.shared.brainDumpProgress("Still processing... \(timeString) elapsed")
+                }
+            }
+        }
+    }
+    
+    private func stopBrainDumpProgressTimer() {
+        brainDumpProgressTimer?.invalidate()
+        brainDumpProgressTimer = nil
+        brainDumpElapsedTime = 0
+        brainDumpProgressMessage = ""
     }
 }

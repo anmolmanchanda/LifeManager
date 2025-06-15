@@ -178,6 +178,50 @@ enum SourceType: String, CaseIterable, Codable {
     }
 }
 
+/// Content type classification
+enum ContentType: String, CaseIterable, Codable {
+    case task = "task"
+    case journal = "journal"
+    case therapy = "therapy"
+    case financial = "financial"
+    case knowledge = "knowledge"
+    case note = "note"
+    case resource = "resource"
+    case appointment = "appointment"
+    case habit = "habit"
+    case goal = "goal"
+    
+    var displayName: String {
+        switch self {
+        case .task: return "Task"
+        case .journal: return "Journal"
+        case .therapy: return "Therapy"
+        case .financial: return "Financial"
+        case .knowledge: return "Knowledge"
+        case .note: return "Note"
+        case .resource: return "Resource"
+        case .appointment: return "Appointment"
+        case .habit: return "Habit"
+        case .goal: return "Goal"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .task: return "checkmark.circle"
+        case .journal: return "book.pages"
+        case .therapy: return "heart.circle"
+        case .financial: return "dollarsign.circle"
+        case .knowledge: return "lightbulb"
+        case .note: return "note.text"
+        case .resource: return "book"
+        case .appointment: return "calendar"
+        case .habit: return "repeat"
+        case .goal: return "target"
+        }
+    }
+}
+
 /// Work/Personal classification for all content
 enum WorkPersonalType: String, CaseIterable, Codable {
     case work = "work"
@@ -630,6 +674,35 @@ enum PARACategory: String, CaseIterable, Codable {
         case .resource: return "book.stack"
         case .archive: return "archivebox"
         }
+    }
+}
+
+/// Generic PARA item for contextual processing
+struct PARAItem: Codable, Identifiable {
+    let id: UUID
+    let title: String
+    let content: String
+    let contentType: ContentType
+    let paraCategory: PARACategory
+    let workPersonal: WorkPersonalType
+    let priority: TaskPriority
+    let createdAt: Date
+    let tags: [String]
+    let isCompleted: Bool
+    let category: PARACategory // Alias for paraCategory for compatibility
+    
+    init(id: UUID = UUID(), title: String, content: String, contentType: ContentType, paraCategory: PARACategory, workPersonal: WorkPersonalType, priority: TaskPriority, createdAt: Date = Date(), tags: [String] = [], isCompleted: Bool = false) {
+        self.id = id
+        self.title = title
+        self.content = content
+        self.contentType = contentType
+        self.paraCategory = paraCategory
+        self.category = paraCategory // Set alias
+        self.workPersonal = workPersonal
+        self.priority = priority
+        self.createdAt = createdAt
+        self.tags = tags
+        self.isCompleted = isCompleted
     }
 }
 

@@ -256,89 +256,16 @@ struct InboxView: View {
                     .environmentObject(viewModel)
                     .frame(maxHeight: .infinity) // Let input take up as much space as possible
                 
-                // Bulk actions toolbar
-                if !viewModel.recentBlobs.isEmpty {
-                    HStack {
-                        Text("\(viewModel.recentBlobs.count) notes in inbox")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        // Show processing stats if available
-                        if !viewModel.processingResults.isEmpty {
-                            let processedCount = viewModel.recentBlobs.filter { blob in
-                                viewModel.getProcessingState(for: blob.id).isProcessed
-                            }.count
-                            
-                            Text("• \(processedCount) processed")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
-                        
-                        Spacer()
-                        
-                        Button("🤖 Process All with AI") {
-                            Task {
-                                await viewModel.processAllUnprocessedBlobs()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.isLoading)
-                        
-                        Button("🔄 Refresh") {
-                            Task {
-                                await viewModel.refreshData()
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(viewModel.isLoading)
-                    }
-                    .padding(.horizontal)
-                }
+                // No bulk actions toolbar - removed notes from inbox
             }
             .frame(minHeight: 300) // Minimum height for input area
             .padding()
             
             Divider()
             
-            // Recent notes list - Takes up remaining space
-            Group {
-                if viewModel.recentBlobs.isEmpty {
-                    if #available(macOS 14.0, *) {
-                        ContentUnavailableView(
-                            "No recent content",
-                            systemImage: "tray",
-                            description: Text("Add some content using the input field above")
-                        )
-                    } else {
-                        VStack(spacing: 16) {
-                            Image(systemName: "tray")
-                                .font(.system(size: 48))
-                                .foregroundColor(.secondary)
-                            
-                            Text("No recent content")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                            
-                            Text("Add some content using the input field above")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding()
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack {
-                            ForEach(viewModel.recentBlobs) { blob in
-                                BlobRowView(blob: blob)
-                                    .environmentObject(viewModel)
-                                    .padding(.horizontal)
-                                Divider()
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(maxHeight: .infinity) // Let list take remaining space
+            // Empty space - no notes list, just history in input area
+            Spacer()
+                .frame(maxHeight: .infinity)
             
             // Show loading state
             if viewModel.isLoading {
@@ -411,13 +338,41 @@ struct NaturalLanguageInputView: View {
                 }
             }
             
-            if isProcessing {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Analyzing with AI brain dump processor...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            // Show persistent progress updates during brain dump processing
+            if viewModel.isProcessingInbox || isProcessing {
+                VStack(spacing: 8) {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        
+                        if !viewModel.brainDumpProgressMessage.isEmpty {
+                            Text(viewModel.brainDumpProgressMessage)
+                                .font(.title)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        } else {
+                            Text("Thinking")
+                                .font(.title)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                    
+                    // Show elapsed time if available
+                    if viewModel.brainDumpElapsedTime > 0 {
+                        let minutes = viewModel.brainDumpElapsedTime / 60
+                        let seconds = viewModel.brainDumpElapsedTime % 60
+                        let timeString = minutes > 0 ? "\(minutes)m \(seconds)s" : "\(seconds)s"
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("Processing time: \(timeString)")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                    }
                 }
                 .transition(.opacity)
             }
@@ -468,8 +423,8 @@ struct NaturalLanguageInputView: View {
         // Process using brain dump processor
         viewModel.processInboxInput()
         
-        // Reset processing state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        // Reset local processing state quickly, but keep viewModel.isProcessingInbox for persistent updates
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             isProcessing = false
         }
     }
@@ -920,6 +875,14 @@ struct AreaCardView: View {
         return viewModel.areaBlobs[area.id] ?? []
     }
     
+    private var areaTasks: [LifeTask] {
+        return viewModel.areaTasks[area.id] ?? []
+    }
+    
+    private var totalItemCount: Int {
+        return areaBlobs.count + areaTasks.count
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
@@ -933,8 +896,8 @@ struct AreaCardView: View {
                 Spacer()
                 
                 // Content count
-                if !areaBlobs.isEmpty {
-                    Text("\(areaBlobs.count)")
+                if totalItemCount > 0 {
+                    Text("\(totalItemCount)")
                         .font(.caption)
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
@@ -982,37 +945,86 @@ struct AreaCardView: View {
                     .lineLimit(isExpanded ? nil : 2)
             }
             
-            // Content/blobs section (expandable)
-            if isExpanded && !areaBlobs.isEmpty {
+            // Content section (expandable) - showing both tasks and blobs
+            if isExpanded && totalItemCount > 0 {
                 VStack(alignment: .leading, spacing: 8) {
                     Divider()
                     
-                    Text("Content (\(areaBlobs.count))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .fontWeight(.semibold)
-                    
-                    ForEach(areaBlobs.prefix(5)) { blob in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(Color.blue.opacity(0.3))
-                                .frame(width: 6, height: 6)
-                            
-                            Text(String(blob.content.prefix(60)) + (blob.content.count > 60 ? "..." : ""))
+                    // Tasks section
+                    if !areaTasks.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Tasks (\(areaTasks.count))")
                                 .font(.caption)
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
+                                .foregroundColor(.secondary)
+                                .fontWeight(.semibold)
                             
-                            Spacer()
+                            ForEach(areaTasks.prefix(3)) { task in
+                                HStack(spacing: 8) {
+                                    Image(systemName: task.status == .completed ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(task.status == .completed ? .green : .blue)
+                                        .font(.caption)
+                                    
+                                    Text(task.title)
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                    
+                                    Spacer()
+                                    
+                                    // Priority indicator
+                                    if task.priority == .urgent {
+                                        Circle()
+                                            .fill(Color.red)
+                                            .frame(width: 6, height: 6)
+                                    } else if task.priority == .high {
+                                        Circle()
+                                            .fill(Color.orange)
+                                            .frame(width: 6, height: 6)
+                                    }
+                                }
+                                .padding(.vertical, 1)
+                            }
+                            
+                            if areaTasks.count > 3 {
+                                Text("... and \(areaTasks.count - 3) more tasks")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .italic()
+                            }
                         }
-                        .padding(.vertical, 2)
                     }
                     
-                    if areaBlobs.count > 5 {
-                        Text("... and \(areaBlobs.count - 5) more")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .italic()
+                    // Content/blobs section
+                    if !areaBlobs.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Notes (\(areaBlobs.count))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fontWeight(.semibold)
+                            
+                            ForEach(areaBlobs.prefix(3)) { blob in
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(Color.purple.opacity(0.3))
+                                        .frame(width: 6, height: 6)
+                                    
+                                    Text(String(blob.content.prefix(50)) + (blob.content.count > 50 ? "..." : ""))
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                    
+                                    Spacer()
+                                }
+                                .padding(.vertical, 1)
+                            }
+                            
+                            if areaBlobs.count > 3 {
+                                Text("... and \(areaBlobs.count - 3) more notes")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .italic()
+                            }
+                        }
                     }
                 }
             } else if !isExpanded {
