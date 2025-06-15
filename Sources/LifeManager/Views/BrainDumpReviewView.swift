@@ -21,32 +21,30 @@ struct BrainDumpReviewView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header with confidence indicator
-                headerView
-                
-                Divider()
-                
-                // Original input preview
-                originalInputView
-                
-                Divider()
-                
-                // Items list for review/editing
-                itemsListView
-                
-                Divider()
-                
-                // Action buttons
-                actionButtonsView
-            }
-            .navigationTitle("Review Brain Dump")
-            .sheet(isPresented: $showingExecutionSummary) {
-                if let summary = executionSummary {
-                    ExecutionSummaryView(summary: summary) {
-                        onComplete(summary)
-                    }
+        VStack(spacing: 0) {
+            // Header with confidence indicator
+            headerView
+            
+            Divider()
+            
+            // Original input preview
+            originalInputView
+            
+            Divider()
+            
+            // Items list for review/editing
+            itemsListView
+            
+            Divider()
+            
+            // Action buttons
+            actionButtonsView
+        }
+        .navigationTitle("Review Brain Dump")
+        .sheet(isPresented: $showingExecutionSummary) {
+            if let summary = executionSummary {
+                ExecutionSummaryView(summary: summary) {
+                    onComplete(summary)
                 }
             }
         }

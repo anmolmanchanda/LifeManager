@@ -28,25 +28,25 @@ struct ContentView: View {
                     .environmentObject(viewModel)
             }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .bottom) {
             // Success toast
             if let successMessage = viewModel.successMessage {
                 ToastView(message: successMessage, type: .success) {
                     viewModel.successMessage = nil
                 }
-                .padding(.top, 20)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.bottom, 20)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
                 .zIndex(1000)
             }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .bottom) {
             // Error toast (only for critical errors)
             if let errorMessage = viewModel.errorMessage, shouldShowError(errorMessage) {
                 ToastView(message: errorMessage, type: .error) {
                 viewModel.errorMessage = nil
             }
-                .padding(.top, viewModel.successMessage != nil ? 80 : 20)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.bottom, viewModel.successMessage != nil ? 80 : 20)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
                 .zIndex(999)
             }
         }
@@ -327,7 +327,7 @@ struct NaturalLanguageInputView: View {
                 // Placeholder text
                 if inputText.isEmpty {
                     Text("What's on your mind?")
-                        .font(.body)
+                        .font(.title3)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 16)
@@ -337,25 +337,27 @@ struct NaturalLanguageInputView: View {
             
             // Button area below input
             HStack {
-                                    Text("ChatGPT 4.1")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                
                 Spacer()
                 
-                Button(action: {
-                    submitInput()
-                }) {
-                    Image(systemName: "arrow.up")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
+                HStack(spacing: 8) {
+                    Text("ChatGPT 4.1")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        submitInput()
+                    }) {
+                        Image(systemName: "arrow.up")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                    }
+                    .disabled(inputText.isEmpty || isProcessing)
+                    .buttonStyle(.plain)
+                    .frame(width: 36, height: 36)
+                    .background(inputText.isEmpty || isProcessing ? Color.gray : Color.blue)
+                    .cornerRadius(8)
                 }
-                .disabled(inputText.isEmpty || isProcessing)
-                .buttonStyle(.plain)
-                .frame(width: 36, height: 36)
-                .background(inputText.isEmpty || isProcessing ? Color.gray : Color.blue)
-                .cornerRadius(8)
             }
             .padding(.top, 8)
             
@@ -363,9 +365,6 @@ struct NaturalLanguageInputView: View {
             if viewModel.isProcessingInbox || isProcessing {
                 VStack(spacing: 8) {
                     HStack(spacing: 12) {
-                        ProgressView()
-                            .scaleEffect(1.0)
-                        
                         if !viewModel.brainDumpProgressMessage.isEmpty {
                             Text(viewModel.brainDumpProgressMessage)
                                 .font(.headline)
