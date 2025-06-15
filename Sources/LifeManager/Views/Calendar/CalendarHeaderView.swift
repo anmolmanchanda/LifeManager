@@ -13,9 +13,11 @@ import Foundation
 struct CalendarHeaderView: View {
     // MARK: - Dependencies
     @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @EnvironmentObject var mainViewModel: MainViewModel
     
     // MARK: - State
     @State private var showingFilters = false
+    @State private var showingClearAllConfirmation = false
     
     // MARK: - Body
     var body: some View {
@@ -48,6 +50,16 @@ struct CalendarHeaderView: View {
             Rectangle()
                 .fill(Color.secondary.opacity(0.2))
                 .frame(height: 0.5)
+        }
+        .alert("Clear All Tasks", isPresented: $showingClearAllConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete All", role: .destructive) {
+                Task {
+                    await clearAllTasks()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete ALL tasks from parking lot, calendar, projects, areas, and resources? This action cannot be undone.")
         }
     }
     
@@ -108,6 +120,9 @@ struct CalendarHeaderView: View {
     
     private var actionControls: some View {
         HStack(spacing: 12) {
+            // Clear All Tasks Button
+            clearAllTasksButton
+            
             // Filter Button
             filterButton
             
@@ -185,6 +200,31 @@ struct CalendarHeaderView: View {
         }
         .buttonStyle(.plain)
         .help("Toggle smart scheduling")
+    }
+    
+    // MARK: - Clear All Tasks Button
+    
+    private var clearAllTasksButton: some View {
+        Button(action: {
+            showingClearAllConfirmation = true
+        }) {
+            HStack(spacing: 4) {
+                Image(systemName: "trash.fill")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white)
+                
+                Text("Clear All")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color.red)
+            .cornerRadius(8)
+            .shadow(color: .red.opacity(0.3), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(.plain)
+        .help("Delete all tasks from parking lot, calendar, projects, areas, and resources")
     }
     
     // MARK: - Sync Button
@@ -294,6 +334,50 @@ struct CalendarHeaderView: View {
         
         return formatter.string(from: calendarViewModel.selectedDate)
     }
+    
+    // MARK: - Clear All Tasks Method
+    
+    private func clearAllTasks() async {
+        do {
+            let taskRepository = TaskRepository()
+            
+            // Fetch all tasks from database
+            let allTasks = try await taskRepository.fetchAllTasks()
+            
+            print("🗑️ CLEAR ALL: Starting to delete \(allTasks.count) tasks")
+            
+            // Delete each task from database
+            for task in allTasks {
+                try await taskRepository.deleteTask(id: task.id)
+                print("🗑️ CLEAR ALL: Deleted task: \(task.title)")
+            }
+            
+            // Clear tasks from calendar view model
+            await MainActor.run {
+                calendarViewModel.allTasks = []
+                calendarViewModel.events = []
+                
+                // Clear tasks from all PARA categories in MainViewModel
+                mainViewModel.areaTasks = [:]
+                mainViewModel.projectTasks = [:]
+                mainViewModel.focusTasks = []
+                
+                print("🗑️ CLEAR ALL: ✅ Cleared all tasks from UI and PARA categories")
+            }
+            
+            // Refresh all data
+            await calendarViewModel.loadCalendarData()
+            await mainViewModel.refreshData()
+            
+            print("🗑️ CLEAR ALL: ✅ Successfully deleted all \(allTasks.count) tasks")
+            
+        } catch {
+            print("🗑️ CLEAR ALL: ❌ Error deleting tasks: \(error)")
+            await MainActor.run {
+                calendarViewModel.errorMessage = "Failed to delete all tasks: \(error.localizedDescription)"
+            }
+        }
+    }
 }
 
 // MARK: - Calendar Filter View Component
@@ -358,5 +442,6 @@ struct FilterToggleRow: View {
 #Preview {
     CalendarHeaderView()
         .environmentObject(CalendarViewModel())
+        .environmentObject(MainViewModel())
         .frame(width: 800)
 } 

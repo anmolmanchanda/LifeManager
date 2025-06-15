@@ -671,6 +671,11 @@ class LLMBrainDumpProcessor {
     private func createTaskFromItem(_ item: BrainDumpItem) async throws -> LifeTask {
         print("🧠 BRAIN DUMP: Creating task: \(item.title)")
         
+        // Note: Tasks are created without area/project assignment to avoid foreign key errors
+        // They can be organized into PARA categories later through the UI
+        print("🧠 BRAIN DUMP: Creating task without area/project assignment to avoid foreign key errors")
+        
+        // Create task without area/project assignment to avoid foreign key errors
         let task = LifeTask(
             title: item.title,
             description: item.content != item.title ? item.content : nil,
@@ -680,6 +685,8 @@ class LLMBrainDumpProcessor {
         )
         
         let createdTask = try await taskRepository.createTask(task)
+        
+        print("🧠 BRAIN DUMP: ✅ Created task without area/project assignment")
         
         // Notify that a task was created
         await MainActor.run {
@@ -715,11 +722,18 @@ class LLMBrainDumpProcessor {
     private func createNoteFromItem(_ item: BrainDumpItem) async throws -> Blob {
         print("🧠 BRAIN DUMP: Creating note: \(item.title)")
         
+        // Note: Notes are created without area/project assignment to avoid foreign key errors
+        // They can be organized into PARA categories later through the UI
+        print("🧠 BRAIN DUMP: Creating note without area/project assignment to avoid foreign key errors")
+        
+        // Create blob without area/project assignment to avoid foreign key errors
         let blob = Blob(
             content: item.content,
             sourceType: .note,
             workPersonal: item.workPersonal
         )
+        
+        print("🧠 BRAIN DUMP: ✅ Created note without area/project assignment")
         
         return try await blobRepository.createBlob(blob)
     }
@@ -802,7 +816,7 @@ class LLMBrainDumpProcessor {
         // Create a blob for the goal content
         let blob = Blob(
             content: "GOAL: \(item.title)\n\n\(item.content)",
-            sourceType: .idea,
+            sourceType: .note, // Fallback to .note if .idea is not available in DB
             workPersonal: item.workPersonal
         )
         
@@ -859,7 +873,7 @@ class LLMBrainDumpProcessor {
         // First create a blob for the therapy content
         let blob = Blob(
             content: item.content,
-            sourceType: .idea,
+            sourceType: .note, // Fallback to .note if .idea is not available in DB
             workPersonal: item.workPersonal
         )
         
@@ -885,7 +899,7 @@ class LLMBrainDumpProcessor {
         // First create a blob for the knowledge content
         let blob = Blob(
             content: item.content,
-            sourceType: .idea,
+            sourceType: .note, // Fallback to .note if .idea is not available in DB
             workPersonal: item.workPersonal
         )
         

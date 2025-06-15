@@ -335,66 +335,71 @@ struct NaturalLanguageInputView: View {
                 }
             }
             
-            // Button area below input
+            // Button area below input with centered thinking text
             HStack {
-                Spacer()
-                
-                HStack(spacing: 8) {
-                    Text("ChatGPT 4.1")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                    
-                    Button(action: {
-                        submitInput()
-                    }) {
-                        Image(systemName: "arrow.up")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                    }
-                    .disabled(inputText.isEmpty || isProcessing)
-                    .buttonStyle(.plain)
-                    .frame(width: 36, height: 36)
-                    .background(inputText.isEmpty || isProcessing ? Color.gray : Color.blue)
-                    .cornerRadius(8)
-                }
-            }
-            .padding(.top, 8)
-            
-            // Show persistent progress updates during brain dump processing
-            if viewModel.isProcessingInbox || isProcessing {
-                VStack(spacing: 8) {
-                    HStack(spacing: 12) {
+                // Show thinking text in center when processing
+                if viewModel.isProcessingInbox || isProcessing {
+                    HStack {
+                        Spacer()
                         if !viewModel.brainDumpProgressMessage.isEmpty {
                             Text(viewModel.brainDumpProgressMessage)
-                                .font(.headline)
+                                .font(.title)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
                         } else {
                             Text("Thinking")
-                                .font(.headline)
+                                .font(.title)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
                         }
+                        Spacer()
                     }
+                    .transition(.opacity)
+                } else {
+                    Spacer()
                     
-                    // Show elapsed time if available
-                    if viewModel.brainDumpElapsedTime > 0 {
-                        let minutes = viewModel.brainDumpElapsedTime / 60
-                        let seconds = viewModel.brainDumpElapsedTime % 60
-                        let timeString = minutes > 0 ? "\(minutes)m \(seconds)s" : "\(seconds)s"
+                    HStack(spacing: 8) {
+                        Text("ChatGPT 4.1")
+                            .font(.body)
+                            .foregroundColor(.secondary)
                         
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock")
-                                .font(.caption2)
-                                .foregroundColor(.blue)
-                            Text("Processing time: \(timeString)")
-                                .font(.caption2)
-                                .foregroundColor(.blue)
+                        Button(action: {
+                            submitInput()
+                        }) {
+                            Image(systemName: "arrow.up")
+                                .font(.body)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
                         }
+                        .disabled(inputText.isEmpty || isProcessing)
+                        .buttonStyle(.plain)
+                        .frame(width: 28, height: 28)
+                        .background(inputText.isEmpty || isProcessing ? Color.gray : Color.blue)
+                        .cornerRadius(6)
                     }
                 }
-                .transition(.opacity)
+            }
+            .padding(.top, 8)
+            
+            // Show elapsed time if available (separate row)
+            if viewModel.brainDumpElapsedTime > 0 {
+                let minutes = viewModel.brainDumpElapsedTime / 60
+                let seconds = viewModel.brainDumpElapsedTime % 60
+                let timeString = minutes > 0 ? "\(minutes)m \(seconds)s" : "\(seconds)s"
+                
+                HStack {
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                        Text("Processing time: \(timeString)")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                    }
+                    Spacer()
+                }
+                .padding(.top, 4)
             }
             
             // History section

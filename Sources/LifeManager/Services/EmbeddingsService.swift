@@ -117,6 +117,45 @@ class EmbeddingsService: ObservableObject {
             .map { (key: $0.0, similarity: $0.1) }
     }
     
+    /// Generate and store embedding for a PARA item
+    func generateEmbeddingForPARAItem(id: UUID, content: String, type: String) async {
+        guard !content.isEmpty else { return }
+        
+        print("🔧 EMBEDDINGS: Generating embedding for \(type): \(id)")
+        
+        if let embedding = await getEmbedding(for: content) {
+            // Store embedding in the appropriate PARA table
+            await storePARAEmbedding(id: id, embedding: embedding, type: type)
+        }
+    }
+    
+    /// Store embedding in PARA table
+    private func storePARAEmbedding(id: UUID, embedding: [Float], type: String) async {
+        do {
+            let tableName: String
+            switch type {
+            case "project": tableName = "projects"
+            case "area": tableName = "areas"
+            case "resource": tableName = "resources"
+            case "blob": tableName = "blobs"
+            default:
+                print("🔧 EMBEDDINGS: ❌ Unknown PARA type: \(type)")
+                return
+            }
+            
+            try await supabaseService.client
+                .from(tableName)
+                .update(["embedding": embedding])
+                .eq("id", value: id.uuidString)
+                .execute()
+            
+            print("🔧 EMBEDDINGS: ✅ Stored embedding for \(type) \(id)")
+            
+        } catch {
+            print("🔧 EMBEDDINGS: ❌ Failed to store embedding for \(type) \(id): \(error)")
+        }
+    }
+    
     /// Update embeddings for all PARA items
     func updatePARAEmbeddings() async {
         print("🔧 EMBEDDINGS: Starting PARA embeddings update...")
@@ -134,6 +173,7 @@ class EmbeddingsService: ObservableObject {
                 if await getCachedEmbedding(for: cacheKey) == nil {
                     if let embedding = await generateEmbedding(for: item.content) {
                         await cacheEmbedding(embedding, for: cacheKey, text: item.content)
+                        await storePARAEmbedding(id: item.id, embedding: embedding, type: item.category.rawValue)
                         updatedCount += 1
                     }
                 }
@@ -152,7 +192,7 @@ class EmbeddingsService: ObservableObject {
     private func generateEmbedding(for text: String) async -> [Float]? {
         guard !text.isEmpty else { return nil }
         
-        let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
+        let apiKey = loadAPIKey()
         guard !apiKey.isEmpty else {
             print("🔧 EMBEDDINGS: ❌ No OpenAI API key found")
             return nil
@@ -197,7 +237,7 @@ class EmbeddingsService: ObservableObject {
                 return nil
             }
             
-            print("🔧 EMBEDDINGS: ✅ Generated embedding with \(firstEmbedding.embedding.count) dimensions")
+            print("🔧 EMBEDDINGS: ✅ Generated embedding for: \"\(text.prefix(50))...\" [vector: \(firstEmbedding.embedding.count) dimensions]")
             return firstEmbedding.embedding
             
         } catch {
@@ -230,6 +270,41 @@ class EmbeddingsService: ObservableObject {
     /// Generate cache key for text
     private func generateCacheKey(for text: String) -> String {
         return text.data(using: .utf8)?.base64EncodedString() ?? text
+    }
+    
+    // MARK: - API Key Management
+    
+    /// Load OpenAI API key from environment or config file
+    private func loadAPIKey() -> String {
+        // First try environment variable
+        if let envKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"], !envKey.isEmpty {
+            return envKey
+        }
+        
+        // Then try config.txt file
+        let configPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("config.txt")
+        
+        do {
+            let content = try String(contentsOf: configPath)
+            
+            if content.contains("OPENAI_API_KEY=") {
+                let lines = content.components(separatedBy: .newlines)
+                for line in lines {
+                    if line.hasPrefix("OPENAI_API_KEY=") {
+                        let apiKey = String(line.dropFirst("OPENAI_API_KEY=".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !apiKey.isEmpty && !apiKey.contains("your-openai-api-key-here") {
+                            print("🔧 EMBEDDINGS: ✅ Loaded API key from config.txt")
+                            return apiKey
+                        }
+                    }
+                }
+            }
+        } catch {
+            print("🔧 EMBEDDINGS: ⚠️ Could not read config.txt: \(error)")
+        }
+        
+        print("🔧 EMBEDDINGS: ❌ No valid OpenAI API key found")
+        return ""
     }
     
     // MARK: - Cache Management
@@ -313,9 +388,91 @@ class EmbeddingsService: ObservableObject {
     
     /// Load all PARA items for embedding generation
     private func loadAllPARAItems() async throws -> [PARAItem] {
-        // This would integrate with your existing PARA data loading
-        // For now, return empty array
-        return []
+        var items: [PARAItem] = []
+        
+        do {
+            // Load projects
+            let projects = try await supabaseService.client
+                .from("projects")
+                .select("id, name, description")
+                .execute()
+                .value as? [[String: Any]] ?? []
+            
+            for project in projects {
+                if let idString = project["id"] as? String,
+                   let id = UUID(uuidString: idString),
+                   let name = project["name"] as? String {
+                    let description = project["description"] as? String ?? ""
+                    let content = "\(name). \(description)".trimmingCharacters(in: .whitespaces)
+                    items.append(PARAItem(
+                        id: id,
+                        title: name,
+                        content: content,
+                        contentType: .note,
+                        paraCategory: .project,
+                        workPersonal: .personal,
+                        priority: .medium
+                    ))
+                }
+            }
+            
+            // Load areas
+            let areas = try await supabaseService.client
+                .from("areas")
+                .select("id, name, description")
+                .execute()
+                .value as? [[String: Any]] ?? []
+            
+            for area in areas {
+                if let idString = area["id"] as? String,
+                   let id = UUID(uuidString: idString),
+                   let name = area["name"] as? String {
+                    let description = area["description"] as? String ?? ""
+                    let content = "\(name). \(description)".trimmingCharacters(in: .whitespaces)
+                    items.append(PARAItem(
+                        id: id,
+                        title: name,
+                        content: content,
+                        contentType: .note,
+                        paraCategory: .area,
+                        workPersonal: .personal,
+                        priority: .medium
+                    ))
+                }
+            }
+            
+            // Load resources
+            let resources = try await supabaseService.client
+                .from("resources")
+                .select("id, title, summary")
+                .execute()
+                .value as? [[String: Any]] ?? []
+            
+            for resource in resources {
+                if let idString = resource["id"] as? String,
+                   let id = UUID(uuidString: idString),
+                   let title = resource["title"] as? String {
+                    let summary = resource["summary"] as? String ?? ""
+                    let content = "\(title). \(summary)".trimmingCharacters(in: .whitespaces)
+                    items.append(PARAItem(
+                        id: id,
+                        title: title,
+                        content: content,
+                        contentType: .note,
+                        paraCategory: .resource,
+                        workPersonal: .personal,
+                        priority: .medium
+                    ))
+                }
+            }
+            
+            print("🔧 EMBEDDINGS: ✅ Loaded \(items.count) PARA items for embedding generation")
+            return items
+            
+        } catch {
+            print("🔧 EMBEDDINGS: ❌ Failed to load PARA items: \(error)")
+            throw error
+        }
     }
 }
 

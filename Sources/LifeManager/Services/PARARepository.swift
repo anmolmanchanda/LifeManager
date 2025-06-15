@@ -18,6 +18,15 @@ class PARARepository {
     func createProject(_ project: Project) async throws -> Project {
         // TODO: Implement database creation
         print("📁 PARA: Creating project: \(project.name)")
+        
+        // Generate embedding for the project
+        let content = "\(project.name). \(project.description ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: project.id,
+            content: content,
+            type: "project"
+        )
+        
         return project
     }
     
@@ -40,6 +49,15 @@ class PARARepository {
     func createArea(_ area: Area) async throws -> Area {
         // TODO: Implement database creation
         print("🏠 PARA: Creating area: \(area.name)")
+        
+        // Generate embedding for the area
+        let content = "\(area.name). \(area.description ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: area.id,
+            content: content,
+            type: "area"
+        )
+        
         return area
     }
     
@@ -80,6 +98,15 @@ class PARARepository {
     func createResource(_ resource: Resource) async throws -> Resource {
         // TODO: Implement database creation
         print("📚 PARA: Creating resource: \(resource.title)")
+        
+        // Generate embedding for the resource
+        let content = "\(resource.title). \(resource.summary ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: resource.id,
+            content: content,
+            type: "resource"
+        )
+        
         return resource
     }
     

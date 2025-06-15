@@ -21,18 +21,36 @@ class BlobRepository: ObservableObject {
             workPersonal: workPersonal
         )
         
-        return try await supabaseService.insert(
+        let createdBlob = try await supabaseService.insert(
             blob,
             into: SupabaseService.TableName.blobs.rawValue
         )
+        
+        // Generate embedding for the blob content
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: createdBlob.id,
+            content: createdBlob.content,
+            type: "blob"
+        )
+        
+        return createdBlob
     }
     
     /// Create blob from Blob object
     func createBlob(_ blob: Blob) async throws -> Blob {
-        return try await supabaseService.insert(
+        let createdBlob = try await supabaseService.insert(
             blob,
             into: SupabaseService.TableName.blobs.rawValue
         )
+        
+        // Generate embedding for the blob content
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: createdBlob.id,
+            content: createdBlob.content,
+            type: "blob"
+        )
+        
+        return createdBlob
     }
     
     /// Fetch all blobs

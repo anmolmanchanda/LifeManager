@@ -12,7 +12,7 @@ import SwiftUI
 //
 
 /// History item for inbox processing
-struct InboxHistoryItem {
+struct InboxHistoryItem: Codable {
     let input: String
     let itemsCreated: Int
     let timestamp: Date
@@ -88,7 +88,11 @@ class MainViewModel: ObservableObject {
     // MARK: - Brain Dump State
     
     @Published var inboxInput = ""
-    @Published var inboxHistory: [InboxHistoryItem] = []
+    @Published var inboxHistory: [InboxHistoryItem] = [] {
+        didSet {
+            saveInboxHistory()
+        }
+    }
     @Published var isProcessingInbox = false
     @Published var showingBrainDumpReview = false
     @Published var brainDumpResult: BrainDumpResult?
@@ -131,7 +135,41 @@ class MainViewModel: ObservableObject {
             NSLog("🔧 DEBUG: MainViewModel initial data loading completed")
         }
         
+        // Load persisted inbox history
+        loadInboxHistory()
+        
         NSLog("🔧 DEBUG: MainViewModel init() completed")
+    }
+    
+    // MARK: - Inbox History Persistence
+    
+    /// Save inbox history to UserDefaults
+    private func saveInboxHistory() {
+        do {
+            let data = try JSONEncoder().encode(inboxHistory)
+            UserDefaults.standard.set(data, forKey: "inboxHistory")
+            print("🔧 HISTORY: ✅ Saved \(inboxHistory.count) history items")
+        } catch {
+            print("🔧 HISTORY: ❌ Failed to save history: \(error)")
+        }
+    }
+    
+    /// Load inbox history from UserDefaults
+    private func loadInboxHistory() {
+        guard let data = UserDefaults.standard.data(forKey: "inboxHistory") else {
+            print("🔧 HISTORY: No saved history found")
+            return
+        }
+        
+        do {
+            let loadedHistory = try JSONDecoder().decode([InboxHistoryItem].self, from: data)
+            inboxHistory = loadedHistory
+            print("🔧 HISTORY: ✅ Loaded \(inboxHistory.count) history items")
+        } catch {
+            print("🔧 HISTORY: ❌ Failed to load history: \(error)")
+            // Clear corrupted data
+            UserDefaults.standard.removeObject(forKey: "inboxHistory")
+        }
     }
     
     // MARK: - Log Monitoring
@@ -2259,10 +2297,8 @@ class MainViewModel: ObservableObject {
                 
                 try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
                 
-                await MainActor.run {
-                    self.successMessage = "⚡ Processing with AI intelligence..."
-                }
-                Logger.shared.brainDumpProgress("UI: Showing AI processing message")
+                // Removed toast message for brain dump processing
+                Logger.shared.brainDumpProgress("UI: Processing with AI (no toast shown)")
                 
                 Logger.shared.brainDumpProgress("Calling brain dump processor...")
                 // Use comprehensive brain dump processor

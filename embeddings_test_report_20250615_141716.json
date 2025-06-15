@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-06-15T14:17:16.304513",
+  "total_tests": 5,
+  "passed_tests": 0,
+  "success_rate": 0.0,
+  "results": [
+    {
+      "test": "openai_api_integration",
+      "success": false,
+      "found_patterns": 0,
+      "expected_patterns": 3
+    },
+    {
+      "test": "project_embedding",
+      "success": false,
+      "found_patterns": 0,
+      "expected_patterns": 3
+    },
+    {
+      "test": "area_embedding",
+      "success": false,
+      "found_patterns": 0,
+      "expected_patterns": 3
+    },
+    {
+      "test": "resource_embedding",
+      "success": false,
+      "found_patterns": 0,
+      "expected_patterns": 3
+    },
+    {
+      "test": "blob_embedding",
+      "success": false,
+      "found_patterns": 0,
+      "expected_patterns": 3
+    }
+  ]
+}

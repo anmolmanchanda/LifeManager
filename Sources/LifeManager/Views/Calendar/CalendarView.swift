@@ -34,6 +34,7 @@ struct CalendarView: View {
             VStack(spacing: 0) {
                 CalendarHeaderView()
                     .environmentObject(calendarViewModel)
+                    .environmentObject(viewModel)
                 
                 CalendarMainView()
                     .environmentObject(calendarViewModel)

@@ -15,7 +15,17 @@ class AreaRepository {
     }
     
     func createArea(_ area: Area) async throws -> Area {
-        return try await supabaseService.insert(area, into: SupabaseService.TableName.areas.rawValue)
+        let createdArea = try await supabaseService.insert(area, into: SupabaseService.TableName.areas.rawValue)
+        
+        // Generate embedding for the area
+        let content = "\(createdArea.name). \(createdArea.description ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: createdArea.id,
+            content: content,
+            type: "area"
+        )
+        
+        return createdArea
     }
     
     func updateArea(_ area: Area) async throws -> Area {
@@ -42,7 +52,17 @@ class ProjectRepository {
     }
     
     func createProject(_ project: Project) async throws -> Project {
-        return try await supabaseService.insert(project, into: SupabaseService.TableName.projects.rawValue)
+        let createdProject = try await supabaseService.insert(project, into: SupabaseService.TableName.projects.rawValue)
+        
+        // Generate embedding for the project
+        let content = "\(createdProject.name). \(createdProject.description ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: createdProject.id,
+            content: content,
+            type: "project"
+        )
+        
+        return createdProject
     }
     
     func updateProject(_ project: Project) async throws -> Project {
@@ -69,7 +89,17 @@ class ResourceRepository {
     }
     
     func createResource(_ resource: Resource) async throws -> Resource {
-        return try await supabaseService.insert(resource, into: SupabaseService.TableName.resources.rawValue)
+        let createdResource = try await supabaseService.insert(resource, into: SupabaseService.TableName.resources.rawValue)
+        
+        // Generate embedding for the resource
+        let content = "\(createdResource.title). \(createdResource.summary ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: createdResource.id,
+            content: content,
+            type: "resource"
+        )
+        
+        return createdResource
     }
     
     func updateResource(_ resource: Resource) async throws -> Resource {
