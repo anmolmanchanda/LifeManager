@@ -2,8 +2,19 @@ import SwiftUI
 import Foundation
 import AppKit
 
+//
+// ContentView.swift
+// LifeManager
+//
+// Implements: v1.0 "PARA Framework", v1.25 "Enhanced UI", v1.5 "Complete PARA Views", v1.75 "Modular Architecture"
+// Roadmap Reference: v1.0 Foundation, v1.25 Intelligence & UI, v1.5 Advanced Features, v1.75 Calendar Revolution
+// Status: ✅ COMPLETE as of June 14, 2025 (modularized from 6117 lines to organized components)
+// Future: v2.0 Dashboard View, Advanced Analytics
+//
+
 /// Main content view for LifeManager
 /// Provides PARA-based navigation and content management
+/// Central UI coordinator for the entire LifeManager application
 struct ContentView: View {
     @StateObject private var viewModel = MainViewModel()
     
@@ -106,14 +117,6 @@ struct MainAppView: View {
         .toolbar(content: {
             ToolbarItem(placement: .automatic) {
                 Button(action: {
-                    // Toggle sidebar
-                }) {
-                    Image(systemName: "sidebar.left")
-                }
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                Button(action: {
                     Task {
                         await viewModel.refreshData()
                     }
@@ -139,12 +142,12 @@ struct PARANavigation: View {
             
             Section("PARA") {
                 NavigationLink(destination: ProjectsView().environmentObject(viewModel)) {
-                    Label("Projects", systemImage: "target")
+                    Label("Projects", systemImage: "folder")
                 }
                 .tag(PARAView.projects)
                 
                 NavigationLink(destination: AreasView().environmentObject(viewModel)) {
-                    Label("Areas", systemImage: "square.stack.3d.up")
+                    Label("Areas", systemImage: "circles.hexagongrid")
                 }
                 .tag(PARAView.areas)
                 
@@ -159,33 +162,11 @@ struct PARANavigation: View {
                 .tag(PARAView.archives)
             }
             
-            Section("Modes") {
-                NavigationLink(destination: PersonalView().environmentObject(viewModel)) {
-                    Label("Personal", systemImage: "person")
-                }
-                .tag(PARAView.personal)
-                
-                NavigationLink(destination: WorkView().environmentObject(viewModel)) {
-                    Label("Work", systemImage: "briefcase")
-                }
-                .tag(PARAView.work)
-            }
-            
             Section("Views") {
                 NavigationLink(destination: FocusView().environmentObject(viewModel)) {
                     Label("Focus", systemImage: "scope")
                 }
                 .tag(PARAView.focus)
-                
-                NavigationLink(destination: TagsView().environmentObject(viewModel)) {
-                    Label("Tags", systemImage: "tag")
-                }
-                .tag(PARAView.tags)
-                
-                NavigationLink(destination: MindmapView().environmentObject(viewModel)) {
-                    Label("Mind Map", systemImage: "brain.head.profile")
-                }
-                .tag(PARAView.mindmap)
                 
                 NavigationLink(destination: CalendarView().environmentObject(viewModel)) {
                     Label("Calendar", systemImage: "calendar")
@@ -196,12 +177,22 @@ struct PARANavigation: View {
                     Label("Timeline", systemImage: "timeline.selection")
                 }
                 .tag(PARAView.timeline)
+                
+                NavigationLink(destination: MindmapView().environmentObject(viewModel)) {
+                    Label("Mind Map", systemImage: "brain.head.profile")
+                }
+                .tag(PARAView.mindmap)
+                
+                NavigationLink(destination: TagsView().environmentObject(viewModel)) {
+                    Label("Tags", systemImage: "tag")
+                }
+                .tag(PARAView.tags)
             }
             
             Section("Search & History") {
-                NavigationLink(destination: SearchView().environmentObject(viewModel)) {
-                    Label("Search", systemImage: "magnifyingglass")
-                    }
+                                NavigationLink(destination: SearchView().environmentObject(viewModel)) {
+                    Label("Advanced Search", systemImage: "magnifyingglass")
+                }
                 .tag(PARAView.search)
                 
                 NavigationLink(destination: HistoryView().environmentObject(viewModel)) {
@@ -246,10 +237,6 @@ struct PARADetailView: View {
                     .environmentObject(viewModel)
             case .timeline:
                 TimelineView()
-            case .personal:
-                PersonalView()
-            case .work:
-                WorkView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -386,13 +373,13 @@ struct NaturalLanguageInputView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("What's on your mind?")
+                Text("🧠 Brain Dump - What's on your mind?")
                     .font(.headline)
                     .fontWeight(.semibold)
                 
                 Spacer()
                 
-                Button(isProcessing ? "Processing..." : "Add & Process") {
+                Button(isProcessing ? "Processing..." : "Analyze & Process") {
                     submitInput()
                 }
                 .disabled(inputText.isEmpty || isProcessing)
@@ -415,7 +402,7 @@ struct NaturalLanguageInputView: View {
                 
                 // Placeholder text
                 if inputText.isEmpty {
-                    Text("Type anything here... Examples:\n• 'Buy groceries tomorrow'\n• 'Research Swift async/await for project'\n• 'Call mom about vacation plans'\n• 'Review Q1 budget numbers'\n\nI'll automatically categorize it and extract any tasks!")
+                    Text("Type anything here... Examples:\n• 'Buy groceries tomorrow, call mom about vacation plans'\n• 'Research Swift async/await for project, review Q1 budget'\n• 'Feeling stressed about deadlines, need to book dentist appointment'\n\nI'll intelligently extract multiple tasks, notes, and organize everything!")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 16)
@@ -428,34 +415,101 @@ struct NaturalLanguageInputView: View {
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Saving and processing with AI...")
+                    Text("Analyzing with AI brain dump processor...")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 .transition(.opacity)
             }
+            
+            // History section
+            if !viewModel.inboxHistory.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recent Processing History")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    ForEach(Array(viewModel.inboxHistory.enumerated()), id: \.offset) { index, item in
+                        InboxHistoryRow(item: item)
+                    }
+                }
+                .padding(.top, 8)
+            }
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
+        .sheet(isPresented: $viewModel.showingBrainDumpReview) {
+            if let result = viewModel.brainDumpResult {
+                BrainDumpReviewView(
+                    result: result,
+                    onComplete: { summary in
+                        viewModel.completeBrainDump(summary)
+                    },
+                    onCancel: {
+                        viewModel.cancelBrainDump()
+                    }
+                )
+            }
+        }
     }
     
     private func submitInput() {
         guard !inputText.isEmpty else { return }
         
-        let content = inputText
+        isProcessing = true
+        
+        // Set the input in the view model and trigger brain dump processing
+        viewModel.inboxInput = inputText
         
         // Clear input immediately for better UX
         inputText = ""
-        isProcessing = true
         
-        Task {
-            await viewModel.addQuickNote(content)
+        // Process using brain dump processor
+        viewModel.processInboxInput()
+        
+        // Reset processing state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            isProcessing = false
+        }
+    }
+}
+
+/// History row for inbox processing
+struct InboxHistoryRow: View {
+    let item: InboxHistoryItem
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(item.input.prefix(40)) + (item.input.count > 40 ? "..." : ""))
+                    .font(.caption)
+                    .lineLimit(1)
+                
+                Text(RelativeDateTimeFormatter().localizedString(for: item.timestamp, relativeTo: Date()))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
             
-            await MainActor.run {
-                isProcessing = false
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(item.itemsCreated) items")
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+                
+                if !item.categories.isEmpty {
+                    Text(item.categories.joined(separator: ", "))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
             }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(6)
     }
 }
 
@@ -802,17 +856,57 @@ struct ProcessingDetailsView: View {
 /// Areas overview
 struct AreasView: View {
     @EnvironmentObject var viewModel: MainViewModel
+    @State private var workPersonalFilter: WorkPersonalType? = nil
+    
+    private var filteredAreas: [Area] {
+        guard let filter = workPersonalFilter else { return viewModel.areas }
+        return viewModel.areas.filter { $0.workPersonal == filter }
+    }
     
     var body: some View {
-        LazyVGrid(columns: [
-            GridItem(.adaptive(minimum: 200))
-        ], spacing: 20) {
-            ForEach(viewModel.areas) { area in
-                AreaCardView(area: area)
-                    .environmentObject(viewModel)
+        VStack(spacing: 0) {
+            // Header with Work/Personal toggle
+            HStack {
+                Text("Areas")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                // Work/Personal filter toggle
+                HStack(spacing: 4) {
+                    FilterToggleButton(
+                        title: "Personal",
+                        isSelected: workPersonalFilter == .personal,
+                        action: {
+                            workPersonalFilter = workPersonalFilter == .personal ? nil : .personal
+                        }
+                    )
+                    
+                    FilterToggleButton(
+                        title: "Work",
+                        isSelected: workPersonalFilter == .work,
+                        action: {
+                            workPersonalFilter = workPersonalFilter == .work ? nil : .work
+                        }
+                    )
+                }
+            }
+            .padding()
+            
+            // Areas grid
+            ScrollView {
+                LazyVGrid(columns: [
+                    GridItem(.adaptive(minimum: 200))
+                ], spacing: 20) {
+                    ForEach(filteredAreas) { area in
+                        AreaCardView(area: area)
+                            .environmentObject(viewModel)
+                    }
+                }
+                .padding()
             }
         }
-        .padding()
     }
 }
 
@@ -820,9 +914,15 @@ struct AreaCardView: View {
     let area: Area
     @EnvironmentObject var viewModel: MainViewModel
     @State private var showingDeleteConfirmation = false
+    @State private var isExpanded = false
+    
+    private var areaBlobs: [Blob] {
+        return viewModel.areaBlobs[area.id] ?? []
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Header
             HStack {
                 if let iconName = area.icon {
                     Image(systemName: iconName)
@@ -831,6 +931,29 @@ struct AreaCardView: View {
                 }
                 
                 Spacer()
+                
+                // Content count
+                if !areaBlobs.isEmpty {
+                    Text("\(areaBlobs.count)")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: area.color))
+                        .cornerRadius(8)
+                }
+                
+                // Expand/collapse button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                }) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
                 
                 // Delete button
                 Button(action: {
@@ -856,15 +979,50 @@ struct AreaCardView: View {
                 Text(description)
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(isExpanded ? nil : 2)
             }
             
-            Spacer()
+            // Content/blobs section (expandable)
+            if isExpanded && !areaBlobs.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Divider()
+                    
+                    Text("Content (\(areaBlobs.count))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fontWeight(.semibold)
+                    
+                    ForEach(areaBlobs.prefix(5)) { blob in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(Color.blue.opacity(0.3))
+                                .frame(width: 6, height: 6)
+                            
+                            Text(String(blob.content.prefix(60)) + (blob.content.count > 60 ? "..." : ""))
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                                .lineLimit(2)
+                            
+                            Spacer()
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    
+                    if areaBlobs.count > 5 {
+                        Text("... and \(areaBlobs.count - 5) more")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .italic()
+                    }
+                }
+            } else if !isExpanded {
+                Spacer()
+            }
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
-        .frame(height: 120)
+        .frame(minHeight: isExpanded ? 200 : 120)
         .alert("Delete Area", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -881,10 +1039,16 @@ struct AreaCardView: View {
 /// Projects view
 struct ProjectsView: View {
     @EnvironmentObject var viewModel: MainViewModel
+    @State private var workPersonalFilter: WorkPersonalType? = nil
+    
+    private var filteredProjects: [Project] {
+        guard let filter = workPersonalFilter else { return viewModel.projects }
+        return viewModel.projects.filter { $0.workPersonal == filter }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with AI processing info
+            // Header with AI processing info and Work/Personal toggle
             VStack(spacing: 16) {
                 HStack {
                     Text("Projects")
@@ -892,6 +1056,25 @@ struct ProjectsView: View {
                         .fontWeight(.semibold)
                     
                     Spacer()
+                    
+                    // Work/Personal filter toggle
+                    HStack(spacing: 4) {
+                        FilterToggleButton(
+                            title: "Personal",
+                            isSelected: workPersonalFilter == .personal,
+                            action: {
+                                workPersonalFilter = workPersonalFilter == .personal ? nil : .personal
+                            }
+                        )
+                        
+                        FilterToggleButton(
+                            title: "Work",
+                            isSelected: workPersonalFilter == .work,
+                            action: {
+                                workPersonalFilter = workPersonalFilter == .work ? nil : .work
+                            }
+                        )
+                    }
                     
                     // AI processing status
                     if !viewModel.projectBlobs.isEmpty {
@@ -913,11 +1096,11 @@ struct ProjectsView: View {
                 .padding(.horizontal)
                 
                 // Quick stats
-                if !viewModel.projects.isEmpty {
+                if !filteredProjects.isEmpty {
                     HStack(spacing: 20) {
                         StatView(
                             title: "Active Projects", 
-                            value: "\(viewModel.projects.filter { $0.status == .active }.count)",
+                            value: "\(filteredProjects.filter { $0.status == .active }.count)",
                             color: .green
                         )
                         StatView(
@@ -934,7 +1117,7 @@ struct ProjectsView: View {
             .background(Color(NSColor.controlBackgroundColor))
             
             // Projects list with expandable sections
-            if viewModel.projects.isEmpty {
+            if filteredProjects.isEmpty {
                 if #available(macOS 14.0, *) {
                     ContentUnavailableView(
                         "No projects yet",
@@ -960,7 +1143,7 @@ struct ProjectsView: View {
                 }
             } else {
                 List {
-                    ForEach(viewModel.projects) { project in
+                    ForEach(filteredProjects) { project in
                         ProjectSectionView(project: project)
                             .environmentObject(viewModel)
                     }
@@ -1167,15 +1350,26 @@ struct ProjectBlobRowView: View {
 /// Resources view
 struct ResourcesView: View {
     @EnvironmentObject var viewModel: MainViewModel
+    @State private var workPersonalFilter: WorkPersonalType? = nil
     
     private let resourceCategories = [
         "Research Papers", "Articles", "Videos", "Books", 
         "Guides", "Recipes", "Insights", "References"
     ]
     
+    private var filteredResources: [Resource] {
+        guard let filter = workPersonalFilter else { return viewModel.resources }
+        return viewModel.resources.filter { $0.workPersonal == filter }
+    }
+    
+    private var filteredResourceBlobs: [Blob] {
+        guard let filter = workPersonalFilter else { return viewModel.resourceBlobs }
+        return viewModel.resourceBlobs.filter { $0.workPersonal == filter }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // Header with AI transparency
+            // Header with AI transparency and Work/Personal toggle
             VStack(spacing: 16) {
                 HStack {
                     Text("Resources")
@@ -1184,13 +1378,32 @@ struct ResourcesView: View {
                     
                     Spacer()
                     
+                    // Work/Personal filter toggle
+                    HStack(spacing: 4) {
+                        FilterToggleButton(
+                            title: "Personal",
+                            isSelected: workPersonalFilter == .personal,
+                            action: {
+                                workPersonalFilter = workPersonalFilter == .personal ? nil : .personal
+                            }
+                        )
+                        
+                        FilterToggleButton(
+                            title: "Work",
+                            isSelected: workPersonalFilter == .work,
+                            action: {
+                                workPersonalFilter = workPersonalFilter == .work ? nil : .work
+                            }
+                        )
+                    }
+                    
                     // AI processing status
-                    if !viewModel.resourceBlobs.isEmpty {
+                    if !filteredResourceBlobs.isEmpty {
                         HStack(spacing: 8) {
                             Image(systemName: "sparkles")
                                 .foregroundColor(.purple)
                             
-                            Text("AI organized \(viewModel.resourceBlobs.count) references")
+                            Text("AI organized \(filteredResourceBlobs.count) references")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -1206,12 +1419,12 @@ struct ResourcesView: View {
                 HStack(spacing: 20) {
                     StatView(
                         title: "Resource Types", 
-                        value: "\(viewModel.resources.count)",
+                        value: "\(filteredResources.count)",
                         color: .purple
                     )
                     StatView(
                         title: "AI References", 
-                        value: "\(viewModel.resourceBlobs.count)",
+                        value: "\(filteredResourceBlobs.count)",
                         color: .blue
                     )
                     Spacer()
@@ -1224,7 +1437,7 @@ struct ResourcesView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     // Formal Resources (created by user/system)
-                    if !viewModel.resources.isEmpty {
+                    if !filteredResources.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "books.vertical")
@@ -1235,7 +1448,7 @@ struct ResourcesView: View {
                             }
                             .padding(.horizontal)
                             
-                            ForEach(viewModel.resources) { resource in
+                            ForEach(filteredResources) { resource in
                                 ResourceRowView(resource: resource)
                                     .environmentObject(viewModel)
                             }
@@ -1243,7 +1456,7 @@ struct ResourcesView: View {
                     }
                     
                     // AI-Organized References by Category
-                    if !viewModel.resourceBlobs.isEmpty {
+                    if !filteredResourceBlobs.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "brain")
@@ -1267,7 +1480,7 @@ struct ResourcesView: View {
                             }
                             
                             // Uncategorized resources
-                            let uncategorizedBlobs = viewModel.resourceBlobs.filter { blob in
+                            let uncategorizedBlobs = filteredResourceBlobs.filter { blob in
                                 !resourceCategories.contains { category in
                                     blobMatchesCategory(blob: blob, category: category)
                                 }
@@ -1284,7 +1497,7 @@ struct ResourcesView: View {
                     }
                     
                     // Empty state
-                    if viewModel.resources.isEmpty && viewModel.resourceBlobs.isEmpty {
+                    if filteredResources.isEmpty && filteredResourceBlobs.isEmpty {
                         if #available(macOS 14.0, *) {
                             ContentUnavailableView(
                                 "No resources yet",
@@ -1321,7 +1534,7 @@ struct ResourcesView: View {
     }
     
     private func getCategoryBlobs(category: String) -> [Blob] {
-        return viewModel.resourceBlobs.filter { blob in
+        return filteredResourceBlobs.filter { blob in
             blobMatchesCategory(blob: blob, category: category)
         }
     }
@@ -1413,15 +1626,31 @@ struct ArchivesView: View {
     @EnvironmentObject var viewModel: MainViewModel
     @State private var completedTasks: [LifeTask] = []
     @State private var recentlyDeletedTasks: [LifeTask] = []
+    @State private var workPersonalFilter: WorkPersonalType? = nil
     
     private let archiveCategories = [
         "Recently Deleted", "Completed Tasks", "Completed Projects", "Inactive Areas", "Old Resources", 
         "Past Notes", "Outdated References", "Historical Data"
     ]
     
+    private var filteredArchives: [Archive] {
+        guard let filter = workPersonalFilter else { return viewModel.archives }
+        return viewModel.archives.filter { $0.workPersonal == filter }
+    }
+    
+    private var filteredArchivedBlobs: [Blob] {
+        guard let filter = workPersonalFilter else { return viewModel.archivedBlobs }
+        return viewModel.archivedBlobs.filter { $0.workPersonal == filter }
+    }
+    
+    private var filteredCompletedTasks: [LifeTask] {
+        guard let filter = workPersonalFilter else { return completedTasks }
+        return completedTasks.filter { $0.workPersonal == filter }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // Header with AI transparency
+            // Header with AI transparency and Work/Personal toggle
             VStack(spacing: 16) {
                 HStack {
                     Text("Archives")
@@ -1430,12 +1659,31 @@ struct ArchivesView: View {
                     
                     Spacer()
                     
+                    // Work/Personal filter toggle
+                    HStack(spacing: 4) {
+                        FilterToggleButton(
+                            title: "Personal",
+                            isSelected: workPersonalFilter == .personal,
+                            action: {
+                                workPersonalFilter = workPersonalFilter == .personal ? nil : .personal
+                            }
+                        )
+                        
+                        FilterToggleButton(
+                            title: "Work",
+                            isSelected: workPersonalFilter == .work,
+                            action: {
+                                workPersonalFilter = workPersonalFilter == .work ? nil : .work
+                            }
+                        )
+                    }
+                    
                     // Archive stats
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                         
-                        Text("\(completedTasks.count) completed • \(viewModel.archivedBlobs.count) archived")
+                        Text("\(filteredCompletedTasks.count) completed • \(filteredArchivedBlobs.count) archived")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -1459,7 +1707,7 @@ struct ArchivesView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     // Formal Archives (created by user/system)
-                    if !viewModel.archives.isEmpty {
+                    if !filteredArchives.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "archivebox")
@@ -1470,7 +1718,7 @@ struct ArchivesView: View {
                             }
                             .padding(.horizontal)
                             
-                            ForEach(viewModel.archives) { archive in
+                            ForEach(filteredArchives) { archive in
                                 ArchiveRowView(archive: archive)
                                     .environmentObject(viewModel)
                             }
@@ -1478,7 +1726,7 @@ struct ArchivesView: View {
                     }
                     
                     // AI-Archived Content by Category
-                    if !viewModel.archivedBlobs.isEmpty {
+                    if !filteredArchivedBlobs.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "brain")
@@ -1504,7 +1752,7 @@ struct ArchivesView: View {
                             }
                             
                             // Uncategorized archived items
-                            let uncategorizedBlobs = viewModel.archivedBlobs.filter { blob in
+                            let uncategorizedBlobs = filteredArchivedBlobs.filter { blob in
                                 !archiveCategories.contains { category in
                                     archiveBlobMatchesCategory(blob: blob, category: category)
                                 }
@@ -1522,7 +1770,7 @@ struct ArchivesView: View {
                     }
                     
                     // Empty state
-                    if viewModel.archives.isEmpty && viewModel.archivedBlobs.isEmpty {
+                    if filteredArchives.isEmpty && filteredArchivedBlobs.isEmpty {
                         if #available(macOS 14.0, *) {
                             ContentUnavailableView(
                                 "No archived items",
@@ -1585,14 +1833,14 @@ struct ArchivesView: View {
     }
     
     private func getArchiveCategoryBlobs(category: String) -> [Blob] {
-        return viewModel.archivedBlobs.filter { blob in
+        return filteredArchivedBlobs.filter { blob in
             archiveBlobMatchesCategory(blob: blob, category: category)
         }
     }
     
     private func getArchiveCategoryTasks(category: String) -> [LifeTask] {
         if category == "Completed Tasks" {
-            return completedTasks
+            return filteredCompletedTasks
         }
         return []
     }
@@ -5043,6 +5291,28 @@ struct RecentlyDeletedTaskRowView: View {
         let deleteTime = deletedAt.addingTimeInterval(24 * 60 * 60) // 24 hours later
         let hoursLeft = Int(deleteTime.timeIntervalSinceNow / 3600)
         return max(0, hoursLeft)
+    }
+}
+
+// MARK: - Filter Toggle Button
+
+struct FilterToggleButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.blue : Color.gray.opacity(0.2))
+                .foregroundColor(isSelected ? .white : .primary)
+                .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 }
 

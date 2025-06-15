@@ -47,8 +47,8 @@ class ProjectRepository {
     
     func updateProject(_ project: Project) async throws -> Project {
         return try await supabaseService.update(project, in: SupabaseService.TableName.projects.rawValue, matching: "id", value: project.id.uuidString)
-        }
-        
+    }
+    
     func deleteProject(id: UUID) async throws {
         try await supabaseService.delete(from: SupabaseService.TableName.projects.rawValue, matching: "id", value: id.uuidString)
     }

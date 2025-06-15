@@ -457,4 +457,18 @@ class TaskRepository: ObservableObject {
         
         return response
     }
+    
+    /// Fetch recent tasks for context
+    func fetchRecentTasks(limit: Int = 50) async throws -> [LifeTask] {
+        let allTasks = try await fetchAllTasks()
+        
+        // Sort by created date descending and take the specified limit
+        let sortedTasks = allTasks.sorted { task1, task2 in
+            let date1 = ISO8601DateFormatter().date(from: task1.createdAt) ?? Date.distantPast
+            let date2 = ISO8601DateFormatter().date(from: task2.createdAt) ?? Date.distantPast
+            return date1 > date2
+        }
+        
+        return Array(sortedTasks.prefix(limit))
+    }
 } 

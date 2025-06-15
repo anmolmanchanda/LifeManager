@@ -21,6 +21,13 @@ struct CalendarEventView: View {
     @State private var isHovered = false
     @State private var isPressed = false
     @State private var showingContextMenu = false
+    @State private var showingEditSheet = false
+    @State private var editableEvent: CalendarEvent
+    
+    init(event: CalendarEvent) {
+        self.event = event
+        self._editableEvent = State(initialValue: event)
+    }
     
     // MARK: - Body
     var body: some View {
@@ -263,6 +270,23 @@ struct CalendarEventView: View {
         // Handle event selection/editing
         print("Tapped on event: \(event.title)")
     }
+    
+    private func editEvent() {
+        LifeLogger.contextMenu(.info, "🖱️ Context menu: Edit Event for '\(event.title)'")
+        editableEvent = event // Update the editable event with current data
+        showingEditSheet = true
+    }
+    
+    private func saveEditedEvent(_ updatedEvent: CalendarEvent) {
+        LifeLogger.contextMenu(.info, "💾 Saving edited event: '\(updatedEvent.title)'")
+        
+        if let index = calendarViewModel.events.firstIndex(where: { $0.id == event.id }) {
+            calendarViewModel.events[index] = updatedEvent
+            calendarViewModel.applyFilters()
+            
+            LifeLogger.contextMenu(.info, "✅ Event '\(updatedEvent.title)' updated successfully")
+        }
+    }
 }
 
 // MARK: - Event Context Menu Component
@@ -272,44 +296,63 @@ struct EventContextMenu: View {
     let event: CalendarEvent
     
     @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @State private var showingEditSheet = false
+    @State private var editableEvent: CalendarEvent
+    
+    init(event: CalendarEvent) {
+        self.event = event
+        self._editableEvent = State(initialValue: event)
+    }
     
     var body: some View {
         Group {
+            // Only allow editing if not locked
             Button(action: {
                 editEvent()
             }) {
                 Label("Edit Event", systemImage: "pencil")
             }
+            .disabled(event.isLocked)
             
-            Button(action: {
-                duplicateEvent()
-            }) {
-                Label("Duplicate", systemImage: "doc.on.doc")
-            }
-            
-            Divider()
-            
-            Button(action: {
-                rescheduleEvent()
-            }) {
-                Label("Reschedule", systemImage: "calendar.badge.clock")
-            }
-            
-            if event.source == .user {
+            // For locked events, only show unlock option
+            if event.isLocked {
                 Button(action: {
-                    toggleLock()
+                    unlockEvent()
                 }) {
-                    Label(event.isLocked ? "Unlock" : "Lock", 
-                          systemImage: event.isLocked ? "lock.open" : "lock")
+                    Label("Unlock", systemImage: "lock.open")
+                }
+            } else {
+                // For unlocked events, show duplicate and lock options
+                Button(action: {
+                    duplicateEvent()
+                }) {
+                    Label("Duplicate", systemImage: "doc.on.doc")
+                }
+                .disabled(event.isLocked)
+                
+                Button(action: {
+                    lockEvent()
+                }) {
+                    Label("Lock", systemImage: "lock")
                 }
             }
             
             Divider()
             
-            Button(role: .destructive, action: {
-                deleteEvent()
-            }) {
-                Label("Delete Event", systemImage: "trash")
+            // Only show delete if not locked and user-created
+            if !event.isLocked && event.source == .user {
+                Button(action: {
+                    deleteEvent()
+                }) {
+                    Label("Delete", systemImage: "trash")
+                        .foregroundColor(.red)
+                }
+                .disabled(event.isLocked)
+            }
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            EventEditView(event: $editableEvent) { updatedEvent in
+                saveEditedEvent(updatedEvent)
             }
         }
     }
@@ -317,23 +360,120 @@ struct EventContextMenu: View {
     // MARK: - Actions
     
     private func editEvent() {
-        print("Edit event: \(event.title)")
+        LifeLogger.contextMenu(.info, "🖱️ Context menu: Edit Event for '\(event.title)'")
+        editableEvent = event // Update the editable event with current data
+        showingEditSheet = true
+    }
+    
+    private func saveEditedEvent(_ updatedEvent: CalendarEvent) {
+        LifeLogger.contextMenu(.info, "💾 Saving edited event: '\(updatedEvent.title)'")
+        
+        if let index = calendarViewModel.events.firstIndex(where: { $0.id == event.id }) {
+            calendarViewModel.events[index] = updatedEvent
+            calendarViewModel.applyFilters()
+            
+            LifeLogger.contextMenu(.info, "✅ Event '\(updatedEvent.title)' updated successfully")
+        }
     }
     
     private func duplicateEvent() {
-        print("Duplicate event: \(event.title)")
+        LifeLogger.contextMenu(.info, "🖱️ Context menu: Duplicate Event for '\(event.title)'")
+        
+        // Check if event is locked
+        guard !event.isLocked else {
+            LifeLogger.contextMenu(.warning, "Cannot duplicate locked event '\(event.title)'")
+            return
+        }
+        
+        // Create a duplicate event 1 hour later with identical title
+        let duplicatedEvent = CalendarEvent(
+            id: UUID(),
+            title: event.title, // Use identical title, not "(Copy)"
+            description: event.description,
+            startDate: event.startDate.addingTimeInterval(3600), // 1 hour later
+            endDate: event.endDate.addingTimeInterval(3600),
+            workPersonal: event.workPersonal,
+            isLocked: false, // New events shouldn't be locked by default
+            color: event.color,
+            source: .user, // Duplicated events are user-created
+            duration: event.duration
+        )
+        
+        calendarViewModel.events.append(duplicatedEvent)
+        calendarViewModel.applyFilters()
+        
+        LifeLogger.contextMenu(.info, "✅ Duplicated event '\(event.title)'")
     }
     
-    private func rescheduleEvent() {
-        print("Reschedule event: \(event.title)")
+    private func unlockEvent() {
+        LifeLogger.contextMenu(.info, "🖱️ Context menu: Unlock Event for '\(event.title)'")
+        
+        if let index = calendarViewModel.events.firstIndex(where: { $0.id == event.id }) {
+            let updatedEvent = CalendarEvent(
+                id: event.id,
+                title: event.title,
+                description: event.description,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                workPersonal: event.workPersonal,
+                isLocked: false, // Toggle lock status
+                color: event.color,
+                source: event.source,
+                duration: event.duration
+            )
+            
+            calendarViewModel.events[index] = updatedEvent
+            calendarViewModel.applyFilters()
+            
+            LifeLogger.contextMenu(.info, "✅ Event '\(event.title)' is now unlocked")
+        }
     }
     
-    private func toggleLock() {
-        print("Toggle lock for event: \(event.title)")
+    private func lockEvent() {
+        LifeLogger.contextMenu(.info, "🖱️ Context menu: Lock Event for '\(event.title)'")
+        
+        if let index = calendarViewModel.events.firstIndex(where: { $0.id == event.id }) {
+            let updatedEvent = CalendarEvent(
+                id: event.id,
+                title: event.title,
+                description: event.description,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                workPersonal: event.workPersonal,
+                isLocked: true, // Toggle lock status
+                color: event.color,
+                source: event.source,
+                duration: event.duration
+            )
+            
+            calendarViewModel.events[index] = updatedEvent
+            calendarViewModel.applyFilters()
+            
+            LifeLogger.contextMenu(.info, "✅ Event '\(event.title)' is now locked")
+        }
     }
     
     private func deleteEvent() {
-        print("Delete event: \(event.title)")
+        LifeLogger.contextMenu(.info, "🖱️ Context menu: Delete Event for '\(event.title)'")
+        
+        // Only allow deletion of user-created events
+        guard event.source == .user else {
+            LifeLogger.contextMenu(.warning, "Cannot delete non-user events")
+            return
+        }
+        
+        // Check if event is locked
+        guard !event.isLocked else {
+            LifeLogger.contextMenu(.warning, "Cannot delete locked event '\(event.title)'")
+            return
+        }
+        
+        if let index = calendarViewModel.events.firstIndex(where: { $0.id == event.id }) {
+            calendarViewModel.events.remove(at: index)
+            calendarViewModel.applyFilters()
+            
+            LifeLogger.contextMenu(.info, "✅ Deleted event '\(event.title)'")
+        }
     }
 }
 

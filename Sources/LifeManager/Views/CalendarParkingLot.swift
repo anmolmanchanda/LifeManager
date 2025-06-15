@@ -414,6 +414,16 @@ struct ParkingLotTaskRow: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
         .onHover { hovering in
             isHovered = hovering
+            LifeLogger.dragDrop(.info, "🖱️ Hover changed for '\(task.title)': \(hovering)")
+        }
+        .onTapGesture {
+            // Add tap gesture for debugging
+            LifeLogger.dragDrop(.info, "🖱️ Tapped task: '\(task.title)'")
+        }
+        .contextMenu {
+            TaskContextMenu(task: task)
+                .environmentObject(calendarViewModel)
+                .environmentObject(viewModel)
         }
         .draggable(task.id.uuidString) {
             // Custom drag preview
@@ -436,39 +446,11 @@ struct ParkingLotTaskRow: View {
             .cornerRadius(8)
             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
         }
-        .contextMenu {
-            TaskContextMenu(task: task)
-                .environmentObject(calendarViewModel)
-                .environmentObject(viewModel)
+        .onDrag {
+            LifeLogger.dragDrop(.info, "🖱️ Started dragging task: '\(task.title)'")
+            calendarViewModel.startDragging(task)
+            return NSItemProvider(object: task.id.uuidString as NSString)
         }
-        .gesture(
-            // Use high priority drag gesture that doesn't interfere with context menu
-            DragGesture(minimumDistance: 15) // Increased minimum distance
-                .onChanged { value in
-                    if !isDragging {
-                        LifeLogger.dragDrop(.info, "🎯 Started dragging task: '\(task.title)' (ID: \(task.id.uuidString.prefix(8)))")
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isDragging = true
-                        }
-                        calendarViewModel.startDragging(task)
-                    }
-                    calendarViewModel.updateDragPosition(value.translation)
-                }
-                .onEnded { value in
-                    LifeLogger.dragDrop(.info, "🎯 Ended dragging task: '\(task.title)' at translation: \(value.translation)")
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        isDragging = false
-                    }
-                    
-                    // Check if drag was successful (moved significant distance)
-                    let dragDistance = sqrt(value.translation.width * value.translation.width + value.translation.height * value.translation.height)
-                    if dragDistance > 75 { // Increased threshold
-                        calendarViewModel.completeDrag()
-                    } else {
-                        calendarViewModel.cancelDrag()
-                    }
-                }
-        )
     }
     
     private var taskBackgroundColor: Color {
@@ -480,8 +462,6 @@ struct ParkingLotTaskRow: View {
             return Color(NSColor.controlBackgroundColor).opacity(0.7)
         }
     }
-    
-
     
     private func priorityColor(_ priority: TaskPriority) -> Color {
         switch priority {
@@ -513,6 +493,7 @@ struct TaskContextMenu: View {
         Group {
             if task.status != .completed {
                 Button(action: {
+                    LifeLogger.contextMenu(.info, "🖱️ Context menu: Mark Complete for '\(task.title)'")
                     Task {
                         await markTaskComplete()
                     }
@@ -526,6 +507,7 @@ struct TaskContextMenu: View {
             
             if !task.isScheduled {
                 Button(action: {
+                    LifeLogger.contextMenu(.info, "🖱️ Context menu: Quick Schedule for '\(task.title)'")
                     Task {
                         await scheduleTaskQuickly()
                     }
@@ -538,6 +520,7 @@ struct TaskContextMenu: View {
             }
             
             Button(action: {
+                LifeLogger.contextMenu(.info, "🖱️ Context menu: Archive Task for '\(task.title)'")
                 Task {
                     await moveTaskToArchive()
                 }
@@ -551,6 +534,7 @@ struct TaskContextMenu: View {
             Divider()
             
             Button(role: .destructive, action: {
+                LifeLogger.contextMenu(.info, "🖱️ Context menu: Delete Task for '\(task.title)'")
                 Task {
                     await deleteTask()
                 }
@@ -560,6 +544,9 @@ struct TaskContextMenu: View {
                     Text("Delete Task")
                 }
             }
+        }
+        .onAppear {
+            LifeLogger.contextMenu(.info, "🖱️ Context menu appeared for task: '\(task.title)'")
         }
     }
     

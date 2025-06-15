@@ -217,9 +217,9 @@ struct CalendarHeaderView: View {
     // MARK: - View Mode Picker
     
     private var viewModePicker: some View {
-        Picker("View Mode", selection: $calendarViewModel.viewMode) {
+        Picker("", selection: $calendarViewModel.viewMode) {
             ForEach(CalendarViewMode.allCases, id: \.self) { mode in
-                Text(mode.rawValue)
+                Text(mode.displayName)
                     .font(.system(size: 12, weight: .medium))
                     .tag(mode)
             }

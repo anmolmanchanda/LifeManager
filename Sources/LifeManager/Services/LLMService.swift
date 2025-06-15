@@ -1,7 +1,18 @@
 import Foundation
 
+//
+// LLMService.swift
+// LifeManager
+//
+// Implements: v1.0 "AI Categorization", v1.25 "Enhanced AI Processing", v1.5 "Enhanced Task Extraction"
+// Roadmap Reference: v1.0 Foundation, v1.25 Intelligence & UI, v1.5 Advanced Features
+// Status: ✅ COMPLETE as of June 14, 2025
+// Future: v2.0 Multi-LLM Support, Advanced NLU, Smart Summarization
+//
+
 /// LLM service for natural language processing and PARA categorization
 /// Handles OpenAI/Claude API calls for content analysis and task extraction
+/// Core component of LifeManager's AI-powered productivity system
 class LLMService: ObservableObject {
     
     static let shared = LLMService()
@@ -28,20 +39,34 @@ class LLMService: ObservableObject {
         static let claudeBaseURL = "https://api.anthropic.com/v1"
         
         private static func loadFromConfigFile() -> String? {
-            // Try to load from config file in app directory
+            // Try to load from config file in various locations
             let configPaths = [
+                // Current working directory
                 "config.txt",
                 "api_key.txt",
-                FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".lifemanager_config").path
+                // App bundle directory
+                Bundle.main.bundlePath + "/config.txt",
+                Bundle.main.bundlePath + "/api_key.txt",
+                // User home directory
+                FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".lifemanager_config").path,
+                // Documents directory
+                FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("config.txt").path ?? "",
+                // Application Support directory
+                FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("LifeManager/config.txt").path ?? ""
             ]
             
+            print("🔧 LLM CONFIG: Searching for config file in paths:")
             for path in configPaths {
+                print("🔧 LLM CONFIG: Checking: \(path)")
                 if let content = try? String(contentsOfFile: path).trimmingCharacters(in: .whitespacesAndNewlines),
                    !content.isEmpty {
+                    print("🔧 LLM CONFIG: ✅ Found config file at: \(path)")
+                    print("🔧 LLM CONFIG: API key length: \(content.count)")
                     return content
                 }
             }
             
+            print("🔧 LLM CONFIG: ❌ No config file found in any location")
             return nil
         }
     }
@@ -61,7 +86,9 @@ class LLMService: ObservableObject {
         print("🔧 LLM SERVICE: Preferred provider: \(preferredProvider)")
         
         if APIConfig.openAIKey.isEmpty {
-            print("🔧 LLM SERVICE: ❌ WARNING - No OpenAI API key found in environment")
+            print("🔧 LLM SERVICE: ❌ WARNING - No OpenAI API key found")
+        } else if APIConfig.openAIKey.contains("your-openai-api-key-here") {
+            print("🔧 LLM SERVICE: ❌ WARNING - Using placeholder API key")
         } else {
             print("🔧 LLM SERVICE: ✅ OpenAI API key configured")
             print("🔧 LLM SERVICE: API key prefix: \(APIConfig.openAIKey.prefix(20))...")
@@ -491,8 +518,36 @@ class LLMService: ObservableObject {
     // MARK: - Convenience Methods
     
     /// Quick PARA categorization for a blob content
-    func categorizePARA(content: String) async throws -> PARAProcessingResult {
-        return try await processNaturalLanguage(input: content)
+    func categorizePARA(input: String, context: PARAContext) async throws -> PARAProcessingResult {
+        print("🔧 LLM: Starting PARA categorization with enhanced prompt")
+        
+        // Build the comprehensive prompt
+        let prompt = buildComprehensivePrompt(input: input, context: context)
+        
+        // Make the API call
+        let response = try await makeAPICall(prompt: prompt)
+        print("🔧 LLM: Received response from OpenAI API")
+        
+        // Parse the JSON response
+        let extractedItems = try parseJSONResponse(response)
+        print("🔧 LLM: Successfully parsed \(extractedItems.count) items from response")
+        
+        // Convert to PARAProcessingResult
+        let result = PARAProcessingResult(
+            category: "mixed",
+            suggestedArea: nil,
+            suggestedProject: nil,
+            actionableTasks: [],
+            tags: [],
+            priority: .medium,
+            workPersonal: .personal,
+            confidenceScore: calculateAverageConfidence(from: extractedItems),
+            reasoning: "Processed \(extractedItems.count) items with enhanced PARA categorization",
+            extractedItems: extractedItems
+        )
+        
+        print("🔧 LLM: PARA categorization completed successfully")
+        return result
     }
     
     /// Quick task extraction from content
@@ -617,7 +672,7 @@ class LLMService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let body: [String: Any] = [
-                            "model": "gpt-4.1",
+            "model": "gpt-4",
             "messages": [
                 ["role": "user", "content": prompt]
             ],
@@ -731,7 +786,8 @@ class LLMService: ObservableObject {
             priority: TaskPriority(rawValue: json["priority"] as? String ?? "medium") ?? .medium,
             workPersonal: WorkPersonalType(rawValue: json["work_personal"] as? String ?? "personal") ?? .personal,
             confidenceScore: json["confidence_score"] as? Double ?? 0.5,
-            reasoning: json["reasoning"] as? String ?? ""
+            reasoning: json["reasoning"] as? String ?? "",
+            extractedItems: nil
         )
     }
     
@@ -791,17 +847,43 @@ class LLMService: ObservableObject {
     
     /// Extract JSON from LLM response
     private func extractJSON(from response: String) -> String {
-        // Look for JSON between ```json and ``` or { and }
-        if let jsonStart = response.range(of: "```json"),
-           let jsonEnd = response.range(of: "```", range: jsonStart.upperBound..<response.endIndex) {
-            return String(response[jsonStart.upperBound..<jsonEnd.lowerBound])
+        print("🔧 LLM EXTRACT: Extracting JSON from response")
+        
+        // Look for JSON between ```json and ```
+        if let jsonStart = response.range(of: "```json") {
+            let searchRange = jsonStart.upperBound..<response.endIndex
+            if let jsonEnd = response.range(of: "```", range: searchRange) {
+                let extracted = String(response[jsonStart.upperBound..<jsonEnd.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                print("🔧 LLM EXTRACT: ✅ Found JSON in code block")
+                return extracted
+            }
         }
         
-        if let jsonStart = response.range(of: "{"),
-           let jsonEnd = response.range(of: "}", options: .backwards) {
-            return String(response[jsonStart.lowerBound...jsonEnd.upperBound])
+        // Look for JSON between { and } - find matching braces
+        if let jsonStart = response.range(of: "{") {
+            // Find the matching closing brace by counting braces
+            var braceCount = 0
+            var currentIndex = jsonStart.lowerBound
+            
+            while currentIndex < response.endIndex {
+                let char = response[currentIndex]
+                if char == "{" {
+                    braceCount += 1
+                } else if char == "}" {
+                    braceCount -= 1
+                    if braceCount == 0 {
+                        // Found matching closing brace
+                        let jsonEnd = response.index(after: currentIndex)
+                        let extracted = String(response[jsonStart.lowerBound..<jsonEnd])
+                        print("🔧 LLM EXTRACT: ✅ Found JSON with brace matching")
+                        return extracted
+                    }
+                }
+                currentIndex = response.index(after: currentIndex)
+            }
         }
         
+        print("🔧 LLM EXTRACT: ⚠️ No JSON structure found, returning original response")
         return response
     }
     
@@ -1217,6 +1299,347 @@ class LLMService: ObservableObject {
         
         return result
     }
+    
+    /// Parse brain dump response containing JSON array of items
+    private func parseBrainDumpResponse(_ response: String) throws -> PARAProcessingResult {
+        print("🔧 LLM PARSE: Parsing brain dump response")
+        
+        // Extract JSON array from response
+        let jsonString = extractJSONArray(from: response)
+        guard let data = jsonString.data(using: .utf8) else {
+            print("🔧 LLM PARSE: ❌ Failed to convert JSON string to data")
+            throw LLMError.parsingError
+        }
+        
+        do {
+            guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                print("🔧 LLM PARSE: ❌ Response is not a JSON array")
+                throw LLMError.invalidResponse
+            }
+            
+            print("🔧 LLM PARSE: ✅ Parsed JSON array with \(jsonArray.count) items")
+            
+            // Convert JSON array to BrainDumpItems
+            var extractedItems: [BrainDumpItem] = []
+            
+            for (index, itemJson) in jsonArray.enumerated() {
+                do {
+                    let item = try parseBrainDumpItemFromJSON(itemJson)
+                    extractedItems.append(item)
+                    print("🔧 LLM PARSE: ✅ Item \(index + 1): \(item.title) (\(item.paraCategory.rawValue))")
+                } catch {
+                    print("🔧 LLM PARSE: ❌ Failed to parse item \(index + 1): \(error)")
+                }
+            }
+            
+            // Return result with extracted items
+            return PARAProcessingResult(
+                category: "multiple", // Indicates multiple items
+                suggestedArea: nil,
+                suggestedProject: nil,
+                actionableTasks: [],
+                tags: [],
+                priority: .medium,
+                workPersonal: .personal,
+                confidenceScore: 0.9,
+                reasoning: "Processed \(extractedItems.count) items using PARA method",
+                extractedItems: extractedItems
+            )
+            
+        } catch {
+            print("🔧 LLM PARSE: ❌ JSON parsing error: \(error)")
+            throw LLMError.parsingError
+        }
+    }
+    
+    /// Parse individual brain dump item from JSON
+    private func parseBrainDumpItemFromJSON(_ json: [String: Any]) throws -> BrainDumpItem {
+        guard let title = json["title"] as? String,
+              let content = json["content"] as? String,
+              let contentTypeString = json["content_type"] as? String,
+              let paraCategoryString = json["para_category"] as? String else {
+            throw LLMError.invalidResponse
+        }
+        
+        let contentType = ContentType(rawValue: contentTypeString) ?? .note
+        let paraCategory = PARACategory(rawValue: paraCategoryString) ?? .area
+        let workPersonal = WorkPersonalType(rawValue: json["work_personal"] as? String ?? "personal") ?? .personal
+        let priority = TaskPriority(rawValue: json["priority"] as? String ?? "medium") ?? .medium
+        let confidence = json["confidence"] as? Double ?? 0.8
+        let tags = json["tags"] as? [String] ?? []
+        
+        return BrainDumpItem(
+            id: UUID(),
+            title: title,
+            content: content,
+            contentType: contentType,
+            paraCategory: paraCategory,
+            suggestedArea: json["suggested_area"] as? String,
+            suggestedProject: json["suggested_project"] as? String,
+            workPersonal: workPersonal,
+            priority: priority,
+            dueDate: json["due_date"] as? String,
+            tags: tags,
+            confidence: confidence,
+            metadata: ["reasoning": json["reasoning"] as? String ?? ""]
+        )
+    }
+    
+    /// Extract JSON array from LLM response with safe string parsing
+    private func extractJSONArray(from response: String) -> String {
+        print("🔧 LLM EXTRACT: Extracting JSON array from response")
+        
+        // Look for JSON array between ```json and ```
+        if let jsonStart = response.range(of: "```json") {
+            let searchStart = jsonStart.upperBound
+            guard searchStart < response.endIndex else {
+                print("🔧 LLM EXTRACT: ⚠️ Invalid range after ```json")
+                return response.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            let searchRange = searchStart..<response.endIndex
+            if let jsonEnd = response.range(of: "```", range: searchRange) {
+                let extracted = String(response[searchStart..<jsonEnd.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                print("🔧 LLM EXTRACT: ✅ Found JSON in code block")
+                return extracted
+            }
+        }
+        
+        // Look for JSON array brackets with safe parsing
+        if let firstBracket = response.range(of: "[") {
+            let startIndex = firstBracket.lowerBound
+            
+            // Find matching closing bracket by counting brackets
+            var bracketCount = 0
+            var currentIndex = startIndex
+            var lastBracketIndex: String.Index? = nil
+            
+            while currentIndex < response.endIndex {
+                let char = response[currentIndex]
+                if char == "[" {
+                    bracketCount += 1
+                } else if char == "]" {
+                    bracketCount -= 1
+                    lastBracketIndex = currentIndex
+                    if bracketCount == 0 {
+                        // Found matching closing bracket
+                        break
+                    }
+                }
+                
+                // Safe index advancement
+                let nextIndex = response.index(after: currentIndex)
+                guard nextIndex <= response.endIndex else { break }
+                currentIndex = nextIndex
+            }
+            
+            if bracketCount == 0, let endIndex = lastBracketIndex {
+                let extracted = String(response[startIndex...endIndex])
+                print("🔧 LLM EXTRACT: ✅ Found JSON array brackets")
+                return extracted
+            } else {
+                print("🔧 LLM EXTRACT: ⚠️ Unmatched brackets, bracket count: \(bracketCount)")
+            }
+        }
+        
+        // If no clear JSON found, try to clean up the response
+        let cleaned = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("🔧 LLM EXTRACT: ⚠️ Using cleaned response as fallback")
+        return cleaned
+    }
+    
+    private func buildComprehensivePrompt(input: String, context: PARAContext) -> String {
+        let projectsList = context.projects.map { "- \($0.name): \($0.description ?? "")" }.joined(separator: "\n")
+        let areasList = context.areas.map { "- \($0.name): \($0.description ?? "")" }.joined(separator: "\n")
+        let commonTags = context.commonTags.joined(separator: ", ")
+        
+        return """
+        You are a production-quality PARA categorization engine for LifeManager. Your job is to deliver precise, actionable classification of brain dump inputs.
+
+        **INPUT TO ANALYZE:**
+        "\(input)"
+
+        **EXISTING CONTEXT:**
+        Current Projects: \(projectsList.isEmpty ? "None" : projectsList)
+        Current Areas: \(areasList.isEmpty ? "None" : areasList)
+        Common Tags: \(commonTags.isEmpty ? "None" : commonTags)
+
+        **CRITICAL CONTENT TYPE RULES - DO NOT LABEL EVERYTHING AS "NOTE":**
+
+        **TASK**: Specific actionable items with clear completion criteria
+        - "Clean out old clothes for donation before July 10th" → TASK
+        - "Log receipts for June expenses in finance tracker" → TASK
+        - "Renew library card by end of the month" → TASK
+
+        **APPOINTMENT**: Scheduled or time-specific actions requiring calendar blocking
+        - "Schedule 1-on-1 with new team lead" → APPOINTMENT
+        - "Ask Dr. Patel if I need to renew tetanus shot this year" → APPOINTMENT
+
+        **RESOURCE**: Reference material, learning content, information to consume
+        - "Read 'Atomic Habits' summary and save best ideas" → RESOURCE
+        - "Watch WWDC 2025 sessions on Swift macros" → RESOURCE
+        - "Try overnight oats recipe from NYT Cooking" → RESOURCE
+
+        **PROJECT**: Multi-step outcomes with clear completion criteria and deadlines
+        - "Create 'Wishlist' note for books and gadgets" → PROJECT
+        - "Make packing checklist for Toronto conference in August" → PROJECT
+        - "Update will and store a copy with estate documents" → PROJECT
+
+        **GOAL**: Future aspirations, recurring habits, or long-term objectives
+        - "Register for local improv class starting in September" → GOAL
+        - "Brainstorm potential side-projects for autumn hackathon" → GOAL
+
+        **ARCHIVE**: Storage, backup, or moving completed items
+        - "Move 'Spring 2024 Project Plan' file to archives" → ARCHIVE
+        - "Backup phone photos and clear space" → ARCHIVE
+
+        **DATE & PRIORITY INTELLIGENCE:**
+        - Extract ALL dates: "next week", "before July 10th", "Friday", "end of the month"
+        - Convert to ISO format: "next week" → "2025-06-23", "before July 10th" → "2025-07-09"
+        - Current date: 2025-06-14
+        - **URGENT**: Deadlines in next 3 days
+        - **HIGH**: This week deadlines, important milestones
+        - **MEDIUM**: Planned but not urgent
+        - **LOW**: Someday/maybe items
+
+        **PARA ASSIGNMENT ACCURACY:**
+        - **PROJECT**: Only for multi-step outcomes with clear completion criteria
+        - **AREA**: Ongoing responsibilities (Health, Finance, Home, Work, Relationships)
+        - **RESOURCE**: Reference material, learning content
+        - **ARCHIVE**: Completed items, storage tasks
+
+        **CONTEXT AWARENESS:**
+        - Cross-check against existing Areas/Projects from context
+        - If matching Project/Area exists, suggest linking
+        - Create specific area names: "Personal Finance", "Health & Fitness", "Home Organization"
+
+        **CONFIDENCE SCORING:**
+        - Set confidence < 0.5 for ambiguous cases
+        - Flag uncertain items for review
+        - Be honest about classification uncertainty
+
+        **REQUIRED OUTPUT (JSON Array Only):**
+        [
+          {
+            "title": "Clear, actionable title (max 60 chars)",
+            "content": "Full original text segment",
+            "content_type": "task|project|appointment|resource|goal|archive",
+            "para_category": "project|area|resource|archive",
+            "suggested_area": "Specific area name",
+            "suggested_project": "Specific project name or null",
+            "work_personal": "work|personal",
+            "priority": "urgent|high|medium|low",
+            "due_date": "YYYY-MM-DD or null",
+            "tags": ["specific", "descriptive", "tags"],
+            "confidence": 0.85,
+            "reasoning": "1-2 sentence explanation of type and PARA choice"
+          }
+        ]
+
+        **PRODUCTION QUALITY REQUIREMENTS:**
+        1. Split input into distinct items (each sentence = one item)
+        2. NO generic "note" classifications - be precise
+        3. Extract and convert ALL dates to ISO format
+        4. Assign realistic urgency based on deadlines
+        5. Link to existing context when possible
+        6. Provide detailed reasoning for each decision
+        7. Flag uncertain cases with low confidence
+        8. Ensure JSON is valid and ready for database insertion
+
+        **EXAMPLES FROM YOUR INPUT:**
+        - "Remember to send birthday card to Maya next week" → Task, Personal Relationships, due: "2025-06-20", High priority
+        - "Schedule 1-on-1 with new team lead" → Appointment, Work Management, High priority
+        - "Research best high-protein vegetarian snacks for running" → Resource, Health & Fitness, Medium priority
+        - "Create 'Wishlist' note for books and gadgets" → Project, Personal Organization, Medium priority
+        - "Move 'Spring 2024 Project Plan' file to archives" → Archive, Work Organization, Low priority
+
+        Return ONLY the JSON array - no other text. Be precise, not generic.
+        """
+    }
+    
+    private func calculateAverageConfidence(from items: [BrainDumpItem]) -> Double {
+        guard !items.isEmpty else { return 0.0 }
+        let totalConfidence = items.compactMap { $0.confidence }.reduce(0.0, +)
+        return totalConfidence / Double(items.count)
+    }
+    
+    private func makeAPICall(prompt: String) async throws -> String {
+        return try await callLLM(prompt: prompt)
+    }
+    
+    private func parseJSONResponse(_ response: String) throws -> [BrainDumpItem] {
+        // Extract JSON from response
+        let jsonString = extractJSONArray(from: response)
+        
+        // Parse JSON
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            throw LLMError.parsingError
+        }
+        
+        do {
+            let jsonArray = try JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]]
+            guard let jsonArray = jsonArray else {
+                throw LLMError.parsingError
+            }
+            
+            var items: [BrainDumpItem] = []
+            for json in jsonArray {
+                let item = try createBrainDumpItemFromJSON(json)
+                items.append(item)
+            }
+            
+            return items
+        } catch {
+            print("🔧 LLM: JSON parsing error: \(error)")
+            throw LLMError.parsingError
+        }
+    }
+    
+    private func createBrainDumpItemFromJSON(_ json: [String: Any]) throws -> BrainDumpItem {
+        guard let title = json["title"] as? String,
+              let content = json["content"] as? String,
+              let contentTypeString = json["content_type"] as? String,
+              let paraCategoryString = json["para_category"] as? String,
+              let workPersonalString = json["work_personal"] as? String,
+              let priorityString = json["priority"] as? String else {
+            throw LLMError.parsingError
+        }
+        
+        // Parse enums with better defaults
+        let contentType = ContentType(rawValue: contentTypeString) ?? .task
+        let paraCategory = PARACategory(rawValue: paraCategoryString) ?? .area
+        let workPersonal = WorkPersonalType(rawValue: workPersonalString) ?? .personal
+        let priority = TaskPriority(rawValue: priorityString) ?? .medium
+        
+        // Parse optional fields
+        let suggestedArea = json["suggested_area"] as? String
+        let suggestedProject = json["suggested_project"] as? String
+        let confidence = json["confidence"] as? Double ?? 0.8
+        let reasoning = json["reasoning"] as? String ?? ""
+        let tags = json["tags"] as? [String] ?? []
+        
+        // Parse due date
+        var dueDate: String? = nil
+        if let dueDateString = json["due_date"] as? String, !dueDateString.isEmpty && dueDateString != "null" {
+            dueDate = dueDateString
+        }
+        
+        return BrainDumpItem(
+            id: UUID(),
+            title: title,
+            content: content,
+            contentType: contentType,
+            paraCategory: paraCategory,
+            suggestedArea: suggestedArea,
+            suggestedProject: suggestedProject,
+            workPersonal: workPersonal,
+            priority: priority,
+            dueDate: dueDate,
+            tags: tags,
+            confidence: confidence,
+            metadata: ["reasoning": reasoning]
+        )
+    }
 }
 
 // MARK: - Result Types
@@ -1231,6 +1654,7 @@ struct PARAProcessingResult {
     let workPersonal: WorkPersonalType
     let confidenceScore: Double
     let reasoning: String
+    let extractedItems: [BrainDumpItem]?
 }
 
 struct TaskExtractionResult {

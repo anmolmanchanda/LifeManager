@@ -25,16 +25,28 @@ class NotificationService: ObservableObject {
         
         NSLog("🔧 DEBUG: Requesting notification permissions")
         
-        // Safely handle UNUserNotificationCenter access
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            DispatchQueue.main.async {
-                self.notificationPermissionGranted = granted
-                if let error = error {
-                    NSLog("🔧 NOTIFICATIONS: ❌ Permission error: \(error)")
-                } else {
-                    NSLog("🔧 NOTIFICATIONS: ✅ Permission granted: \(granted)")
+        // Safely handle UNUserNotificationCenter access with error handling
+        do {
+            // Check if we're running in a proper app bundle context
+            guard Bundle.main.bundleIdentifier != nil else {
+                NSLog("🔧 NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notifications")
+                notificationPermissionGranted = false
+                return
+            }
+            
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+                DispatchQueue.main.async {
+                    self.notificationPermissionGranted = granted
+                    if let error = error {
+                        NSLog("🔧 NOTIFICATIONS: ❌ Permission error: \(error)")
+                    } else {
+                        NSLog("🔧 NOTIFICATIONS: ✅ Permission granted: \(granted)")
+                    }
                 }
             }
+        } catch {
+            NSLog("🔧 NOTIFICATIONS: ❌ Failed to access UNUserNotificationCenter: \(error)")
+            notificationPermissionGranted = false
         }
     }
     
@@ -55,28 +67,38 @@ class NotificationService: ObservableObject {
             return
         }
         
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = category.sound
-        content.categoryIdentifier = category.rawValue
+        // Check if we're running in a proper app bundle context
+        guard Bundle.main.bundleIdentifier != nil else {
+            NSLog("🔧 NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notification")
+            return
+        }
         
-        // Add action buttons for interactive notifications
-        addNotificationActions(for: category)
-        
-        let trigger = delay > 0 ? UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false) : nil
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
-            content: content,
-            trigger: trigger
-        )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("🔧 NOTIFICATIONS: ❌ Failed to send notification: \(error)")
-            } else {
-                print("🔧 NOTIFICATIONS: ✅ Sent notification: \(title)")
+        do {
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = category.sound
+            content.categoryIdentifier = category.rawValue
+            
+            // Add action buttons for interactive notifications
+            addNotificationActions(for: category)
+            
+            let trigger = delay > 0 ? UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false) : nil
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString,
+                content: content,
+                trigger: trigger
+            )
+            
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("🔧 NOTIFICATIONS: ❌ Failed to send notification: \(error)")
+                } else {
+                    print("🔧 NOTIFICATIONS: ✅ Sent notification: \(title)")
+                }
             }
+        } catch {
+            NSLog("🔧 NOTIFICATIONS: ❌ Failed to send notification: \(error)")
         }
     }
     
@@ -211,9 +233,16 @@ class NotificationService: ObservableObject {
     // MARK: - Interactive Notification Actions
     
     private func addNotificationActions(for category: NotificationCategory) {
-        let center = UNUserNotificationCenter.current()
+        // Check if we're running in a proper app bundle context
+        guard Bundle.main.bundleIdentifier != nil else {
+            NSLog("🔧 NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notification actions")
+            return
+        }
         
-        switch category {
+        do {
+            let center = UNUserNotificationCenter.current()
+            
+            switch category {
         case .bufferWarning:
             let rescheduleAction = UNNotificationAction(
                 identifier: "RESCHEDULE_ACTION",
@@ -259,6 +288,9 @@ class NotificationService: ObservableObject {
             
         default:
             break
+        }
+        } catch {
+            NSLog("🔧 NOTIFICATIONS: ❌ Failed to add notification actions: \(error)")
         }
     }
     

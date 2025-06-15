@@ -56,10 +56,15 @@ struct CalendarView: View {
             // Refresh parking lot with latest PARA tasks
             refreshParkingLotTasks()
         }
-        .onChange(of: viewModel.selectedView) { _ in
-            if viewModel.selectedView == .calendar {
+        .onChange(of: viewModel.selectedView) { newView in
+            if newView == .calendar {
+                // Refresh parking lot tasks when calendar tab is selected
                 refreshParkingLotTasks()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("TaskCreated"))) { _ in
+            // Refresh parking lot when new tasks are created
+            refreshParkingLotTasks()
         }
         .sheet(isPresented: $showingCreateEvent) {
             CreateEventView(calendarViewModel: calendarViewModel)

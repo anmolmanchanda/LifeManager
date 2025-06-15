@@ -475,25 +475,12 @@ struct CalendarHourContextMenu: View {
                     onQuickSchedule()
                 }
                 
-                Button("Show Available Tasks") {
-                    onShowAvailableTasks()
-                }
-                
-                Button("Show Details") {
-                    onShowDetails()
-                }
-                
                 if !events.isEmpty {
                     Divider()
                     
                     Button("Clear Time Slot", role: .destructive) {
                         onClearTimeSlot()
                     }
-                }
-            } else {
-                // Show limited context menu for past/Toggl events
-                Button("Show Details") {
-                    onShowDetails()
                 }
             }
         }

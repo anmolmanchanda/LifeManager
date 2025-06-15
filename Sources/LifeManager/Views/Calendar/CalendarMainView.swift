@@ -45,33 +45,38 @@ struct CalendarMainView: View {
     // MARK: - Calendar Content
     
     private var calendarContent: some View {
-        Group {
-            switch calendarViewModel.viewMode {
-            case .day:
-                CalendarDayView()
-                    .environmentObject(calendarViewModel)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
-                
-            case .week:
-                CalendarWeekView()
-                    .environmentObject(calendarViewModel)
-                    .transition(.asymmetric(
-                        insertion: .scale.combined(with: .opacity),
-                        removal: .opacity
-                    ))
-                
-            case .month:
-                CalendarMonthView()
-                    .environmentObject(calendarViewModel)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .top).combined(with: .opacity)
-                    ))
+        VStack(alignment: .leading, spacing: 0) {
+            Group {
+                switch calendarViewModel.viewMode {
+                case .day:
+                    CalendarDayView()
+                        .environmentObject(calendarViewModel)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
+                    
+                case .week:
+                    CalendarWeekView()
+                        .environmentObject(calendarViewModel)
+                        .transition(.asymmetric(
+                            insertion: .scale.combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                    
+                case .month:
+                    CalendarMonthView()
+                        .environmentObject(calendarViewModel)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .top).combined(with: .opacity)
+                        ))
+                }
             }
+            
+            Spacer() // Push all content to the top
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }

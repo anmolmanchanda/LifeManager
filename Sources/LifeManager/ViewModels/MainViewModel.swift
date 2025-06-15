@@ -1,8 +1,27 @@
 import Foundation
 import SwiftUI
 
+//
+// MainViewModel.swift
+// LifeManager
+//
+// Implements: v1.0 "Inbox Processing", v1.25 "Enhanced UI", v1.5 "PARA System", v1.75 "MVVM Architecture"
+// Roadmap Reference: v1.0 Foundation, v1.25 Intelligence & UI, v1.5 Advanced Features, v1.75 Calendar Revolution
+// Status: ✅ COMPLETE as of June 14, 2025
+// Future: v2.0 Analytics & Insights, Collaboration Features
+//
+
+/// History item for inbox processing
+struct InboxHistoryItem {
+    let input: String
+    let itemsCreated: Int
+    let timestamp: Date
+    let categories: [String]
+}
+
 /// Main view model for LifeManager app
 /// Manages authentication, navigation, and overall app state
+/// Central coordinator for PARA methodology and AI-powered productivity features
 @MainActor
 class MainViewModel: ObservableObject {
     
@@ -60,6 +79,16 @@ class MainViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var successMessage: String?
     @Published var showingProcessingDetails = false
+    
+    // MARK: - Brain Dump State
+    
+    @Published var inboxInput = ""
+    @Published var inboxHistory: [InboxHistoryItem] = []
+    @Published var isProcessingInbox = false
+    @Published var showingBrainDumpReview = false
+    @Published var brainDumpResult: BrainDumpResult?
+    
+    private let brainDumpProcessor = LLMBrainDumpProcessor()
     
     // MARK: - Processing State
     
@@ -685,7 +714,7 @@ class MainViewModel: ObservableObject {
                 blob: blob,
                 availableAreas: areas,
                 availableProjects: projects,
-                confidenceThreshold: 0.7
+                confidenceThreshold: 0.3  // Lowered from 0.5 to 0.3 for more aggressive task creation
             )
             
             print("🔧 IMMEDIATE PROCESS: ✅ LLM processing completed")
@@ -787,15 +816,123 @@ class MainViewModel: ObservableObject {
                 print("🔧 INDIVIDUAL PROCESS: Skipping action execution - confirmation required")
             }
             
+            // Fallback: If no tasks were extracted, try simple keyword-based extraction
+            if result.extractedTasks.isEmpty {
+                print("🔧 INDIVIDUAL PROCESS: No tasks extracted by LLM, trying fallback extraction...")
+                await performFallbackTaskExtraction(for: blob)
+            }
+
         } catch {
             print("🔧 INDIVIDUAL PROCESS: ❌ LLM Processing failed: \(error)")
             print("🔧 INDIVIDUAL PROCESS: ❌ Error type: \(type(of: error))")
             print("🔧 INDIVIDUAL PROCESS: ❌ Error description: \(error.localizedDescription)")
             
+            // Fallback: Try simple task extraction even if LLM fails
+            print("🔧 INDIVIDUAL PROCESS: Attempting fallback task extraction...")
+            await performFallbackTaskExtraction(for: blob)
+            
             await MainActor.run {
                 self.blobProcessingStates[blob.id] = .error(error.localizedDescription)
                 self.errorMessage = "LLM processing failed: \(error.localizedDescription)"
             }
+        }
+    }
+    
+    /// Fallback task extraction using simple keyword matching
+    private func performFallbackTaskExtraction(for blob: Blob) async {
+        print("🔧 FALLBACK EXTRACTION: Starting for blob: \(blob.id)")
+        
+        let content = blob.content.lowercased()
+        let taskKeywords = [
+            "need to", "have to", "must", "should", "todo", "to do", "task:",
+            "action:", "follow up", "followup", "call", "email", "meet", "meeting",
+            "schedule", "book", "buy", "get", "pick up", "finish", "complete",
+            "review", "check", "update", "fix", "resolve", "handle", "deal with",
+            "prepare", "prep", "organize", "plan", "research", "investigate"
+        ]
+        
+        var foundTasks: [String] = []
+        
+        // Split content into sentences
+        let sentences = content.components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
+        
+        for sentence in sentences {
+            let trimmedSentence = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedSentence.count < 5 { continue } // Skip very short sentences
+            
+            // Check if sentence contains task keywords
+            for keyword in taskKeywords {
+                if trimmedSentence.contains(keyword) {
+                    // Clean up the sentence to make it a proper task title
+                    var taskTitle = trimmedSentence
+                    
+                    // Remove common prefixes
+                    let prefixesToRemove = ["i need to", "i have to", "i must", "i should", "need to", "have to", "must", "should"]
+                    for prefix in prefixesToRemove {
+                        if taskTitle.hasPrefix(prefix) {
+                            taskTitle = String(taskTitle.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+                            break
+                        }
+                    }
+                    
+                    // Capitalize first letter
+                    if !taskTitle.isEmpty {
+                        taskTitle = taskTitle.prefix(1).uppercased() + taskTitle.dropFirst()
+                    }
+                    
+                    // Limit length
+                    if taskTitle.count > 100 {
+                        taskTitle = String(taskTitle.prefix(97)) + "..."
+                    }
+                    
+                    if !taskTitle.isEmpty && !foundTasks.contains(taskTitle) {
+                        foundTasks.append(taskTitle)
+                        print("🔧 FALLBACK EXTRACTION: Found task: '\(taskTitle)'")
+                    }
+                    break // Only match one keyword per sentence
+                }
+            }
+        }
+        
+        // Create tasks from extracted titles
+        for (index, taskTitle) in foundTasks.enumerated() {
+            if index >= 3 { break } // Limit to 3 tasks to avoid spam
+            
+            let task = LifeTask(
+                blobId: blob.id,
+                title: taskTitle,
+                description: "Auto-extracted from: \(blob.content.prefix(100))...",
+                priority: .medium,
+                workPersonal: blob.workPersonal
+            )
+            
+            do {
+                let _ = try await taskRepository().createTask(task)
+                print("🔧 FALLBACK EXTRACTION: ✅ Created task: '\(taskTitle)'")
+                
+                await MainActor.run {
+                    // Add to focus tasks for immediate visibility
+                    self.focusTasks.insert(task, at: 0)
+                    
+                    // Keep only the most recent 10 focus tasks
+                    if self.focusTasks.count > 10 {
+                        self.focusTasks = Array(self.focusTasks.prefix(10))
+                    }
+                    
+                    self.successMessage = "✅ Created \(foundTasks.count) task(s) from note"
+                    
+                    // Notify that a task was created so parking lot refreshes
+                    NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
+                }
+            } catch {
+                print("🔧 FALLBACK EXTRACTION: ❌ Failed to create task: \(error)")
+            }
+        }
+        
+        if foundTasks.isEmpty {
+            print("🔧 FALLBACK EXTRACTION: No tasks found using keyword matching")
+        } else {
+            print("🔧 FALLBACK EXTRACTION: ✅ Created \(foundTasks.count) tasks using fallback extraction")
         }
     }
     
@@ -869,7 +1006,15 @@ class MainViewModel: ObservableObject {
         do {
             // Use LLM to categorize and extract tasks
             print("🔧 PROCESS BLOB: Calling LLM categorization...")
-            let categorization = try await llmService.categorizePARA(content: blob.content)
+            // Build context for PARA categorization
+            let context = PARAContext(
+                projects: [],
+                areas: [],
+                resources: [],
+                recentTasks: [],
+                commonTags: ["work", "personal", "urgent", "health", "finance"]
+            )
+            let categorization = try await llmService.categorizePARA(input: blob.content, context: context)
             print("🔧 PROCESS BLOB: ✅ LLM categorization completed")
             print("🔧 PROCESS BLOB: Category: \(categorization.category), Confidence: \(categorization.confidenceScore)")
             
@@ -1108,10 +1253,10 @@ class MainViewModel: ObservableObject {
         await MainActor.run {
             // Mock Areas
             self.areas = [
-                Area(name: "Health & Fitness", description: "Physical and mental well-being", icon: "heart.fill", color: "#FF6B6B"),
-                Area(name: "Career", description: "Professional development", icon: "briefcase.fill", color: "#4ECDC4"),
-                Area(name: "Relationships", description: "Family and social connections", icon: "person.2.fill", color: "#45B7D1"),
-                Area(name: "Learning", description: "Continuous education", icon: "book.fill", color: "#96CEB4")
+                Area(name: "Health & Fitness", description: "Physical and mental well-being"),
+                Area(name: "Career", description: "Professional development"),
+                Area(name: "Relationships", description: "Family and social connections"),
+                Area(name: "Learning", description: "Continuous education")
             ]
             
             // Mock Projects
@@ -1349,7 +1494,7 @@ class MainViewModel: ObservableObject {
                     // Create error result
                     let errorResult = ProcessingResult(
                         blobId: blob.id,
-                        paraCategory: .resource,
+                        paraCategory: PARACategory.resource,
                         confidence: 0.0,
                         requiresConfirmation: true,
                         actions: [ProcessingAction(
@@ -1532,8 +1677,30 @@ class MainViewModel: ObservableObject {
                     isArchived: false
                 )
                 
-                let _ = try await blobRepository().updateBlob(categorizedBlob)
+                let updatedBlob = try await blobRepository().updateBlob(categorizedBlob)
                 print("🔧 MOVE PARA: ✅ Blob updated with PARA assignment")
+                
+                // Update local state immediately
+                await MainActor.run {
+                    // Remove from recent blobs (inbox) if it was there
+                    self.recentBlobs.removeAll { $0.id == blob.id }
+                    
+                    // Add to appropriate PARA category
+                    if let projectId = targetProjectId {
+                        if self.projectBlobs[projectId] == nil {
+                            self.projectBlobs[projectId] = []
+                        }
+                        self.projectBlobs[projectId]?.append(updatedBlob)
+                        print("🔧 MOVE PARA: ✅ Added blob to project blobs locally")
+                    } else if let areaId = targetAreaId {
+                        if self.areaBlobs[areaId] == nil {
+                            self.areaBlobs[areaId] = []
+                        }
+                        self.areaBlobs[areaId]?.append(updatedBlob)
+                        print("🔧 MOVE PARA: ✅ Added blob to area blobs locally")
+                    }
+                }
+                
             } catch {
                 print("🔧 MOVE PARA: ❌ Failed to update blob: \(error)")
                 throw error
@@ -1644,6 +1811,11 @@ class MainViewModel: ObservableObject {
         }
         
         print("🔧 CREATE TASK: ✅ Task creation completed: \(taskInfo.title)")
+        
+        // Notify that a task was created so parking lot refreshes
+        await MainActor.run {
+            NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
+        }
     }
     
     /// Apply tags to blob
@@ -1939,5 +2111,126 @@ class MainViewModel: ObservableObject {
                 self.errorMessage = "Failed to complete task: \(error.localizedDescription)"
             }
         }
+    }
+    
+    // MARK: - Brain Dump Processing
+    
+    /// Process inbox input using comprehensive brain dump processor
+    func processInboxInput() {
+        guard !inboxInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("🧠 BRAIN DUMP: Empty input, skipping processing")
+            return
+        }
+        
+        print("🧠 BRAIN DUMP: Starting comprehensive processing of input: '\(inboxInput.prefix(50))...'")
+        isProcessingInbox = true
+        
+        Task {
+            do {
+                print("🧠 BRAIN DUMP: Calling brain dump processor...")
+                // Use comprehensive brain dump processor
+                let result = try await brainDumpProcessor.processBrainDump(inboxInput)
+                print("🧠 BRAIN DUMP: ✅ Processing successful, got \(result.suggestedItems.count) items")
+                
+                await MainActor.run {
+                    print("🧠 BRAIN DUMP: Setting result and showing review UI")
+                    self.brainDumpResult = result
+                    self.showingBrainDumpReview = true
+                    self.isProcessingInbox = false
+                    print("🧠 BRAIN DUMP: Review UI should now be visible: \(self.showingBrainDumpReview)")
+                }
+                
+            } catch LLMError.missingAPIKey {
+                print("🧠 BRAIN DUMP: ❌ Missing API key")
+                await MainActor.run {
+                    self.isProcessingInbox = false
+                    self.errorMessage = "Brain dump requires OpenAI API key. Please set OPENAI_API_KEY environment variable."
+                }
+            } catch {
+                await MainActor.run {
+                    print("🧠 BRAIN DUMP: ❌ Processing failed: \(error)")
+                    self.isProcessingInbox = false
+                    self.errorMessage = "Failed to process brain dump: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    /// Complete brain dump processing after user confirmation
+    func completeBrainDump(_ summary: ExecutionSummary) {
+        // Add to history before clearing
+        let historyItem = InboxHistoryItem(
+            input: brainDumpResult?.originalInput ?? "",
+            itemsCreated: summary.successCount,
+            timestamp: Date(),
+            categories: extractCategoriesFromSummary(summary)
+        )
+        
+        // Add to history and keep only last 3
+        inboxHistory.insert(historyItem, at: 0)
+        if inboxHistory.count > 3 {
+            inboxHistory = Array(inboxHistory.prefix(3))
+        }
+        
+        // Clear input and close review
+        inboxInput = ""
+        showingBrainDumpReview = false
+        brainDumpResult = nil
+        
+        // Show success message with details
+        let itemCount = summary.successCount
+        successMessage = "Brain dump complete! Created \(itemCount) items."
+        
+        // Refresh parking lot to show new tasks
+        NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
+        
+        // Refresh data to show new items
+        Task {
+            await refreshData()
+            
+            // Force UI update by triggering objectWillChange
+            await MainActor.run {
+                self.objectWillChange.send()
+            }
+        }
+    }
+    
+    /// Extract categories from execution summary for history
+    private func extractCategoriesFromSummary(_ summary: ExecutionSummary) -> [String] {
+        var categories: [String] = []
+        
+        if !summary.tasksCreated.isEmpty {
+            categories.append("Tasks (\(summary.tasksCreated.count))")
+        }
+        if !summary.notesCreated.isEmpty {
+            categories.append("Notes (\(summary.notesCreated.count))")
+        }
+        if !summary.journalEntriesCreated.isEmpty {
+            categories.append("Journal (\(summary.journalEntriesCreated.count))")
+        }
+        if !summary.resourcesCreated.isEmpty {
+            categories.append("Resources (\(summary.resourcesCreated.count))")
+        }
+        if !summary.appointmentsCreated.isEmpty {
+            categories.append("Events (\(summary.appointmentsCreated.count))")
+        }
+        if !summary.habitsCreated.isEmpty {
+            categories.append("Habits (\(summary.habitsCreated.count))")
+        }
+        if !summary.goalsCreated.isEmpty {
+            categories.append("Goals (\(summary.goalsCreated.count))")
+        }
+        if !summary.financialTransactionsCreated.isEmpty {
+            categories.append("Financial (\(summary.financialTransactionsCreated.count))")
+        }
+        
+        return categories
+    }
+    
+    /// Cancel brain dump processing
+    func cancelBrainDump() {
+        showingBrainDumpReview = false
+        brainDumpResult = nil
+        isProcessingInbox = false
     }
 }
