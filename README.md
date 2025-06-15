@@ -165,6 +165,23 @@ also remember to buy milk, and I learned that React 18 has new concurrent featur
 - [x] Maintenance guidelines (`doc/traceability_maintenance.md`) ✅
 - [x] Updated README with detailed feature checklists ✅
 
+### **v1.85 - UI/UX Polish & API Management** *(June 14, 2025)* ✅ **SHIPPED**
+
+**Enhanced User Experience:**
+- [x] Improved API key management with template-based setup (`config.txt.template`) ✅
+- [x] Restored 3-dot "Thinking..." animation with faster 2-second intervals ✅
+- [x] Personalized greeting: "Good to see you, Anmol." with centered layout ✅
+- [x] Enhanced placeholder text showcasing comprehensive capabilities ✅
+- [x] Redesigned process button: square design with up arrow, positioned below input ✅
+- [x] Optimized text sizing hierarchy for better visual balance ✅
+
+**Areas Functionality Overhaul:**
+- [x] Complete Areas UI reconstruction with expandable sections (`Views/ContentView.swift`) ✅
+- [x] Consistent PARA tab architecture across Projects/Areas/Resources/Archive ✅
+- [x] Full task and note interaction capabilities with AI transparency ✅
+- [x] Enhanced brain dump processing with double refresh for proper PARA updates ✅
+- [x] Database migration for missing content type enum values (`supabase/migrations/004_add_idea_source_type.sql`) ✅
+
 ---
 
 ## 🔮 Future Roadmap

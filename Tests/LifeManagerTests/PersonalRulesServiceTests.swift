@@ -606,7 +606,7 @@ class PersonalRulesServiceTests: XCTestCase {
         )
     }
     
-    private func createTestPriorityCorrection(originalPriority: Priority, correctedPriority: Priority, pattern: String) -> UserCorrection {
+    private func createTestPriorityCorrection(originalPriority: TaskPriority, correctedPriority: TaskPriority, pattern: String) -> UserCorrection {
         return UserCorrection(
             id: UUID(),
             originalItem: PARAItem(

@@ -340,9 +340,30 @@ final class EmbeddingsServiceTests: XCTestCase {
     func testUpdatePARAEmbeddings() async throws {
         // Given
         let mockPARAItems = [
-            PARAItem(title: "Europe Trip", content: "Plan vacation to Europe", category: .project),
-            PARAItem(title: "Health", content: "Maintain physical wellness", category: .area),
-            PARAItem(title: "Swift Guide", content: "Programming reference", category: .resource)
+            PARAItem(
+                title: "Europe Trip", 
+                content: "Plan vacation to Europe", 
+                contentType: .task,
+                paraCategory: .project,
+                workPersonal: .personal,
+                priority: .medium
+            ),
+            PARAItem(
+                title: "Health", 
+                content: "Maintain physical wellness", 
+                contentType: .note,
+                paraCategory: .area,
+                workPersonal: .personal,
+                priority: .medium
+            ),
+            PARAItem(
+                title: "Swift Guide", 
+                content: "Programming reference", 
+                contentType: .resource,
+                paraCategory: .resource,
+                workPersonal: .work,
+                priority: .low
+            )
         ]
         
         // Mock API responses

@@ -101,6 +101,30 @@
 
 ---
 
+## v1.85 - UI/UX Polish & API Management (SHIPPED ✅)
+
+| Feature | Status | Primary Files | Notes |
+|---------|--------|---------------|-------|
+| **Enhanced User Experience** |
+| API Key Management System | ✅ | `config.txt.template`, `Services/LLMService.swift` | Template-based setup |
+| 3-dot Animation Restoration | ✅ | `ViewModels/MainViewModel.swift` | Faster 2-second intervals |
+| Personalized Greeting | ✅ | `Views/ContentView.swift` | "Good to see you, Anmol." |
+| Enhanced Placeholder Text | ✅ | `Views/ContentView.swift` | Comprehensive capabilities showcase |
+| Process Button Redesign | ✅ | `Views/ContentView.swift` | Square design with up arrow |
+| Text Sizing Optimization | ✅ | `Views/ContentView.swift` | Improved visual hierarchy |
+| **Areas Functionality Overhaul** |
+| Areas UI Reconstruction | ✅ | `Views/ContentView.swift` | Expandable sections matching Projects |
+| Consistent PARA Architecture | ✅ | `Views/ContentView.swift` | All tabs use same pattern |
+| Full Task/Note Interaction | ✅ | `Views/ContentView.swift` | Complete functionality |
+| AI Transparency Display | ✅ | `Views/ContentView.swift` | Assignment reasoning shown |
+| Enhanced Brain Dump Processing | ✅ | `ViewModels/MainViewModel.swift` | Double refresh system |
+| **Database & Migration** |
+| Content Type Enum Extension | ✅ | `supabase/migrations/004_add_idea_source_type.sql` | Added missing enum values |
+| Enhanced Error Handling | ✅ | `Services/LLMService.swift` | Better user guidance |
+| Improved Logging | ✅ | `ViewModels/MainViewModel.swift` | PARA update tracking |
+
+---
+
 ## v2.0 - Intelligence Expansion (PLANNED)
 
 | Feature | Status | Primary Files | Notes |

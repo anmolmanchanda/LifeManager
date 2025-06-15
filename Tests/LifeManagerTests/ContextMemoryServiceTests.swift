@@ -406,8 +406,8 @@ class ContextMemoryServiceTests: XCTestCase {
                 content: "Content for item \(i) on \(DateFormatter.shortDate.string(from: date))",
                 contentType: ContentType.allCases.randomElement()!,
                 paraCategory: PARACategory.allCases.randomElement()!,
-                workPersonal: WorkPersonal.allCases.randomElement()!,
-                priority: Priority.allCases.randomElement()!,
+                workPersonal: WorkPersonalType.allCases.randomElement()!,
+                priority: TaskPriority.allCases.randomElement()!,
                 createdAt: date
             )
         }
