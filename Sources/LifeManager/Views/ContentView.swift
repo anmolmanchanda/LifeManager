@@ -299,18 +299,15 @@ struct NaturalLanguageInputView: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text("🧠 Brain Dump - What's on your mind?")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Button(isProcessing ? "Processing..." : "Analyze & Process") {
-                    submitInput()
+            VStack(spacing: 16) {
+                // Centered greeting
+                HStack {
+                    Spacer()
+                    Text("Good to see you, Anmol.")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    Spacer()
                 }
-                .disabled(inputText.isEmpty || isProcessing)
-                .buttonStyle(.borderedProminent)
             }
             
             // Large text editor taking up significant vertical space
@@ -329,7 +326,7 @@ struct NaturalLanguageInputView: View {
                 
                 // Placeholder text
                 if inputText.isEmpty {
-                    Text("Type anything here... Examples:\n• 'Buy groceries tomorrow, call mom about vacation plans'\n• 'Research Swift async/await for project, review Q1 budget'\n• 'Feeling stressed about deadlines, need to book dentist appointment'\n\nI'll intelligently extract multiple tasks, notes, and organize everything!")
+                    Text("Type anything here... I'll intelligently process and organize everything!\n\n🎯 UPGRADED CAPABILITIES:\n• Extract multiple tasks, notes, appointments, and goals\n• Smart categorization into Projects, Areas, Resources, Archive\n• Automatic priority detection and due date suggestions\n• Context-aware PARA organization with learning\n• Financial transaction parsing and categorization\n• Journal entry processing with mood analysis\n• Habit and goal tracking with progress insights\n\n💡 EXAMPLES:\n• 'Buy groceries tomorrow, call mom about vacation, research Swift async/await for work project, feeling stressed about Q1 budget review deadline'\n• 'Book dentist appointment next week, start meditation habit, invest $500 in index funds, read productivity book recommendations'\n• 'Team meeting notes: discussed new feature roadmap, assigned tasks to Sarah and Mike, budget concerns for Q2, celebrate launch success'")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 16)
@@ -337,6 +334,30 @@ struct NaturalLanguageInputView: View {
                         .allowsHitTesting(false)
                 }
             }
+            
+            // Button area below input
+            HStack {
+                Text("ChatGPT 4.1")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Button(action: {
+                    submitInput()
+                }) {
+                    Image(systemName: "arrow.up")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .disabled(inputText.isEmpty || isProcessing)
+                .buttonStyle(.plain)
+                .frame(width: 44, height: 44)
+                .background(inputText.isEmpty || isProcessing ? Color.gray : Color.blue)
+                .cornerRadius(8)
+            }
+            .padding(.top, 8)
             
             // Show persistent progress updates during brain dump processing
             if viewModel.isProcessingInbox || isProcessing {

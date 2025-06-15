@@ -1,0 +1,11 @@
+# LifeManager Configuration Template
+# Copy this file to 'config.txt' and fill in your actual API key
+# The config.txt file is ignored by git for security
+
+# OpenAI API Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Instructions:
+# 1. Copy this file: cp config.txt.template config.txt
+# 2. Edit config.txt and replace 'your_openai_api_key_here' with your actual OpenAI API key
+# 3. The config.txt file will be automatically ignored by git 

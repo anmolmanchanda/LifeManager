@@ -2376,13 +2376,22 @@ class MainViewModel: ObservableObject {
         // Refresh parking lot to show new tasks
         NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
         
-        // Refresh data to show new items
+        // Refresh data to show new items in all PARA categories
         Task {
             await refreshData()
+            
+            // Specifically reload PARA categories to ensure new items appear
+            await loadInitialData()
             
             // Force UI update by triggering objectWillChange
             await MainActor.run {
                 self.objectWillChange.send()
+                
+                // Log the refresh for debugging
+                print("🔧 BRAIN DUMP: ✅ Refreshed PARA categories after brain dump completion")
+                print("🔧 BRAIN DUMP: Areas: \(self.areas.count), Projects: \(self.projects.count), Resources: \(self.resources.count)")
+                print("🔧 BRAIN DUMP: Area tasks: \(self.areaTasks.values.flatMap { $0 }.count)")
+                print("🔧 BRAIN DUMP: Project tasks: \(self.projectTasks.values.flatMap { $0 }.count)")
             }
         }
     }
@@ -2431,7 +2440,7 @@ class MainViewModel: ObservableObject {
     
     private func startBrainDumpProgressTimer() {
         brainDumpElapsedTime = 0
-        brainDumpProgressMessage = "Thinking"
+        brainDumpProgressMessage = "Thinking."
         
         brainDumpProgressTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
@@ -2439,8 +2448,11 @@ class MainViewModel: ObservableObject {
             Task { @MainActor in
                 self.brainDumpElapsedTime += 5
                 
-                // Just show "Thinking" - no dots or other text
-                self.brainDumpProgressMessage = "Thinking"
+                // Create animated dots (1, 2, 3, then repeat) with "Thinking"
+                let dotCount = (self.brainDumpElapsedTime / 5 % 3) + 1
+                let dots = String(repeating: ".", count: dotCount)
+                
+                self.brainDumpProgressMessage = "Thinking\(dots)"
                 
                 // Log progress every 15 seconds
                 if self.brainDumpElapsedTime % 15 == 0 {

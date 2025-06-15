@@ -87,6 +87,10 @@ class LLMService: ObservableObject {
             }
             
             print("🔧 LLM CONFIG: ❌ No valid API key found in any config file")
+            print("🔧 LLM CONFIG: 💡 To fix this:")
+            print("🔧 LLM CONFIG: 💡 1. Copy config.txt.template to config.txt")
+            print("🔧 LLM CONFIG: 💡 2. Edit config.txt and add your OpenAI API key")
+            print("🔧 LLM CONFIG: 💡 3. The config.txt file is automatically ignored by git")
             return nil
         }
     }
