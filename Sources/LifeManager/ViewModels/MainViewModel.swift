@@ -2442,14 +2442,14 @@ class MainViewModel: ObservableObject {
         brainDumpElapsedTime = 0
         brainDumpProgressMessage = "Thinking."
         
-        brainDumpProgressTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+        brainDumpProgressTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
             Task { @MainActor in
-                self.brainDumpElapsedTime += 5
+                self.brainDumpElapsedTime += 2
                 
-                // Create animated dots (1, 2, 3, then repeat) with "Thinking"
-                let dotCount = (self.brainDumpElapsedTime / 5 % 3) + 1
+                // Create animated dots (1, 2, 3, then repeat) with "Thinking" - faster animation
+                let dotCount = (self.brainDumpElapsedTime / 2 % 3) + 1
                 let dots = String(repeating: ".", count: dotCount)
                 
                 self.brainDumpProgressMessage = "Thinking\(dots)"

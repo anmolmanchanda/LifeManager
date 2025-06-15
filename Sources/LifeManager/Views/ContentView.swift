@@ -304,7 +304,7 @@ struct NaturalLanguageInputView: View {
                 HStack {
                     Spacer()
                     Text("Good to see you, Anmol.")
-                        .font(.headline)
+                        .font(.title)
                         .fontWeight(.semibold)
                     Spacer()
                 }
@@ -326,7 +326,7 @@ struct NaturalLanguageInputView: View {
                 
                 // Placeholder text
                 if inputText.isEmpty {
-                    Text("Type anything here... I'll intelligently process and organize everything!\n\n🎯 UPGRADED CAPABILITIES:\n• Extract multiple tasks, notes, appointments, and goals\n• Smart categorization into Projects, Areas, Resources, Archive\n• Automatic priority detection and due date suggestions\n• Context-aware PARA organization with learning\n• Financial transaction parsing and categorization\n• Journal entry processing with mood analysis\n• Habit and goal tracking with progress insights\n\n💡 EXAMPLES:\n• 'Buy groceries tomorrow, call mom about vacation, research Swift async/await for work project, feeling stressed about Q1 budget review deadline'\n• 'Book dentist appointment next week, start meditation habit, invest $500 in index funds, read productivity book recommendations'\n• 'Team meeting notes: discussed new feature roadmap, assigned tasks to Sarah and Mike, budget concerns for Q2, celebrate launch success'")
+                    Text("What's on your mind?")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 16)
@@ -337,9 +337,9 @@ struct NaturalLanguageInputView: View {
             
             // Button area below input
             HStack {
-                Text("ChatGPT 4.1")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                                    Text("ChatGPT 4.1")
+                        .font(.body)
+                        .foregroundColor(.secondary)
                 
                 Spacer()
                 
@@ -353,7 +353,7 @@ struct NaturalLanguageInputView: View {
                 }
                 .disabled(inputText.isEmpty || isProcessing)
                 .buttonStyle(.plain)
-                .frame(width: 44, height: 44)
+                .frame(width: 36, height: 36)
                 .background(inputText.isEmpty || isProcessing ? Color.gray : Color.blue)
                 .cornerRadius(8)
             }
@@ -362,18 +362,18 @@ struct NaturalLanguageInputView: View {
             // Show persistent progress updates during brain dump processing
             if viewModel.isProcessingInbox || isProcessing {
                 VStack(spacing: 8) {
-                    VStack(spacing: 8) {
+                    HStack(spacing: 12) {
                         ProgressView()
-                            .scaleEffect(1.2)
+                            .scaleEffect(1.0)
                         
                         if !viewModel.brainDumpProgressMessage.isEmpty {
                             Text(viewModel.brainDumpProgressMessage)
-                                .font(.title)
+                                .font(.headline)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
                         } else {
                             Text("Thinking")
-                                .font(.title)
+                                .font(.headline)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
                         }
@@ -870,17 +870,38 @@ struct AreasView: View {
             }
             .padding()
             
-            // Areas grid
-            ScrollView {
-                LazyVGrid(columns: [
-                    GridItem(.adaptive(minimum: 200))
-                ], spacing: 20) {
+            // Areas list with expandable sections (consistent with Projects/Resources)
+            if filteredAreas.isEmpty {
+                if #available(macOS 14.0, *) {
+                    ContentUnavailableView(
+                        "No areas yet",
+                        systemImage: "square.grid.2x2",
+                        description: Text("AI will create areas from your notes automatically")
+                    )
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No areas yet")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("AI will create areas from your notes automatically")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                }
+            } else {
+                List {
                     ForEach(filteredAreas) { area in
-                        AreaCardView(area: area)
+                        AreaSectionView(area: area)
                             .environmentObject(viewModel)
                     }
                 }
-                .padding()
             }
         }
     }
@@ -1065,6 +1086,296 @@ struct AreaCardView: View {
             }
         } message: {
             Text("Are you sure you want to delete '\(area.name)'? This action cannot be undone.")
+        }
+    }
+}
+
+/// Expandable area section showing area info, tasks, and blobs (consistent with Projects)
+struct AreaSectionView: View {
+    let area: Area
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingDeleteConfirmation = false
+    @State private var isExpanded = false
+    
+    private var areaBlobs: [Blob] {
+        return viewModel.areaBlobs[area.id] ?? []
+    }
+    
+    private var areaTasks: [LifeTask] {
+        return viewModel.areaTasks[area.id] ?? []
+    }
+    
+    var body: some View {
+        DisclosureGroup(
+            isExpanded: $isExpanded,
+            content: {
+                // Area content - both tasks and blobs
+                if areaTasks.isEmpty && areaBlobs.isEmpty {
+                    HStack {
+                        Image(systemName: "tray")
+                            .foregroundColor(.secondary)
+                        Text("No content yet - AI will organize relevant tasks and notes here")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    LazyVStack(spacing: 12) {
+                        // Tasks section
+                        if !areaTasks.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle")
+                                        .foregroundColor(.blue)
+                                    Text("Tasks (\(areaTasks.count))")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                                
+                                ForEach(areaTasks) { task in
+                                    AreaTaskRowView(task: task, area: area)
+                                        .environmentObject(viewModel)
+                                }
+                            }
+                        }
+                        
+                        // Notes section
+                        if !areaBlobs.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "note.text")
+                                        .foregroundColor(.purple)
+                                    Text("Notes (\(areaBlobs.count))")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                                
+                                ForEach(areaBlobs) { blob in
+                                    AreaBlobRowView(blob: blob, area: area)
+                                        .environmentObject(viewModel)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            },
+            label: {
+                HStack {
+                    // Area icon and info
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            if let iconName = area.icon {
+                                Image(systemName: iconName)
+                                    .foregroundColor(Color(hex: area.color))
+                            } else {
+                                Image(systemName: "square.grid.2x2")
+                                    .foregroundColor(Color(hex: area.color))
+                            }
+                            
+                            Text(area.name)
+                                .font(.headline)
+                            
+                            // Work/Personal badge
+                            Text(area.workPersonal.rawValue.capitalized)
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(area.workPersonal == .work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                                .foregroundColor(area.workPersonal == .work ? .blue : .green)
+                                .cornerRadius(8)
+                        }
+                        
+                        if let description = area.description {
+                            Text(description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                        
+                        // AI insights
+                        let totalItems = areaTasks.count + areaBlobs.count
+                        if totalItems > 0 {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .foregroundColor(.blue)
+                                    .font(.caption)
+                                
+                                Text("\(areaTasks.count) tasks, \(areaBlobs.count) notes")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Delete button
+                    Button(action: {
+                        showingDeleteConfirmation = true
+                    }) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Delete this area")
+                }
+            }
+        )
+        .alert("Delete Area", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.deleteArea(area)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete '\(area.name)'? This action cannot be undone.")
+        }
+    }
+}
+
+/// Individual task row within an area
+struct AreaTaskRowView: View {
+    let task: LifeTask
+    let area: Area
+    @EnvironmentObject var viewModel: MainViewModel
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Task status
+            Image(systemName: task.status == .completed ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(task.status == .completed ? .green : .blue)
+                .font(.body)
+            
+            // Task content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title)
+                    .font(.body)
+                    .strikethrough(task.status == .completed)
+                    .foregroundColor(task.status == .completed ? .secondary : .primary)
+                
+                if let description = task.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                
+                HStack(spacing: 8) {
+                    // Priority
+                    if task.priority != .medium {
+                        Label(task.priority.rawValue.capitalized, systemImage: "exclamationmark.circle")
+                            .font(.caption)
+                            .foregroundColor(task.priority == .urgent ? .red : .orange)
+                    }
+                    
+                    // Due date
+                    if let dueDate = task.dueDate {
+                        Label(formatRelativeDate(dueDate), systemImage: "calendar")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Created date
+                    Text(formatRelativeDate(task.createdAt))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+    }
+}
+
+/// Individual blob row within an area
+struct AreaBlobRowView: View {
+    let blob: Blob
+    let area: Area
+    @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingAIDetails = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Content preview
+            VStack(alignment: .leading, spacing: 4) {
+                Text(blob.content)
+                    .font(.body)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                HStack(spacing: 8) {
+                    // Source type
+                    Label(blob.sourceType.rawValue.capitalized, systemImage: sourceTypeIcon(blob.sourceType))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    // Work/Personal
+                    Text(blob.workPersonal.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(blob.workPersonal == .work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                        .foregroundColor(blob.workPersonal == .work ? .blue : .green)
+                        .cornerRadius(4)
+                    
+                    // AI assignment indicator
+                    Button(action: {
+                        showingAIDetails = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "brain")
+                            Text("AI assigned")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
+                    .help("See why AI assigned this to \(area.name)")
+                    
+                    Spacer()
+                    
+                    // Timestamp
+                    Text(formatRelativeDate(blob.createdAt))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+        .sheet(isPresented: $showingAIDetails) {
+            AITransparencyView(blob: blob, area: area)
+                .environmentObject(viewModel)
+        }
+    }
+    
+    private func sourceTypeIcon(_ sourceType: SourceType) -> String {
+        switch sourceType {
+        case .note: return "note.text"
+        case .journal: return "book"
+        case .email: return "envelope"
+        case .meeting: return "person.2"
+        case .idea: return "lightbulb"
+        case .research: return "magnifyingglass"
+        case .recipe: return "fork.knife"
+        case .financial: return "dollarsign.circle"
+        case .inventory: return "list.clipboard"
+        case .knowledge: return "brain"
+        case .therapy: return "heart"
+        case .media: return "play.rectangle"
+        case .grocery: return "cart"
+        default: return "doc.text"
         }
     }
 }
