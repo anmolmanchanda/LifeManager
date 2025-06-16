@@ -2,3 +2,19 @@
 .swiftpm/
 LifeManager.app/
 config.txt
+
+# API Keys and Secrets
+**/config.txt
+**/*api*key*
+**/*secret*
+**/*token*
+.env
+.env.local
+.env.*.local
+
+# MCP Configuration (may contain sensitive data)
+.claude/
+**/mcp.json
+
+# Embeddings test reports (may contain API usage data)
+embeddings_test_report_*.json

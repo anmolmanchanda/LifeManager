@@ -9,6 +9,7 @@ class LLMBrainDumpProcessor {
     private let paraRepository: PARARepository
     private let resourceRepository: ResourceRepository
     private let journalRepository: JournalRepository
+    private let embeddingsService: EmbeddingsService
     
     init() {
         self.llmService = LLMService()
@@ -17,6 +18,7 @@ class LLMBrainDumpProcessor {
         self.paraRepository = PARARepository()
         self.resourceRepository = ResourceRepository()
         self.journalRepository = JournalRepository()
+        self.embeddingsService = EmbeddingsService.shared
     }
     
     /// Check if a valid API key is available (same logic as LLMService)
@@ -686,6 +688,16 @@ class LLMBrainDumpProcessor {
         
         let createdTask = try await taskRepository.createTask(task)
         
+        // Generate embeddings for the task for semantic similarity matching
+        let taskContent = "\(task.title). \(task.description ?? "")".trimmingCharacters(in: .whitespaces)
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for task: \(task.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: createdTask.id,
+            content: taskContent,
+            type: "task"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for task")
+        
         print("🧠 BRAIN DUMP: ✅ Created task without area/project assignment")
         
         // Notify that a task was created
@@ -707,6 +719,15 @@ class LLMBrainDumpProcessor {
         )
         
         let createdBlob = try await blobRepository.createBlob(blob)
+        
+        // Generate embeddings for the journal entry for semantic similarity matching
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for journal entry: \(item.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: createdBlob.id,
+            content: item.content,
+            type: "journal"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for journal entry")
         
         let journal = JournalEntry(
             id: UUID(),
@@ -733,9 +754,20 @@ class LLMBrainDumpProcessor {
             workPersonal: item.workPersonal
         )
         
+        let createdBlob = try await blobRepository.createBlob(blob)
+        
+        // Generate embeddings for the note for semantic similarity matching
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for note: \(item.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: createdBlob.id,
+            content: item.content,
+            type: "note"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for note")
+        
         print("🧠 BRAIN DUMP: ✅ Created note without area/project assignment")
         
-        return try await blobRepository.createBlob(blob)
+        return createdBlob
     }
     
     private func createResourceFromItem(_ item: BrainDumpItem) async throws -> Resource {
@@ -749,6 +781,15 @@ class LLMBrainDumpProcessor {
         )
         
         let createdBlob = try await blobRepository.createBlob(blob)
+        
+        // Generate embeddings for the resource for semantic similarity matching
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for resource: \(item.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: createdBlob.id,
+            content: item.content,
+            type: "resource"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for resource")
         
         let resource = Resource(
             id: UUID(),
@@ -769,7 +810,7 @@ class LLMBrainDumpProcessor {
         let amount = extractAmount(from: item.content) ?? 0.0
         let transactionType = item.metadata["transaction_type"] as? String ?? "expense"
         
-        return FinancialTransaction(
+        let transaction = FinancialTransaction(
             id: UUID(),
             amount: amount,
             description: transactionType,
@@ -777,6 +818,18 @@ class LLMBrainDumpProcessor {
             category: transactionType,
             workPersonal: item.workPersonal
         )
+        
+        // Generate embeddings for the financial transaction
+        let content = "\(item.title). \(item.content)".trimmingCharacters(in: .whitespaces)
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for financial transaction: \(item.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: transaction.id,
+            content: content,
+            type: "financial_transaction"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for financial transaction")
+        
+        return transaction
     }
     
     private func createAppointmentFromItem(_ item: BrainDumpItem) async throws -> CalendarEvent {
@@ -786,7 +839,7 @@ class LLMBrainDumpProcessor {
         let startDate = item.metadata["start_date"] as? Date ?? Calendar.current.date(byAdding: .day, value: 1, to: Date())!
         let endDate = item.metadata["end_date"] as? Date ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate)!
         
-        return CalendarEvent(
+        let appointment = CalendarEvent(
             id: UUID(),
             title: item.title,
             description: item.content,
@@ -796,18 +849,42 @@ class LLMBrainDumpProcessor {
             workPersonal: item.workPersonal,
             duration: endDate.timeIntervalSince(startDate)
         )
+        
+        // Generate embeddings for the appointment
+        let content = "\(item.title). \(item.content)".trimmingCharacters(in: .whitespaces)
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for appointment: \(item.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: appointment.id,
+            content: content,
+            type: "appointment"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for appointment")
+        
+        return appointment
     }
     
     private func createHabitFromItem(_ item: BrainDumpItem) async throws -> Habit {
         print("🧠 BRAIN DUMP: Creating habit: \(item.title)")
         
-        return Habit(
+        let habit = Habit(
             id: UUID(),
             title: item.title,
             description: item.content,
             frequency: "daily",
             workPersonal: item.workPersonal
         )
+        
+        // Generate embeddings for the habit
+        let content = "\(item.title). \(item.content)".trimmingCharacters(in: .whitespaces)
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for habit: \(item.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: habit.id,
+            content: content,
+            type: "habit"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for habit")
+        
+        return habit
     }
     
     private func createGoalFromItem(_ item: BrainDumpItem) async throws -> Goal {
@@ -824,13 +901,25 @@ class LLMBrainDumpProcessor {
         
         let targetDate = item.metadata["target_date"] as? Date
         
-        return Goal(
+        let goal = Goal(
             id: UUID(),
             title: item.title,
             description: item.content,
             targetDate: targetDate,
             workPersonal: item.workPersonal
         )
+        
+        // Generate embeddings for the goal
+        let content = "\(item.title). \(item.content)".trimmingCharacters(in: .whitespaces)
+        print("🧠 BRAIN DUMP: 🔍 Generating embeddings for goal: \(item.title)")
+        await embeddingsService.generateEmbeddingForPARAItem(
+            id: goal.id,
+            content: content,
+            type: "goal"
+        )
+        print("🧠 BRAIN DUMP: ✅ Generated embeddings for goal")
+        
+        return goal
     }
     
     private func parseDate(from dateString: String?) -> Date? {

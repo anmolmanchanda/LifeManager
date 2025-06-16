@@ -119,13 +119,23 @@ class EmbeddingsService: ObservableObject {
     
     /// Generate and store embedding for a PARA item
     func generateEmbeddingForPARAItem(id: UUID, content: String, type: String) async {
-        guard !content.isEmpty else { return }
+        print("🔧 EMBEDDINGS: *** ENTRY *** generateEmbeddingForPARAItem called for \(type): \(id)")
+        print("🔧 EMBEDDINGS: Content: \"\(content.prefix(100))...\"")
         
-        print("🔧 EMBEDDINGS: Generating embedding for \(type): \(id)")
+        guard !content.isEmpty else { 
+            print("🔧 EMBEDDINGS: ❌ Empty content, skipping")
+            return 
+        }
+        
+        print("🔧 EMBEDDINGS: ✅ Content not empty, proceeding with embedding generation")
+        print("🔧 EMBEDDINGS: Calling getEmbedding...")
         
         if let embedding = await getEmbedding(for: content) {
+            print("🔧 EMBEDDINGS: ✅ Embedding generated successfully, storing...")
             // Store embedding in the appropriate PARA table
             await storePARAEmbedding(id: id, embedding: embedding, type: type)
+        } else {
+            print("🔧 EMBEDDINGS: ❌ Failed to generate embedding")
         }
     }
     
@@ -138,6 +148,14 @@ class EmbeddingsService: ObservableObject {
             case "area": tableName = "areas"
             case "resource": tableName = "resources"
             case "blob": tableName = "blobs"
+            case "archive": tableName = "archives"
+            case "journal": tableName = "journal_entries"
+            case "task": tableName = "tasks"
+            case "note": tableName = "blobs"
+            case "financial_transaction": tableName = "financial_transactions"
+            case "appointment": tableName = "calendar_events"
+            case "habit": tableName = "habits"
+            case "goal": tableName = "goals"
             default:
                 print("🔧 EMBEDDINGS: ❌ Unknown PARA type: \(type)")
                 return

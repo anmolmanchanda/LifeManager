@@ -29,7 +29,17 @@ class AreaRepository {
     }
     
     func updateArea(_ area: Area) async throws -> Area {
-        return try await supabaseService.update(area, in: SupabaseService.TableName.areas.rawValue, matching: "id", value: area.id.uuidString)
+        let updatedArea = try await supabaseService.update(area, in: SupabaseService.TableName.areas.rawValue, matching: "id", value: area.id.uuidString)
+        
+        // Regenerate embedding for the updated area
+        let content = "\(updatedArea.name). \(updatedArea.description ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: updatedArea.id,
+            content: content,
+            type: "area"
+        )
+        
+        return updatedArea
     }
     
     func deleteArea(id: UUID) async throws {
@@ -66,7 +76,17 @@ class ProjectRepository {
     }
     
     func updateProject(_ project: Project) async throws -> Project {
-        return try await supabaseService.update(project, in: SupabaseService.TableName.projects.rawValue, matching: "id", value: project.id.uuidString)
+        let updatedProject = try await supabaseService.update(project, in: SupabaseService.TableName.projects.rawValue, matching: "id", value: project.id.uuidString)
+        
+        // Regenerate embedding for the updated project
+        let content = "\(updatedProject.name). \(updatedProject.description ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: updatedProject.id,
+            content: content,
+            type: "project"
+        )
+        
+        return updatedProject
     }
     
     func deleteProject(id: UUID) async throws {
@@ -103,7 +123,17 @@ class ResourceRepository {
     }
     
     func updateResource(_ resource: Resource) async throws -> Resource {
-        return try await supabaseService.update(resource, in: SupabaseService.TableName.resources.rawValue, matching: "id", value: resource.id.uuidString)
+        let updatedResource = try await supabaseService.update(resource, in: SupabaseService.TableName.resources.rawValue, matching: "id", value: resource.id.uuidString)
+        
+        // Regenerate embedding for the updated resource
+        let content = "\(updatedResource.title). \(updatedResource.summary ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: updatedResource.id,
+            content: content,
+            type: "resource"
+        )
+        
+        return updatedResource
     }
     
     func deleteResource(id: UUID) async throws {
@@ -126,7 +156,17 @@ class ArchiveRepository {
     }
     
     func createArchive(_ archive: Archive) async throws -> Archive {
-        return try await supabaseService.insert(archive, into: SupabaseService.TableName.archives.rawValue)
+        let createdArchive = try await supabaseService.insert(archive, into: SupabaseService.TableName.archives.rawValue)
+        
+        // Generate embedding for the archive
+        let content = "\(createdArchive.title). \(createdArchive.reason ?? "")".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: createdArchive.id,
+            content: content,
+            type: "archive"
+        )
+        
+        return createdArchive
     }
     
     func deleteArchive(id: UUID) async throws {
@@ -155,11 +195,31 @@ class JournalRepository {
     }
     
     func createJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry {
-        return try await supabaseService.insert(entry, into: SupabaseService.TableName.journalEntries.rawValue)
+        let createdEntry = try await supabaseService.insert(entry, into: SupabaseService.TableName.journalEntries.rawValue)
+        
+        // Generate embedding for the journal entry
+        let content = "\(createdEntry.title). \(createdEntry.content)".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: createdEntry.id,
+            content: content,
+            type: "journal"
+        )
+        
+        return createdEntry
     }
     
     func updateJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry {
-        return try await supabaseService.update(entry, in: SupabaseService.TableName.journalEntries.rawValue, matching: "id", value: entry.id.uuidString)
+        let updatedEntry = try await supabaseService.update(entry, in: SupabaseService.TableName.journalEntries.rawValue, matching: "id", value: entry.id.uuidString)
+        
+        // Regenerate embedding for the updated journal entry
+        let content = "\(updatedEntry.title). \(updatedEntry.content)".trimmingCharacters(in: .whitespaces)
+        await EmbeddingsService.shared.generateEmbeddingForPARAItem(
+            id: updatedEntry.id,
+            content: content,
+            type: "journal"
+        )
+        
+        return updatedEntry
     }
     
     func deleteJournalEntry(id: UUID) async throws {
