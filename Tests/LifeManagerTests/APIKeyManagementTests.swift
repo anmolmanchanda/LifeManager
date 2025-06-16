@@ -49,7 +49,8 @@ final class APIKeyManagementTests: XCTestCase {
         let llmService = LLMService()
         
         // When
-        let result = await llmService.processBrainDump("Test input")
+        let context = PARAContext(projects: [], areas: [], resources: [], recentTasks: [], commonTags: [])
+        let result = try await llmService.categorizePARA(input: "Test input", context: context)
         
         // Then
         // Should handle missing API key gracefully without crashing

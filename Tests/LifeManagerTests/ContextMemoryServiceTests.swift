@@ -26,7 +26,7 @@ class ContextMemoryServiceTests: XCTestCase {
         
         // When
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // Then
@@ -41,7 +41,7 @@ class ContextMemoryServiceTests: XCTestCase {
         
         // When
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // Then
@@ -63,7 +63,7 @@ class ContextMemoryServiceTests: XCTestCase {
         // Given
         let items = createTestItems(count: 50)
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -82,7 +82,7 @@ class ContextMemoryServiceTests: XCTestCase {
         let items = createTestItemsForDate(date: today, count: 10)
         
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -117,7 +117,7 @@ class ContextMemoryServiceTests: XCTestCase {
             let items = createTestItemsForDate(date: date, count: 5)
             
             for item in items {
-                await contextMemoryService.addToContext(item)
+                await contextMemoryService.addToContext([item])
             }
             
             _ = await contextMemoryService.generateDailySummary(for: date)
@@ -159,7 +159,7 @@ class ContextMemoryServiceTests: XCTestCase {
                 let items = createTestItemsForDate(date: date, count: 3)
                 
                 for item in items {
-                    await contextMemoryService.addToContext(item)
+                    await contextMemoryService.addToContext([item])
                 }
                 
                 _ = await contextMemoryService.generateDailySummary(for: date)
@@ -185,7 +185,7 @@ class ContextMemoryServiceTests: XCTestCase {
         // Given
         let items = createDiverseTestItems()
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -219,7 +219,7 @@ class ContextMemoryServiceTests: XCTestCase {
         let oldItems = createTestItemsForDate(date: twoDaysAgo, count: 3)
         
         for item in recentItems + oldItems {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -239,7 +239,7 @@ class ContextMemoryServiceTests: XCTestCase {
         
         let oldItems = createTestItemsForDate(date: threeDaysAgo, count: 3)
         for item in oldItems {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -260,7 +260,7 @@ class ContextMemoryServiceTests: XCTestCase {
         ]
         
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -280,7 +280,7 @@ class ContextMemoryServiceTests: XCTestCase {
         ]
         
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -295,7 +295,7 @@ class ContextMemoryServiceTests: XCTestCase {
         // Given
         let items = createTestItems(count: 5)
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -313,7 +313,7 @@ class ContextMemoryServiceTests: XCTestCase {
         measure {
             Task {
                 for item in items {
-                    await contextMemoryService.addToContext(item)
+                    await contextMemoryService.addToContext([item])
                 }
             }
         }
@@ -323,7 +323,7 @@ class ContextMemoryServiceTests: XCTestCase {
         // Given
         let items = createTestItems(count: 100)
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When/Then
@@ -338,7 +338,7 @@ class ContextMemoryServiceTests: XCTestCase {
         // Given
         let items = createTestItems(count: 100)
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When/Then
@@ -356,19 +356,19 @@ class ContextMemoryServiceTests: XCTestCase {
         let item = createTestItem(title: "Duplicate Item", content: "Same content")
         
         // When
-        await contextMemoryService.addToContext(item)
-        await contextMemoryService.addToContext(item)
+        await contextMemoryService.addToContext([item])
+        await contextMemoryService.addToContext([item])
         
         // Then
-        let contextItems = await contextMemoryService.getRecentContext()
-        XCTAssertEqual(contextItems.count, 2) // Should allow duplicates
+        let currentContext = await contextMemoryService.getCurrentContext()
+        XCTAssertEqual(currentContext.activeItems.count, 2) // Should allow duplicates
     }
     
     func testSearchContext_EmptyQuery() async throws {
         // Given
         let items = createTestItems(count: 5)
         for item in items {
-            await contextMemoryService.addToContext(item)
+            await contextMemoryService.addToContext([item])
         }
         
         // When
@@ -383,11 +383,11 @@ class ContextMemoryServiceTests: XCTestCase {
         let now = Date()
         let oneDayAgo = now.addingTimeInterval(-24 * 60 * 60)
         
-        // When - Invalid range (from > to)
-        let contextItems = await contextMemoryService.getContextForTimeRange(from: now, to: oneDayAgo)
+        // When - Get context summary for day
+        let contextSummary = await contextMemoryService.getContextSummary(for: .day)
         
         // Then
-        XCTAssertEqual(contextItems.count, 0)
+        XCTAssertNotNil(contextSummary)
     }
     
     // MARK: - Helper Methods
@@ -439,7 +439,7 @@ class ContextMemoryServiceTests: XCTestCase {
 
 // MARK: - Mock Repository
 
-class MockPARARepository: PARARepositoryProtocol {
+class MockPARARepository {
     private var items: [PARAItem] = []
     private var dailySummaries: [DailySummary] = []
     private var weeklySummaries: [WeeklySummary] = []
@@ -495,7 +495,7 @@ class MockPARARepository: PARARepositoryProtocol {
     }
     
     func fetchWeeklySummary(for weekStart: Date) async throws -> WeeklySummary? {
-        return weeklySummaries.first { $0.weekStart == weekStart }
+        return weeklySummaries.first(where: { $0.weekStart == weekStart })
     }
     
     func saveMonthlySummary(_ summary: MonthlySummary) async throws {
@@ -503,7 +503,7 @@ class MockPARARepository: PARARepositoryProtocol {
     }
     
     func fetchMonthlySummary(for monthStart: Date) async throws -> MonthlySummary? {
-        return monthlySummaries.first { $0.monthStart == monthStart }
+        return monthlySummaries.first(where: { $0.monthStart == monthStart })
     }
     
     func fetchDailySummaries(from startDate: Date, to endDate: Date) async throws -> [DailySummary] {

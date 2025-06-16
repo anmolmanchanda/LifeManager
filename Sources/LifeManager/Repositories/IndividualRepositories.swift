@@ -159,7 +159,7 @@ class ArchiveRepository {
         let createdArchive = try await supabaseService.insert(archive, into: SupabaseService.TableName.archives.rawValue)
         
         // Generate embedding for the archive
-        let content = "\(createdArchive.title). \(createdArchive.reason ?? "")".trimmingCharacters(in: .whitespaces)
+        let content = "\(createdArchive.title)".trimmingCharacters(in: .whitespaces)
         await EmbeddingsService.shared.generateEmbeddingForPARAItem(
             id: createdArchive.id,
             content: content,
@@ -198,7 +198,7 @@ class JournalRepository {
         let createdEntry = try await supabaseService.insert(entry, into: SupabaseService.TableName.journalEntries.rawValue)
         
         // Generate embedding for the journal entry
-        let content = "\(createdEntry.title). \(createdEntry.content)".trimmingCharacters(in: .whitespaces)
+        let content = "\(createdEntry.summary ?? "Journal entry")".trimmingCharacters(in: .whitespaces)
         await EmbeddingsService.shared.generateEmbeddingForPARAItem(
             id: createdEntry.id,
             content: content,
@@ -212,7 +212,7 @@ class JournalRepository {
         let updatedEntry = try await supabaseService.update(entry, in: SupabaseService.TableName.journalEntries.rawValue, matching: "id", value: entry.id.uuidString)
         
         // Regenerate embedding for the updated journal entry
-        let content = "\(updatedEntry.title). \(updatedEntry.content)".trimmingCharacters(in: .whitespaces)
+        let content = "\(updatedEntry.summary ?? "Journal entry")".trimmingCharacters(in: .whitespaces)
         await EmbeddingsService.shared.generateEmbeddingForPARAItem(
             id: updatedEntry.id,
             content: content,

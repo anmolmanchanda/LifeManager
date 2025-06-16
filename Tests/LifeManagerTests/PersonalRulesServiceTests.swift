@@ -630,11 +630,11 @@ class PersonalRulesServiceTests: XCTestCase {
 
 // MARK: - Mock Repository
 
-class MockPersonalRulesRepository: PersonalRulesRepositoryProtocol {
-    private var rules: [PersonalRule] = []
+class MockPersonalRulesRepository {
+    private var rules: [PersonalPARARule] = []
     private var corrections: [UserCorrection] = []
     
-    func saveRule(_ rule: PersonalRule) async throws {
+    func saveRule(_ rule: PersonalPARARule) async throws {
         if let index = rules.firstIndex(where: { $0.id == rule.id }) {
             rules[index] = rule
         } else {
@@ -642,11 +642,11 @@ class MockPersonalRulesRepository: PersonalRulesRepositoryProtocol {
         }
     }
     
-    func fetchRule(id: UUID) async throws -> PersonalRule? {
-        return rules.first { $0.id == id }
+    func fetchRule(id: UUID) async throws -> PersonalPARARule? {
+        return rules.first(where: { $0.id == id })
     }
     
-    func fetchAllRules() async throws -> [PersonalRule] {
+    func fetchAllRules() async throws -> [PersonalPARARule] {
         return rules
     }
     
@@ -654,7 +654,7 @@ class MockPersonalRulesRepository: PersonalRulesRepositoryProtocol {
         rules.removeAll { $0.id == id }
     }
     
-    func fetchRulesLastUsedBefore(_ date: Date) async throws -> [PersonalRule] {
+    func fetchRulesLastUsedBefore(_ date: Date) async throws -> [PersonalPARARule] {
         return rules.filter { rule in
             if let lastUsed = rule.lastUsed {
                 return lastUsed < date
