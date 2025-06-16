@@ -3,7 +3,7 @@ import SwiftUI
 /// Review UI for brain dump analysis results before saving to database
 struct BrainDumpReviewView: View {
     let result: BrainDumpResult
-    @State private var editableItems: [BrainDumpItem]
+    @State private var editableItems: [EnhancedBrainDumpItem]
     @State private var isProcessing = false
     @State private var showingExecutionSummary = false
     @State private var executionSummary: ExecutionSummary?
@@ -173,11 +173,14 @@ struct BrainDumpReviewView: View {
     }
     
     private func executeBrainDump() {
+        print("🧠 BRAIN DUMP REVIEW: Starting execution with \(editableItems.count) items")
         isProcessing = true
         
         Task {
             do {
+                print("🧠 BRAIN DUMP REVIEW: Calling brainDumpProcessor.executeBrainDump...")
                 let summary = try await brainDumpProcessor.executeBrainDump(result, userApprovedItems: editableItems)
+                print("🧠 BRAIN DUMP REVIEW: ✅ Execution completed successfully")
                 
                 await MainActor.run {
                     self.executionSummary = summary
@@ -186,8 +189,9 @@ struct BrainDumpReviewView: View {
                 }
                 
             } catch {
+                print("🧠 BRAIN DUMP REVIEW: ❌ Execution failed: \(error)")
+                print("🧠 BRAIN DUMP REVIEW: ❌ Error details: \(error.localizedDescription)")
                 await MainActor.run {
-                    print("🧠 BRAIN DUMP: ❌ Execution failed: \(error)")
                     self.isProcessing = false
                 }
             }
@@ -197,7 +201,7 @@ struct BrainDumpReviewView: View {
 
 /// Individual item row for editing
 struct BrainDumpItemRow: View {
-    @Binding var item: BrainDumpItem
+    @Binding var item: EnhancedBrainDumpItem
     let onRemove: () -> Void
     
     @State private var isExpanded = false

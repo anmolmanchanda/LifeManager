@@ -19,11 +19,15 @@ class ContextMemoryService: ObservableObject {
     // MARK: - Configuration
     
     private struct ContextConfig {
-        static let slidingWindowSize = 100
+        static let minSlidingWindowSize = 50
+        static let maxSlidingWindowSize = 100
+        static let defaultSlidingWindowSize = 75
         static let dailySummaryRetentionDays = 30
         static let weeklySummaryRetentionWeeks = 12
         static let monthlySummaryRetentionMonths = 6
         static let contextUpdateInterval: TimeInterval = 300 // 5 minutes
+        static let lowActivityThreshold = 10 // items per day
+        static let highActivityThreshold = 30 // items per day
     }
     
     // MARK: - Published State
@@ -38,11 +42,15 @@ class ContextMemoryService: ObservableObject {
     
     private let supabaseService = SupabaseService.shared
     private let llmService = LLMService.shared
+    private let calendarService = CalendarOrchestrationService()
+    private let embeddingsService = EmbeddingsService.shared
     
     // MARK: - Internal State
     
     private var contextUpdateTimer: Timer?
     private let contextQueue = DispatchQueue(label: "context.memory", qos: .utility)
+    private var currentWindowSize: Int = ContextConfig.defaultSlidingWindowSize
+    private var activityPatterns: ActivityPatterns = ActivityPatterns()
     
     // MARK: - Initialization
     
@@ -59,16 +67,20 @@ class ContextMemoryService: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Add new items to active context window
+    /// Add new items to active context window with dynamic sizing
     func addToContext(_ items: [PARAItem]) async {
         let contextItems = items.map { ContextItem(from: $0) }
+        
+        // Update activity patterns and adjust window size
+        await updateActivityPatterns(with: contextItems)
+        await adjustWindowSize()
         
         await MainActor.run {
             activeContextWindow.append(contentsOf: contextItems)
             
-            // Maintain window size
-            if activeContextWindow.count > ContextConfig.slidingWindowSize {
-                let excess = activeContextWindow.count - ContextConfig.slidingWindowSize
+            // Maintain dynamic window size
+            if activeContextWindow.count > currentWindowSize {
+                let excess = activeContextWindow.count - currentWindowSize
                 activeContextWindow.removeFirst(excess)
             }
             
@@ -78,17 +90,51 @@ class ContextMemoryService: ObservableObject {
         // Update summaries asynchronously
         await updateDailySummary(with: contextItems)
         await persistContextWindow()
+        
+        print("🧠 CONTEXT: Added \(contextItems.count) items, window size: \(currentWindowSize)")
     }
     
-    /// Get current context for PARA processing
+    /// Get current context for PARA processing with calendar integration
     func getCurrentContext() async -> ProcessingContext {
+        let calendarContext = await getCalendarContext()
+        
         return ProcessingContext(
-            recentItems: Array(activeContextWindow.suffix(50)), // Most recent 50 items
+            recentItems: Array(activeContextWindow.suffix(currentWindowSize)), // Dynamic window size
             dailySummaries: Array(dailySummaries.prefix(7)), // Last 7 days
             weeklySummaries: Array(weeklySummaries.prefix(4)), // Last 4 weeks
             monthlySummaries: Array(monthlySummaries.prefix(3)), // Last 3 months
             contextStats: contextStats,
+            calendarContext: calendarContext,
             timestamp: Date()
+        )
+    }
+    
+    /// Get calendar context for enhanced PARA processing
+    private func getCalendarContext() async -> CalendarContext {
+        let today = Date()
+        let startOfDay = Calendar.current.startOfDay(for: today)
+        let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay) ?? today
+        
+        // Get today's events
+        let todayEvents = await calendarService.dailyEvents.filter { event in
+            event.startTime >= startOfDay && event.startTime < endOfDay
+        }
+        
+        // Get upcoming events (next 3 days)
+        let upcomingEvents = await calendarService.plannedEvents.filter { event in
+            event.startTime > today && event.startTime <= Calendar.current.date(byAdding: .day, value: 3, to: today)!
+        }
+        
+        // Analyze scheduling patterns
+        let schedulingPatterns = analyzeSchedulingPatterns()
+        
+        return CalendarContext(
+            todayEvents: todayEvents,
+            upcomingEvents: upcomingEvents,
+            availableTimeSlots: calculateAvailableTimeSlots(for: today),
+            schedulingPatterns: schedulingPatterns,
+            currentBufferStatus: await calendarService.bufferStatus,
+            workingHours: await calendarService.workingHours
         )
     }
     
@@ -123,19 +169,58 @@ class ContextMemoryService: ObservableObject {
         return (projects: projects, areas: areas)
     }
     
-    /// Search context for similar items
-    func searchContext(query: String, limit: Int = 10) -> [ContextItem] {
+    /// Search context for similar items using semantic and text matching
+    func searchContext(query: String, limit: Int = 10) async -> [ContextItem] {
         let lowercaseQuery = query.lowercased()
         
-        return activeContextWindow
+        // First try semantic search using embeddings
+        let semanticMatches = await searchContextSemantically(query: query, limit: limit)
+        
+        // Then try text-based search
+        let textMatches = activeContextWindow
             .filter { item in
                 item.title.lowercased().contains(lowercaseQuery) ||
                 item.content.lowercased().contains(lowercaseQuery) ||
                 item.tags.contains { $0.lowercased().contains(lowercaseQuery) }
             }
             .sorted { $0.timestamp > $1.timestamp }
+        
+        // Combine and deduplicate results
+        var combinedResults: [ContextItem] = semanticMatches
+        for textMatch in textMatches {
+            if !combinedResults.contains(where: { $0.id == textMatch.id }) {
+                combinedResults.append(textMatch)
+            }
+        }
+        
+        return Array(combinedResults.prefix(limit))
+    }
+    
+    /// Search context using semantic embeddings
+    private func searchContextSemantically(query: String, limit: Int) async -> [ContextItem] {
+        guard let queryEmbedding = await embeddingsService.getEmbedding(for: query) else {
+            return []
+        }
+        
+        var similarities: [(item: ContextItem, similarity: Float)] = []
+        
+        for item in activeContextWindow {
+            let itemContent = "\(item.title). \(item.content)"
+            if let itemEmbedding = await embeddingsService.getEmbedding(for: itemContent) {
+                let similarity = embeddingsService.calculateSimilarity(
+                    embedding1: queryEmbedding,
+                    embedding2: itemEmbedding
+                )
+                if similarity > 0.7 { // Semantic similarity threshold
+                    similarities.append((item: item, similarity: similarity))
+                }
+            }
+        }
+        
+        return similarities
+            .sorted { $0.similarity > $1.similarity }
             .prefix(limit)
-            .map { $0 }
+            .map { $0.item }
     }
     
     /// Get context patterns for personalization
@@ -389,6 +474,76 @@ class ContextMemoryService: ObservableObject {
     
     private func calculateAverageDailyItems() -> Double {
         return getAverageItemsPerDay()
+    }
+    
+    // MARK: - Dynamic Window Sizing
+    
+    private func updateActivityPatterns(with items: [ContextItem]) async {
+        let now = Date()
+        let today = Calendar.current.startOfDay(for: now)
+        
+        // Update daily activity count
+        if let lastUpdateDay = activityPatterns.lastUpdateDate,
+           Calendar.current.isDate(lastUpdateDay, inSameDayAs: today) {
+            activityPatterns.todayItemCount += items.count
+        } else {
+            // New day - archive yesterday's count and start fresh
+            if activityPatterns.todayItemCount > 0 {
+                activityPatterns.dailyActivityHistory.append(activityPatterns.todayItemCount)
+                if activityPatterns.dailyActivityHistory.count > 14 {
+                    activityPatterns.dailyActivityHistory.removeFirst()
+                }
+            }
+            activityPatterns.todayItemCount = items.count
+        }
+        
+        activityPatterns.lastUpdateDate = now
+        
+        // Update peak activity hours
+        let currentHour = Calendar.current.component(.hour, from: now)
+        activityPatterns.hourlyActivity[currentHour, default: 0] += items.count
+        
+        // Update category distribution
+        for item in items {
+            activityPatterns.categoryDistribution[item.category, default: 0] += 1
+        }
+    }
+    
+    private func adjustWindowSize() async {
+        let averageDailyActivity = activityPatterns.averageDailyActivity
+        let recentTrend = activityPatterns.recentActivityTrend
+        
+        var newWindowSize = currentWindowSize
+        
+        // Base window size on activity level
+        if averageDailyActivity < ContextConfig.lowActivityThreshold {
+            // Low activity - smaller window for more focused context
+            newWindowSize = ContextConfig.minSlidingWindowSize
+        } else if averageDailyActivity > ContextConfig.highActivityThreshold {
+            // High activity - larger window to maintain sufficient context
+            newWindowSize = ContextConfig.maxSlidingWindowSize
+        } else {
+            // Medium activity - proportional sizing
+            let ratio = (averageDailyActivity - Double(ContextConfig.lowActivityThreshold)) / 
+                       (Double(ContextConfig.highActivityThreshold) - Double(ContextConfig.lowActivityThreshold))
+            newWindowSize = ContextConfig.minSlidingWindowSize + 
+                           Int(ratio * Double(ContextConfig.maxSlidingWindowSize - ContextConfig.minSlidingWindowSize))
+        }
+        
+        // Adjust based on recent trend
+        if recentTrend > 1.2 {
+            // Increasing activity - expand window
+            newWindowSize = min(newWindowSize + 10, ContextConfig.maxSlidingWindowSize)
+        } else if recentTrend < 0.8 {
+            // Decreasing activity - contract window
+            newWindowSize = max(newWindowSize - 10, ContextConfig.minSlidingWindowSize)
+        }
+        
+        // Update window size if changed
+        if newWindowSize != currentWindowSize {
+            currentWindowSize = newWindowSize
+            print("🧠 CONTEXT: Adjusted window size to \(currentWindowSize) (avg daily: \(String(format: "%.1f", averageDailyActivity)), trend: \(String(format: "%.2f", recentTrend)))")
+        }
     }
     
     // MARK: - Persistence
@@ -654,7 +809,34 @@ struct ProcessingContext {
     let weeklySummaries: [WeeklySummary]
     let monthlySummaries: [MonthlySummary]
     let contextStats: ContextStats
+    let calendarContext: CalendarContext
     let timestamp: Date
+}
+
+struct CalendarContext {
+    let todayEvents: [CalendarEvent]
+    let upcomingEvents: [CalendarEvent]
+    let availableTimeSlots: [TimeSlot]
+    let schedulingPatterns: SchedulingPatterns
+    let currentBufferStatus: BufferStatus
+    let workingHours: Int
+}
+
+struct TimeSlot {
+    let startTime: Date
+    let endTime: Date
+    let duration: TimeInterval
+    
+    var durationInMinutes: Int {
+        return Int(duration / 60)
+    }
+}
+
+struct SchedulingPatterns {
+    let peakCreationHours: [Int]
+    let averageTaskDuration: TimeInterval
+    let preferredTimeOfDay: [Int]
+    let workPersonalSplit: Double
 }
 
 struct ContextPatterns {
@@ -673,6 +855,157 @@ enum ContextTimeframe {
 // Priority is defined as TaskPriority in CoreModels.swift
 
 // MARK: - Extensions
+
+    // MARK: - Calendar Integration Helpers
+    
+    private func calculateAvailableTimeSlots(for date: Date) -> [TimeSlot] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        
+        // Define working hours (9 AM to 6 PM by default)
+        let workStart = calendar.date(byAdding: .hour, value: 9, to: startOfDay) ?? startOfDay
+        let workEnd = calendar.date(byAdding: .hour, value: 18, to: startOfDay) ?? startOfDay
+        
+        // Get busy times from calendar events
+        let todayEvents = calendarService.dailyEvents.filter { event in
+            calendar.isDate(event.startTime, inSameDayAs: date)
+        }
+        
+        var availableSlots: [TimeSlot] = []
+        var currentTime = workStart
+        
+        // Find gaps between events
+        let sortedEvents = todayEvents.sorted { $0.startTime < $1.startTime }
+        
+        for event in sortedEvents {
+            if currentTime < event.startTime {
+                // Found a gap
+                let duration = event.startTime.timeIntervalSince(currentTime)
+                if duration >= 1800 { // At least 30 minutes
+                    availableSlots.append(TimeSlot(
+                        startTime: currentTime,
+                        endTime: event.startTime,
+                        duration: duration
+                    ))
+                }
+            }
+            currentTime = max(currentTime, event.endTime ?? event.startTime.addingTimeInterval(3600))
+        }
+        
+        // Check for time after last event
+        if currentTime < workEnd {
+            let duration = workEnd.timeIntervalSince(currentTime)
+            if duration >= 1800 {
+                availableSlots.append(TimeSlot(
+                    startTime: currentTime,
+                    endTime: workEnd,
+                    duration: duration
+                ))
+            }
+        }
+        
+        return availableSlots
+    }
+    
+    private func analyzeSchedulingPatterns() -> SchedulingPatterns {
+        let recentItems = Array(activeContextWindow.suffix(50))
+        let now = Date()
+        
+        // Analyze when items are typically created vs scheduled
+        var hourlyCreation: [Int: Int] = [:]
+        var preferredDurations: [TimeInterval] = []
+        
+        for item in recentItems {
+            let hour = Calendar.current.component(.hour, from: item.timestamp)
+            hourlyCreation[hour, default: 0] += 1
+            
+            // Estimate typical duration based on item type and priority
+            let estimatedDuration = estimateTaskDuration(item)
+            preferredDurations.append(estimatedDuration)
+        }
+        
+        let peakCreationHours = hourlyCreation
+            .sorted { $0.value > $1.value }
+            .prefix(3)
+            .map { $0.key }
+        
+        let averageDuration = preferredDurations.isEmpty ? 3600 : 
+            preferredDurations.reduce(0, +) / Double(preferredDurations.count)
+        
+        return SchedulingPatterns(
+            peakCreationHours: peakCreationHours,
+            averageTaskDuration: averageDuration,
+            preferredTimeOfDay: getMostProductiveHours(),
+            workPersonalSplit: getWorkPersonalSchedulingPreference()
+        )
+    }
+    
+    private func estimateTaskDuration(_ item: ContextItem) -> TimeInterval {
+        // Estimate duration based on priority and content
+        let baseDuration: TimeInterval = 3600 // 1 hour default
+        
+        switch item.priority {
+        case .low:
+            return baseDuration * 0.5 // 30 minutes
+        case .medium:
+            return baseDuration // 1 hour
+        case .high:
+            return baseDuration * 1.5 // 1.5 hours
+        }
+    }
+    
+    private func getMostProductiveHours() -> [Int] {
+        return activityPatterns.peakActivityHours
+    }
+    
+    private func getWorkPersonalSchedulingPreference() -> Double {
+        let recentItems = Array(activeContextWindow.suffix(30))
+        let workItems = recentItems.filter { $0.workPersonal == .work }.count
+        let total = recentItems.count
+        
+        return total > 0 ? Double(workItems) / Double(total) : 0.5
+    }
+
+// MARK: - Activity Patterns for Dynamic Window Sizing
+
+struct ActivityPatterns {
+    var todayItemCount: Int = 0
+    var lastUpdateDate: Date? = nil
+    var dailyActivityHistory: [Int] = []
+    var hourlyActivity: [Int: Int] = [:]
+    var categoryDistribution: [PARACategory: Int] = [:]
+    
+    var averageDailyActivity: Double {
+        guard !dailyActivityHistory.isEmpty else { return Double(todayItemCount) }
+        let total = dailyActivityHistory.reduce(0, +) + todayItemCount
+        return Double(total) / Double(dailyActivityHistory.count + 1)
+    }
+    
+    var recentActivityTrend: Double {
+        guard dailyActivityHistory.count >= 3 else { return 1.0 }
+        
+        let recent = Array(dailyActivityHistory.suffix(3))
+        let older = Array(dailyActivityHistory.prefix(max(0, dailyActivityHistory.count - 3)))
+        
+        let recentAvg = Double(recent.reduce(0, +)) / Double(recent.count)
+        let olderAvg = older.isEmpty ? recentAvg : Double(older.reduce(0, +)) / Double(older.count)
+        
+        return olderAvg > 0 ? recentAvg / olderAvg : 1.0
+    }
+    
+    var peakActivityHours: [Int] {
+        return hourlyActivity
+            .sorted { $0.value > $1.value }
+            .prefix(3)
+            .map { $0.key }
+    }
+    
+    var dominantCategory: PARACategory {
+        return categoryDistribution
+            .max { $0.value < $1.value }?
+            .key ?? .project
+    }
+}
 
 extension Array where Element: Hashable {
     func uniqued() -> [Element] {

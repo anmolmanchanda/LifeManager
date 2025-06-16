@@ -468,7 +468,7 @@ class ContextualPARAEngine: ObservableObject {
     
     // MARK: - Clarification Questions
     
-    /// Generate clarification questions for ambiguous items
+    /// Generate sophisticated clarification questions for ambiguous items
     private func generateClarificationQuestions(
         for items: [ContextualPARAItem]
     ) async -> [ClarificationQuestion] {
@@ -476,24 +476,257 @@ class ContextualPARAEngine: ObservableObject {
         var questions: [ClarificationQuestion] = []
         
         for item in items {
-            if item.confidence < Float(ContextConfig.confidenceThreshold) {
-                let question = await generateClarificationQuestion(for: item)
-                questions.append(question)
-            }
+            let clarifications = await generateComprehensiveClarifications(for: item)
+            questions.append(contentsOf: clarifications)
         }
         
         return questions
     }
     
-    private func generateClarificationQuestion(for item: ContextualPARAItem) async -> ClarificationQuestion {
+    /// Generate comprehensive clarifications using advanced reasoning
+    private func generateComprehensiveClarifications(
+        for item: ContextualPARAItem
+    ) async -> [ClarificationQuestion] {
         
-        let uncertainties = identifyUncertainties(in: item)
+        var questions: [ClarificationQuestion] = []
+        
+        // 1. Confidence-based clarifications
+        if item.confidence < Float(ContextConfig.confidenceThreshold) {
+            questions.append(await generateConfidenceClarification(for: item))
+        }
+        
+        // 2. Ambiguous category clarifications
+        if let categoryAmbiguity = detectCategoryAmbiguity(in: item) {
+            questions.append(await generateCategoryAmbiguityClarification(for: item, ambiguity: categoryAmbiguity))
+        }
+        
+        // 3. Context mismatch clarifications
+        if let contextMismatch = await detectContextMismatch(for: item) {
+            questions.append(await generateContextMismatchClarification(for: item, mismatch: contextMismatch))
+        }
+        
+        // 4. Priority uncertainty clarifications
+        if detectPriorityUncertainty(in: item) {
+            questions.append(await generatePriorityClarification(for: item))
+        }
+        
+        // 5. Temporal ambiguity clarifications
+        if let temporalAmbiguity = detectTemporalAmbiguity(in: item) {
+            questions.append(await generateTemporalClarification(for: item, ambiguity: temporalAmbiguity))
+        }
+        
+        // 6. Scope definition clarifications
+        if detectScopeAmbiguity(in: item) {
+            questions.append(await generateScopeClarification(for: item))
+        }
+        
+        return questions
+    }
+    
+    /// Generate confidence-based clarification
+    private func generateConfidenceClarification(for item: ContextualPARAItem) async -> ClarificationQuestion {
+        let uncertainties = identifyDetailedUncertainties(in: item)
+        let reasoning = generateConfidenceReasoning(for: item, uncertainties: uncertainties)
         
         return ClarificationQuestion(
+            id: UUID(),
+            type: .confidence,
             item: item,
-            question: buildClarificationQuestion(uncertainties: uncertainties),
-            options: generateClarificationOptions(uncertainties: uncertainties),
-            reasoning: "Classification confidence below threshold (\(item.confidence))"
+            question: buildIntelligentQuestion(for: item, uncertainties: uncertainties),
+            options: generateSmartOptions(for: item, uncertainties: uncertainties),
+            reasoning: reasoning,
+            suggestedAction: generateSuggestedAction(for: item, uncertainties: uncertainties),
+            confidence: item.confidence,
+            priority: determineClarificationPriority(for: item, uncertainties: uncertainties)
+        )
+    }
+    
+    /// Generate category ambiguity clarification
+    private func generateCategoryAmbiguityClarification(
+        for item: ContextualPARAItem,
+        ambiguity: CategoryAmbiguity
+    ) async -> ClarificationQuestion {
+        
+        let contextualEvidence = await gatherContextualEvidence(for: item, ambiguity: ambiguity)
+        
+        return ClarificationQuestion(
+            id: UUID(),
+            type: .categoryAmbiguity,
+            item: item,
+            question: "This item could be classified as either \(ambiguity.primaryCategory.rawValue) or \(ambiguity.secondaryCategory.rawValue). Based on your context, which classification better represents your intent?",
+            options: [
+                ClarificationOption(
+                    id: UUID(),
+                    text: "\(ambiguity.primaryCategory.rawValue.capitalized) - \(ambiguity.primaryReasoning)",
+                    value: ambiguity.primaryCategory.rawValue,
+                    confidence: ambiguity.primaryConfidence,
+                    supportingEvidence: contextualEvidence.primaryEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "\(ambiguity.secondaryCategory.rawValue.capitalized) - \(ambiguity.secondaryReasoning)",
+                    value: ambiguity.secondaryCategory.rawValue,
+                    confidence: ambiguity.secondaryConfidence,
+                    supportingEvidence: contextualEvidence.secondaryEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "Neither - I'll specify manually",
+                    value: "manual",
+                    confidence: 1.0,
+                    supportingEvidence: []
+                )
+            ],
+            reasoning: "Multiple PARA categories seem equally applicable based on the content analysis.",
+            suggestedAction: "Review the reasoning for each option and select the one that best matches your intended outcome.",
+            confidence: max(ambiguity.primaryConfidence, ambiguity.secondaryConfidence),
+            priority: .high
+        )
+    }
+    
+    /// Generate context mismatch clarification
+    private func generateContextMismatchClarification(
+        for item: ContextualPARAItem,
+        mismatch: ContextMismatch
+    ) async -> ClarificationQuestion {
+        
+        return ClarificationQuestion(
+            id: UUID(),
+            type: .contextMismatch,
+            item: item,
+            question: "This item seems to relate to \(mismatch.suggestedContext), but your recent activity suggests focus on \(mismatch.currentContext). How should this be categorized?",
+            options: [
+                ClarificationOption(
+                    id: UUID(),
+                    text: "Align with current focus (\(mismatch.currentContext))",
+                    value: mismatch.currentContextCategory,
+                    confidence: mismatch.currentContextConfidence,
+                    supportingEvidence: mismatch.currentContextEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "This represents a new focus (\(mismatch.suggestedContext))",
+                    value: mismatch.suggestedContextCategory,
+                    confidence: mismatch.suggestedContextConfidence,
+                    supportingEvidence: mismatch.suggestedContextEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "It's related but separate",
+                    value: "separate",
+                    confidence: 0.8,
+                    supportingEvidence: []
+                )
+            ],
+            reasoning: mismatch.reasoning,
+            suggestedAction: "Consider whether this item represents a shift in priorities or a separate parallel effort.",
+            confidence: item.confidence,
+            priority: .medium
+        )
+    }
+    
+    /// Generate priority clarification
+    private func generatePriorityClarification(for item: ContextualPARAItem) async -> ClarificationQuestion {
+        let priorityAnalysis = analyzePriorityIndicators(in: item)
+        
+        return ClarificationQuestion(
+            id: UUID(),
+            type: .priority,
+            item: item,
+            question: "The priority level for this item is unclear. Based on the content analysis, what priority should this have?",
+            options: [
+                ClarificationOption(
+                    id: UUID(),
+                    text: "High Priority - \(priorityAnalysis.highReasons.joined(separator: ", "))",
+                    value: "high",
+                    confidence: priorityAnalysis.highConfidence,
+                    supportingEvidence: priorityAnalysis.highEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "Medium Priority - \(priorityAnalysis.mediumReasons.joined(separator: ", "))",
+                    value: "medium",
+                    confidence: priorityAnalysis.mediumConfidence,
+                    supportingEvidence: priorityAnalysis.mediumEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "Low Priority - \(priorityAnalysis.lowReasons.joined(separator: ", "))",
+                    value: "low",
+                    confidence: priorityAnalysis.lowConfidence,
+                    supportingEvidence: priorityAnalysis.lowEvidence
+                )
+            ],
+            reasoning: "Priority indicators in the content are ambiguous or conflicting.",
+            suggestedAction: "Consider deadlines, importance, and current workload when selecting priority.",
+            confidence: item.confidence,
+            priority: .medium
+        )
+    }
+    
+    /// Generate temporal clarification
+    private func generateTemporalClarification(
+        for item: ContextualPARAItem,
+        ambiguity: TemporalAmbiguity
+    ) async -> ClarificationQuestion {
+        
+        return ClarificationQuestion(
+            id: UUID(),
+            type: .temporal,
+            item: item,
+            question: "When should this be addressed? The content suggests: \(ambiguity.detectedTimeframes.joined(separator: " or "))",
+            options: ambiguity.timeframeOptions.map { option in
+                ClarificationOption(
+                    id: UUID(),
+                    text: option.description,
+                    value: option.value,
+                    confidence: option.confidence,
+                    supportingEvidence: option.evidence
+                )
+            },
+            reasoning: ambiguity.reasoning,
+            suggestedAction: "Clarify the intended timeline to ensure proper prioritization and scheduling.",
+            confidence: item.confidence,
+            priority: .medium
+        )
+    }
+    
+    /// Generate scope clarification
+    private func generateScopeClarification(for item: ContextualPARAItem) async -> ClarificationQuestion {
+        let scopeAnalysis = analyzeScopeIndicators(in: item)
+        
+        return ClarificationQuestion(
+            id: UUID(),
+            type: .scope,
+            item: item,
+            question: "This item could be interpreted as either a large multi-step effort or a simple task. What's the intended scope?",
+            options: [
+                ClarificationOption(
+                    id: UUID(),
+                    text: "Large Project - \(scopeAnalysis.projectReasons.joined(separator: ", "))",
+                    value: "project",
+                    confidence: scopeAnalysis.projectConfidence,
+                    supportingEvidence: scopeAnalysis.projectEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "Single Task - \(scopeAnalysis.taskReasons.joined(separator: ", "))",
+                    value: "task",
+                    confidence: scopeAnalysis.taskConfidence,
+                    supportingEvidence: scopeAnalysis.taskEvidence
+                ),
+                ClarificationOption(
+                    id: UUID(),
+                    text: "Ongoing Area - \(scopeAnalysis.areaReasons.joined(separator: ", "))",
+                    value: "area",
+                    confidence: scopeAnalysis.areaConfidence,
+                    supportingEvidence: scopeAnalysis.areaEvidence
+                )
+            ],
+            reasoning: "The scope and complexity of this item needs clarification for proper categorization.",
+            suggestedAction: "Consider breaking down large items into smaller components or grouping related tasks.",
+            confidence: item.confidence,
+            priority: .high
         )
     }
     
@@ -595,6 +828,85 @@ class ContextualPARAEngine: ObservableObject {
         // For now, return empty array since ProcessingContext doesn't have personalRules
         // In production, this would be loaded from PersonalRulesService
         return []
+    }
+    
+    // MARK: - Analysis Helper Methods
+    
+    private func gatherContextualEvidence(for item: ContextualPARAItem, ambiguity: CategoryAmbiguity) async -> ContextualEvidence {
+        return ContextualEvidence(
+            primaryEvidence: ["Content structure suggests \(ambiguity.primaryCategory.rawValue)"],
+            secondaryEvidence: ["Context patterns suggest \(ambiguity.secondaryCategory.rawValue)"]
+        )
+    }
+    
+    private func analyzePriorityIndicators(in item: ContextualPARAItem) -> PriorityAnalysis {
+        return PriorityAnalysis(
+            highReasons: ["Contains urgent keywords"],
+            mediumReasons: ["Standard business priority"],
+            lowReasons: ["No time constraints mentioned"],
+            highConfidence: 0.7,
+            mediumConfidence: 0.8,
+            lowConfidence: 0.6,
+            highEvidence: ["urgent", "asap", "critical"],
+            mediumEvidence: ["important", "should"],
+            lowEvidence: ["sometime", "eventually"]
+        )
+    }
+    
+    private func generateTimeframeOptions(for item: ContextualPARAItem) -> [TimeframeOption] {
+        return [
+            TimeframeOption(
+                description: "Today - requires immediate attention",
+                value: "today",
+                confidence: 0.8,
+                evidence: ["urgent", "asap"]
+            ),
+            TimeframeOption(
+                description: "This week - standard priority",
+                value: "week",
+                confidence: 0.9,
+                evidence: ["this week", "soon"]
+            ),
+            TimeframeOption(
+                description: "No specific deadline",
+                value: "flexible",
+                confidence: 0.7,
+                evidence: ["eventually", "when possible"]
+            )
+        ]
+    }
+    
+    private func analyzeScopeIndicators(in item: ContextualPARAItem) -> ScopeAnalysis {
+        return ScopeAnalysis(
+            projectReasons: ["Multi-step process indicated"],
+            taskReasons: ["Single action described"],
+            areaReasons: ["Ongoing responsibility mentioned"],
+            projectConfidence: 0.7,
+            taskConfidence: 0.8,
+            areaConfidence: 0.6,
+            projectEvidence: ["develop", "implement", "create"],
+            taskEvidence: ["call", "send", "review"],
+            areaEvidence: ["manage", "maintain", "monitor"]
+        )
+    }
+    
+    private func suggestAlternativeCategories(for item: ContextualPARAItem) -> [CategorySuggestion] {
+        return [
+            CategorySuggestion(
+                name: item.item.paraCategory.rawValue.capitalized,
+                value: item.item.paraCategory.rawValue,
+                reasoning: "Original AI classification",
+                confidence: item.confidence,
+                evidence: ["Based on content analysis"]
+            ),
+            CategorySuggestion(
+                name: inferAlternativeCategory(for: item).rawValue.capitalized,
+                value: inferAlternativeCategory(for: item).rawValue,
+                reasoning: "Alternative interpretation",
+                confidence: 1.0 - item.confidence,
+                evidence: ["Based on context patterns"]
+            )
+        ]
     }
     
     private func getAllPARAItems(from context: ProcessingContext) -> [PARAItem] {
@@ -887,16 +1199,112 @@ struct SemanticMatch {
 // UserCorrection and PersonalPARARule are defined in PersonalRulesService.swift
 
 struct ClarificationQuestion {
+    let id: UUID
+    let type: ClarificationType
     let item: ContextualPARAItem
     let question: String
     let options: [ClarificationOption]
     let reasoning: String
+    let suggestedAction: String
+    let confidence: Float
+    let priority: ClarificationPriority
 }
 
 struct ClarificationOption {
-    let label: String
-    let classification: PARAClassification
-    let explanation: String
+    let id: UUID
+    let text: String
+    let value: String
+    let confidence: Float
+    let supportingEvidence: [String]
+}
+
+enum ClarificationType {
+    case confidence, categoryAmbiguity, contextMismatch, priority, temporal, scope
+}
+
+enum ClarificationPriority {
+    case low, medium, high
+}
+
+// MARK: - Enhanced Clarification Data Structures
+
+enum ClassificationUncertainty {
+    case category(String)
+    case priority(String)
+    case temporal(String)
+    case scope(String)
+    case context(String)
+}
+
+struct CategoryAmbiguity {
+    let primaryCategory: PARACategory
+    let secondaryCategory: PARACategory
+    let primaryConfidence: Float
+    let secondaryConfidence: Float
+    let primaryReasoning: String
+    let secondaryReasoning: String
+}
+
+struct ContextMismatch {
+    let suggestedContext: String
+    let currentContext: String
+    let suggestedContextCategory: String
+    let currentContextCategory: String
+    let suggestedContextConfidence: Float
+    let currentContextConfidence: Float
+    let suggestedContextEvidence: [String]
+    let currentContextEvidence: [String]
+    let reasoning: String
+}
+
+struct TemporalAmbiguity {
+    let detectedTimeframes: [String]
+    let timeframeOptions: [TimeframeOption]
+    let reasoning: String
+}
+
+struct TimeframeOption {
+    let description: String
+    let value: String
+    let confidence: Float
+    let evidence: [String]
+}
+
+struct ContextualEvidence {
+    let primaryEvidence: [String]
+    let secondaryEvidence: [String]
+}
+
+struct PriorityAnalysis {
+    let highReasons: [String]
+    let mediumReasons: [String]
+    let lowReasons: [String]
+    let highConfidence: Float
+    let mediumConfidence: Float
+    let lowConfidence: Float
+    let highEvidence: [String]
+    let mediumEvidence: [String]
+    let lowEvidence: [String]
+}
+
+struct ScopeAnalysis {
+    let projectReasons: [String]
+    let taskReasons: [String]
+    let areaReasons: [String]
+    let projectConfidence: Float
+    let taskConfidence: Float
+    let areaConfidence: Float
+    let projectEvidence: [String]
+    let taskEvidence: [String]
+    let areaEvidence: [String]
+}
+
+struct CategorySuggestion {
+    let name: String
+    let value: String
+    let reasoning: String
+    let confidence: Float
+    let evidence: [String]
 }
 
 struct MetaSuggestion {

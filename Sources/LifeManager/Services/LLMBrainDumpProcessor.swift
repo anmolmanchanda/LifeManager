@@ -1014,22 +1014,30 @@ class LLMBrainDumpProcessor {
 
 struct BrainDumpResult {
     let originalInput: String
-    let analysisResult: LLMAnalysisResult
-    let suggestedItems: [BrainDumpItem]
+    let analysisResult: EnhancedLLMAnalysisResult
+    let suggestedItems: [EnhancedBrainDumpItem]
     let confidence: Double
     let requiresReview: Bool
+    let processingMetadata: ProcessingMetadata
+    let clarificationQuestions: [String]
+    let optimizationSuggestions: [String]
+    let contextualInsights: ContextualInsights
 }
 
-struct LLMAnalysisResult {
-    let extractedItems: [BrainDumpItem]
+struct EnhancedLLMAnalysisResult {
+    let extractedItems: [EnhancedBrainDumpItem]
     let confidence: Double
     let hasAmbiguousItems: Bool
-    let reasoning: String
+    let reasoning: DetailedReasoning
     let suggestedNewAreas: [String]
     let suggestedNewProjects: [String]
+    let patternAnalysis: PatternAnalysis
+    let contextualFactors: [ContextualFactor]
+    let uncertaintyAnalysis: UncertaintyAnalysis
+    let crossItemRelationships: [ItemRelationship]
 }
 
-struct BrainDumpItem {
+struct EnhancedBrainDumpItem {
     let id: UUID
     let title: String
     let content: String
@@ -1043,6 +1051,276 @@ struct BrainDumpItem {
     let tags: [String]
     let confidence: Double
     let metadata: [String: Any]
+    
+    // Enhanced reasoning fields
+    let classificationReasoning: ClassificationReasoning
+    let alternativeClassifications: [AlternativeClassification]
+    let contextualRelevance: ContextualRelevance
+    let semanticSimilarity: [SemanticSimilarity]
+    let uncertaintyFactors: [UncertaintyFactor]
+    let suggestedActions: [SuggestedAction]
+    let estimatedEffort: EffortEstimate
+    let timelineAnalysis: TimelineAnalysis
+}
+
+// MARK: - Enhanced Reasoning Structures
+
+struct DetailedReasoning {
+    let primaryFactors: [ReasoningFactor]
+    let contextualInfluences: [String]
+    let patternMatches: [String]
+    let uncertainties: [String]
+    let confidenceBreakdown: ConfidenceBreakdown
+    let decisionTree: [DecisionNode]
+}
+
+struct ReasoningFactor {
+    let type: ReasoningType
+    let description: String
+    let weight: Double
+    let confidence: Double
+    let evidence: [String]
+}
+
+enum ReasoningType {
+    case keywordMatch, contextualPattern, semanticSimilarity, historicalPattern, userPreference, temporalIndicator
+}
+
+struct ClassificationReasoning {
+    let primaryReasons: [String]
+    let supportingEvidence: [String]
+    let counterEvidence: [String]
+    let confidenceFactors: [String]
+    let alternativeOptions: [String]
+    let contextualInfluence: String
+}
+
+struct AlternativeClassification {
+    let category: PARACategory
+    let probability: Double
+    let reasoning: String
+    let supportingFactors: [String]
+    let implications: [String]
+}
+
+struct ContextualRelevance {
+    let recentActivityAlignment: Double
+    let existingProjectsAlignment: [ProjectAlignment]
+    let areaFocusAlignment: [AreaAlignment]
+    let workPersonalBalance: Double
+    let priorityConsistency: Double
+}
+
+struct ProjectAlignment {
+    let projectName: String
+    let alignmentScore: Double
+    let relevantAspects: [String]
+}
+
+struct AreaAlignment {
+    let areaName: String
+    let alignmentScore: Double
+    let relevantAspects: [String]
+}
+
+struct SemanticSimilarity {
+    let itemTitle: String
+    let similarityScore: Double
+    let matchType: String
+    let relevantAspects: [String]
+}
+
+struct UncertaintyFactor {
+    let aspect: UncertaintyAspect
+    let description: String
+    let impact: UncertaintyImpact
+    let resolutionSuggestions: [String]
+}
+
+enum UncertaintyAspect {
+    case category, priority, timeline, scope, context, workPersonal
+}
+
+enum UncertaintyImpact {
+    case low, medium, high
+}
+
+struct SuggestedAction {
+    let action: String
+    let rationale: String
+    let priority: ActionPriority
+    let estimatedTime: String?
+    let dependencies: [String]
+}
+
+enum ActionPriority {
+    case immediate, soon, eventually
+}
+
+struct EffortEstimate {
+    let category: EffortCategory
+    let timeEstimate: String
+    let complexityFactors: [String]
+    let skillsRequired: [String]
+    let confidence: Double
+}
+
+enum EffortCategory {
+    case quick, moderate, substantial, major
+}
+
+struct TimelineAnalysis {
+    let urgencyIndicators: [String]
+    let suggestedTimeline: String
+    let flexibilityFactors: [String]
+    let deadlineImplications: [String]
+    let schedulingConsiderations: [String]
+}
+
+struct PatternAnalysis {
+    let detectedPatterns: [DetectedPattern]
+    let behavioralInsights: [String]
+    let repetitiveElements: [String]
+    let novelAspects: [String]
+    let categoryTrends: [CategoryTrend]
+}
+
+struct DetectedPattern {
+    let type: PatternType
+    let description: String
+    let frequency: String
+    let implications: [String]
+}
+
+enum PatternType {
+    case recurring, seasonal, projectBased, habitual, reactive
+}
+
+struct CategoryTrend {
+    let category: PARACategory
+    let trend: TrendDirection
+    let description: String
+}
+
+enum TrendDirection {
+    case increasing, stable, decreasing
+}
+
+struct ContextualFactor {
+    let factor: String
+    let influence: InfluenceStrength
+    let description: String
+    let implications: [String]
+}
+
+enum InfluenceStrength {
+    case minimal, moderate, significant, critical
+}
+
+struct UncertaintyAnalysis {
+    let overallUncertainty: Double
+    let primaryUncertainties: [String]
+    let clarificationNeeded: [String]
+    let riskFactors: [String]
+    let mitigationStrategies: [String]
+}
+
+struct ItemRelationship {
+    let fromItem: UUID
+    let toItem: UUID
+    let relationshipType: RelationshipType
+    let strength: Double
+    let description: String
+}
+
+enum RelationshipType {
+    case dependency, similarity, sequence, hierarchy, collaboration
+}
+
+struct ProcessingMetadata {
+    let processingTime: TimeInterval
+    let apiCalls: Int
+    let fallbacksUsed: [String]
+    let performanceMetrics: PerformanceMetrics
+    let modelVersion: String
+    let processingStages: [ProcessingStage]
+}
+
+struct PerformanceMetrics {
+    let tokenUsage: TokenUsage
+    let responseTime: TimeInterval
+    let cacheHits: Int
+    let embeddingsGenerated: Int
+}
+
+struct TokenUsage {
+    let promptTokens: Int
+    let completionTokens: Int
+    let totalTokens: Int
+    let estimatedCost: Double
+}
+
+struct ProcessingStage {
+    let stage: String
+    let duration: TimeInterval
+    let success: Bool
+    let details: String?
+}
+
+struct ContextualInsights {
+    let workLifeBalance: WorkLifeBalanceInsight
+    let productivityPatterns: [ProductivityPattern]
+    let focusAreaSuggestions: [FocusAreaSuggestion]
+    let optimizationOpportunities: [OptimizationOpportunity]
+}
+
+struct WorkLifeBalanceInsight {
+    let workPercentage: Double
+    let personalPercentage: Double
+    let balanceAssessment: String
+    let recommendations: [String]
+}
+
+struct ProductivityPattern {
+    let pattern: String
+    let frequency: String
+    let impact: String
+    let suggestions: [String]
+}
+
+struct FocusAreaSuggestion {
+    let area: String
+    let rationale: String
+    let priority: String
+    let actionItems: [String]
+}
+
+struct OptimizationOpportunity {
+    let opportunity: String
+    let potentialBenefit: String
+    let implementation: String
+    let effort: String
+}
+
+struct ConfidenceBreakdown {
+    let categoryConfidence: Double
+    let priorityConfidence: Double
+    let timelineConfidence: Double
+    let overallConfidence: Double
+    let factors: [ConfidenceFactor]
+}
+
+struct ConfidenceFactor {
+    let factor: String
+    let impact: Double
+    let description: String
+}
+
+struct DecisionNode {
+    let decision: String
+    let reasoning: String
+    let alternatives: [String]
+    let confidence: Double
 }
 
 struct PARAContext {
