@@ -28,7 +28,8 @@ class MainViewModel: ObservableObject {
     // MARK: - Services
     
     private let supabaseService = SupabaseService.shared
-    internal let llmService = LLMService()
+    internal let llmService = LLMService.shared
+    private let brainDumpProcessor = LLMBrainDumpProcessor()
     
     // MARK: - Development Mode
     
@@ -99,7 +100,7 @@ class MainViewModel: ObservableObject {
     @Published var brainDumpProgressMessage = ""
     @Published var brainDumpElapsedTime = 0
     
-    private let brainDumpProcessor = LLMBrainDumpProcessor()
+    // Brain dump processor disabled for minimal build
     private var brainDumpProgressTimer: Timer?
     
     // MARK: - Processing State
@@ -1120,14 +1121,7 @@ class MainViewModel: ObservableObject {
             // Use LLM to categorize and extract tasks
             print("🔧 PROCESS BLOB: Calling LLM categorization...")
             // Build context for PARA categorization
-            let context = PARAContext(
-                projects: [],
-                areas: [],
-                resources: [],
-                recentTasks: [],
-                commonTags: ["work", "personal", "urgent", "health", "finance"]
-            )
-            let categorization = try await llmService.categorizePARA(input: blob.content, context: context)
+            let categorization = try await llmService.categorizePARA(input: blob.content)
             print("🔧 PROCESS BLOB: ✅ LLM categorization completed")
             print("🔧 PROCESS BLOB: Category: \(categorization.category), Confidence: \(categorization.confidenceScore)")
             

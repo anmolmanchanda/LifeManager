@@ -1,0 +1,20 @@
+{
+  "" : {
+    "const-values" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-master.swiftconstvalues",
+    "dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-master.d",
+    "diagnostics" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-master.dia",
+    "emit-module-dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-master-emit-module.dia",
+    "swift-dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/XCTestDynamicOverlay-master.swiftdeps"
+  },
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/XCTestDynamicOverlay/Internal/Deprecations.swift" : {
+    "index-unit-output-path" : "/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/Deprecations.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/Deprecations.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/Deprecations.o"
+  },
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/XCTestDynamicOverlay/Internal/Exports.swift" : {
+    "index-unit-output-path" : "/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/Exports.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/Exports.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/xctest-dynamic-overlay.build/Release/XCTestDynamicOverlay.build/Objects-normal/arm64/Exports.o"
+  }
+}

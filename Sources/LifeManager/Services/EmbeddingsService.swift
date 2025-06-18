@@ -716,6 +716,8 @@ private extension EmbeddingsService {
         
         // Priority-based enhancement
         switch item.priority {
+        case .urgent:
+            enhanced *= 1.25
         case .high:
             enhanced *= 1.15
         case .medium:

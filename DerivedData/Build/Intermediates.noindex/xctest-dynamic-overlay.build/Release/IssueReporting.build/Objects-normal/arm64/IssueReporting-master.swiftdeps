@@ -1,0 +1,39 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "dfc355272e323c4b7b24259dec0cd26b75bb671b11139396040e0d7797cd6753"
+build_start_time: [1750253417, 685899000]
+build_end_time: [1750253421, 78441000]
+inputs:
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/ErrorReporting.swift"
+  : [1750253411, 631293602]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/AppHostWarning.swift"
+  : [1750253411, 631458310]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/Deprecations.swift"
+  : [1750253411, 631652144]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/FailureObserver.swift"
+  : [1750253411, 631765894]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/LockIsolated.swift"
+  : [1750253411, 631994353]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/Rethrows.swift"
+  : [1750253411, 632210812]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/SwiftTesting.swift"
+  : [1750253411, 632370979]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/UncheckedSendable.swift"
+  : [1750253411, 632467812]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/Warn.swift": [1750253411, 632561979]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Internal/XCTest.swift"
+  : [1750253411, 632797813]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/IsTesting.swift": [1750253411, 632892521]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/IssueReporter.swift": [1750253411, 633025188]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/IssueReporters/BreakpointReporter.swift"
+  : [1750253411, 633188314]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/IssueReporters/FatalErrorReporter.swift"
+  : [1750253411, 633289356]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/IssueReporters/RuntimeWarningReporter.swift"
+  : [1750253411, 633384647]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/ReportIssue.swift": [1750253411, 633496314]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/TestContext.swift": [1750253411, 633593689]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/Unimplemented.swift": [1750253411, 633704315]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/WithExpectedIssue.swift"
+  : [1750253411, 633815106]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/IssueReporting/WithIssueContext.swift"
+  : [1750253411, 633906898]

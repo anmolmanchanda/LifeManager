@@ -286,8 +286,8 @@ struct BrainDumpItemRow: View {
             .font(.caption)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(item.workPersonal == .work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
-            .foregroundColor(item.workPersonal == .work ? .blue : .green)
+            .background(item.workPersonal == WorkPersonalType.work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+            .foregroundColor(item.workPersonal == WorkPersonalType.work ? .blue : .green)
             .cornerRadius(4)
     }
     

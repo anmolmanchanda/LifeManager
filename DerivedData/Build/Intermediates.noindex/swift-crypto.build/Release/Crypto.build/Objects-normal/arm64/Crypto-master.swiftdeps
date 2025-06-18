@@ -1,0 +1,118 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "276a39241fb6f1bd0e5bc6d5f47b4d9b5774cf605f6901c7d8ebf30a1953003e"
+build_start_time: [1750253417, 689416000]
+build_end_time: [1750253420, 345357000]
+inputs:
+  ? "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/swift-crypto.build/Release/Crypto.build/DerivedSources/resource_bundle_accessor.swift"
+  : [1750253416, 219911197]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/AEADs/AES/GCM/AES-GCM.swift": [1750253411, 942993150]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/AEADs/AES/GCM/BoringSSL/AES-GCM_boring.swift"
+  : [1750253411, 943168025]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/AEADs/ChachaPoly/BoringSSL/ChaChaPoly_boring.swift"
+  : [1750253411, 943388317]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/AEADs/ChachaPoly/ChaChaPoly.swift": [1750253411, 943492942]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/AEADs/Cipher.swift": [1750253411, 943583318]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/AEADs/Nonces.swift": [1750253411, 943707234]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/ASN1.swift": [1750253411, 944022902]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1Any.swift": [1750253411, 944221610]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1BitString.swift"
+  : [1750253411, 944380152]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1Boolean.swift"
+  : [1750253411, 944497861]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1Identifier.swift"
+  : [1750253411, 944619111]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1Integer.swift"
+  : [1750253411, 944709570]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1Null.swift": [1750253411, 944798695]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1OctetString.swift"
+  : [1750253411, 944885820]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ASN1Strings.swift"
+  : [1750253411, 945028445]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ArraySliceBigint.swift"
+  : [1750253411, 945124612]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/GeneralizedTime.swift"
+  : [1750253411, 945257029]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/Basic ASN1 Types/ObjectIdentifier.swift"
+  : [1750253411, 945418154]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/ECDSASignature.swift": [1750253411, 945576363]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/PEMDocument.swift": [1750253411, 945711863]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/PKCS8PrivateKey.swift": [1750253411, 945839114]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/SEC1PrivateKey.swift": [1750253411, 946141364]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/ASN1/SubjectPublicKeyInfo.swift": [1750253411, 946282989]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/CryptoKitErrors.swift": [1750253411, 946680407]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Digests/BoringSSL/Digest_boring.swift": [1750253411, 946939116]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Digests/Digest.swift": [1750253411, 947058866]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Digests/Digests.swift": [1750253411, 947207908]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Digests/HashFunctions.swift": [1750253411, 947487950]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Digests/HashFunctions_SHA2.swift": [1750253411, 947612075]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/HPKE-AEAD.swift": [1750253411, 947962492]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/HPKE-Ciphersuite.swift"
+  : [1750253411, 948066701]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/HPKE-KDF.swift": [1750253411, 948196035]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/HPKE-KexKeyDerivation.swift"
+  : [1750253411, 948295910]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/HPKE-LabeledExtract.swift"
+  : [1750253411, 948385243]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/HPKE-Utils.swift": [1750253411, 948481660]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/KEM/Conformances/DHKEM.swift"
+  : [1750253411, 948796077]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/KEM/Conformances/HPKE-KEM-Curve25519.swift"
+  : [1750253411, 948909703]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/KEM/Conformances/HPKE-NIST-EC-KEMs.swift"
+  : [1750253411, 949035078]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Ciphersuite/KEM/HPKE-KEM.swift": [1750253411, 949135870]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/HPKE-Errors.swift": [1750253411, 949219411]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/HPKE.swift": [1750253411, 949332328]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Key Schedule/HPKE-Context.swift": [1750253411, 949488746]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Key Schedule/HPKE-KeySchedule.swift"
+  : [1750253411, 949601704]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/HPKE/Modes/HPKE-Modes.swift": [1750253411, 949753663]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Insecure/Insecure.swift": [1750253411, 949958413]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Insecure/Insecure_HashFunctions.swift": [1750253411, 950069788]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/KEM/KEM.swift": [1750253411, 950215080]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Key Agreement/BoringSSL/ECDH_boring.swift"
+  : [1750253411, 950403081]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Key Agreement/DH.swift": [1750253411, 950510664]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Key Agreement/ECDH.swift": [1750253411, 950669581]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Key Derivation/HKDF.swift": [1750253411, 950996915]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Key Wrapping/AESWrap.swift": [1750253411, 951143707]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Key Wrapping/BoringSSL/AESWrap_boring.swift"
+  : [1750253411, 951340874]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/EC/BoringSSL/Ed25519_boring.swift"
+  : [1750253411, 951614124]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/EC/BoringSSL/NISTCurvesKeys_boring.swift"
+  : [1750253411, 951724291]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/EC/BoringSSL/X25519Keys_boring.swift"
+  : [1750253411, 951835833]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/EC/Curve25519.swift": [1750253411, 951919042]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/EC/Ed25519Keys.swift": [1750253411, 952043208]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/EC/NISTCurvesKeys.swift": [1750253411, 952143209]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/EC/X25519Keys.swift": [1750253411, 952261459]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Keys/Symmetric/SymmetricKeys.swift": [1750253411, 952432668]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Message Authentication Codes/HMAC/HMAC.swift"
+  : [1750253411, 952647210]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Message Authentication Codes/MACFunctions.swift"
+  : [1750253411, 952751127]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Message Authentication Codes/MessageAuthenticationCode.swift"
+  : [1750253411, 952840252]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/PRF/AES.swift": [1750253411, 952977960]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Signatures/BoringSSL/ECDSASignature_boring.swift"
+  : [1750253411, 953272294]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Signatures/BoringSSL/ECDSA_boring.swift"
+  : [1750253411, 953386253]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Signatures/BoringSSL/EdDSA_boring.swift"
+  : [1750253411, 953498420]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Signatures/ECDSA.swift": [1750253411, 953596836]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Signatures/Ed25519.swift": [1750253411, 953803379]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Signatures/Signature.swift": [1750253411, 953883004]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/BoringSSL/CryptoKitErrors_boring.swift"
+  : [1750253411, 954057712]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/BoringSSL/RNG_boring.swift": [1750253411, 954146879]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/BoringSSL/SafeCompare_boring.swift"
+  : [1750253411, 954227213]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/BoringSSL/Zeroization_boring.swift"
+  : [1750253411, 954303213]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/PrettyBytes.swift": [1750253411, 954380421]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/SafeCompare.swift": [1750253411, 954458547]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/SecureBytes.swift": [1750253411, 954542422]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-crypto/Sources/Crypto/Util/Zeroization.swift": [1750253411, 954628088]

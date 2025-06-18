@@ -1,0 +1,13 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "a1a08314a2521c338c0786516d5150b99e8d57d53d3f8ad1953ab6b819ba1f25"
+build_start_time: [1750253417, 685879000]
+build_end_time: [1750253420, 961710000]
+inputs:
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/HTTPField.swift": [1750253412, 412646288]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/HTTPFieldName.swift": [1750253412, 412744664]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/HTTPFields.swift": [1750253412, 412910622]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/HTTPParsedFields.swift": [1750253412, 413024414]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/HTTPRequest.swift": [1750253412, 413126873]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/HTTPResponse.swift": [1750253412, 413245498]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/ISOLatin1String.swift": [1750253412, 413353831]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-http-types/Sources/HTTPTypes/NIOLock.swift": [1750253412, 413476623]

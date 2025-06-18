@@ -1,0 +1,13 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "558066f3119e5958c9aea17d571bbeeb6e69b271e73f143c185afb57e19f297d"
+build_start_time: [1750253421, 1357000]
+build_end_time: [1750253423, 664404000]
+inputs:
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/AnyClock.swift": [1750253411, 701803360]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/ImmediateClock.swift": [1750253411, 702476986]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/Internal/Lock.swift": [1750253411, 702660570]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/Internal/_AsyncTimerSequence.swift": [1750253411, 702778154]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/SwiftUI.swift": [1750253411, 703024779]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/TestClock.swift": [1750253411, 703154196]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/Timer.swift": [1750253411, 703267071]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-clocks/Sources/Clocks/UnimplementedClock.swift": [1750253411, 703401821]

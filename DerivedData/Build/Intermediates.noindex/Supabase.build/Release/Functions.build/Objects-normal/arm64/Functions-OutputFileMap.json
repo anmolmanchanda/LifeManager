@@ -1,0 +1,25 @@
+{
+  "" : {
+    "const-values" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Functions-master.swiftconstvalues",
+    "dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Functions-master.d",
+    "diagnostics" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Functions-master.dia",
+    "emit-module-dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Functions-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Functions-master-emit-module.dia",
+    "swift-dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Functions-master.swiftdeps"
+  },
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Functions/Exports.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release/Functions.build/Objects-normal/arm64/Exports.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Exports.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Exports.o"
+  },
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Functions/FunctionsClient.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release/Functions.build/Objects-normal/arm64/FunctionsClient.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/FunctionsClient.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/FunctionsClient.o"
+  },
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Functions/Types.swift" : {
+    "index-unit-output-path" : "/Supabase.build/Release/Functions.build/Objects-normal/arm64/Types.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Types.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/Supabase.build/Release/Functions.build/Objects-normal/arm64/Types.o"
+  }
+}

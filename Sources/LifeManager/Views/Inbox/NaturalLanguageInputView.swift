@@ -151,6 +151,7 @@ struct NaturalLanguageInputView: View {
                         viewModel.cancelBrainDump()
                     }
                 )
+                .environmentObject(viewModel)
             }
         }
     }
