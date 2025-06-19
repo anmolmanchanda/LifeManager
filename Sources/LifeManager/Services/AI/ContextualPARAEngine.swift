@@ -13,6 +13,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 /// Advanced context-aware PARA processing engine with self-improving capabilities
 /// Implements active context memory, feedback loops, and semantic embeddings
@@ -23,6 +24,7 @@ class ContextualPARAEngine: ObservableObject {
     private let llmService = LLMService.shared
     private let supabaseService = SupabaseService.shared
     private let embeddingsService = EmbeddingsService.shared
+    private let contextMemoryService = ContextMemoryService.shared
     
     // MARK: - Context Memory Configuration
     
@@ -39,14 +41,21 @@ class ContextualPARAEngine: ObservableObject {
     @Published var activeContextWindow: [PARAItem] = []
     @Published var dailySummaries: [DailySummary] = []
     @Published var weeklySummaries: [WeeklySummary] = []
-    @Published var userCorrections: [UserCorrection] = []
-    @Published var personalRules: [PersonalPARARule] = []
+    // Note: These will be managed through PersonalRulesService.shared
+    // @Published var userCorrections: [UserCorrection] = []
+    // @Published var personalRules: [PersonalPARARule] = []
     
     // MARK: - Processing State
     
     @Published var isProcessing = false
     @Published var processingStage: ProcessingStage = .idle
     @Published var clarificationQuestions: [ClarificationQuestion] = []
+    
+    // MARK: - Cache Properties
+    
+    private var cachedContext: ProcessingContext?
+    private var cachedPersonalRules: [PersonalPARARule] = []
+    private let logger = Logger.shared
     
     // MARK: - Initialization
     
@@ -60,15 +69,16 @@ class ContextualPARAEngine: ObservableObject {
     // MARK: - Initialization Methods
     
     private func loadContextMemory() async {
-        // Load context from database - placeholder implementation
-        print("📝 CONTEXTUAL: Loading context memory from database")
-        // In production, this would load from ContextMemoryService
+        await refreshContextMemory()
     }
     
     private func loadPersonalRules() async {
-        // Load personal rules from database - placeholder implementation
-        print("📝 CONTEXTUAL: Loading personal rules from database")
-        // In production, this would load from PersonalRulesService
+        // For now, initialize with empty rules - will be populated by PersonalRulesService
+        await MainActor.run {
+            self.cachedPersonalRules = []
+        }
+        
+        logger.success("✅ CONTEXTUAL: Initialized personal rules cache")
     }
     
     // MARK: - Main Processing Pipeline
@@ -131,38 +141,8 @@ class ContextualPARAEngine: ObservableObject {
     
     /// Prepare comprehensive processing context
     private func prepareProcessingContext(userContext: UserContext?) async -> ProcessingContext {
-        
-        // Load active context window (last 100 items)
-        let recentItems = await loadRecentItems(limit: ContextConfig.slidingWindowSize)
-        
-        // Load daily/weekly summaries
-        let dailySummaries = await loadDailySummaries(days: ContextConfig.dailySummaryDays)
-        let weeklySummaries = await loadWeeklySummaries(weeks: ContextConfig.weeklySummaryWeeks)
-        
-        // Load all PARA items for embeddings comparison
-        let allPARAItems = await loadAllPARAItems()
-        
-        // Load personal rules and corrections
-        let personalRules = await loadPersonalRulesForContext()
-        let recentCorrections = await loadRecentCorrections(days: 30)
-        
-        return ProcessingContext(
-            recentItems: recentItems,
-            dailySummaries: dailySummaries,
-            weeklySummaries: weeklySummaries,
-            monthlySummaries: [], // Empty for now
-            contextStats: ContextStats(
-                totalItems: recentItems.count,
-                categoryCounts: [:],
-                averageConfidence: 0.8
-            ),
-            calendarContext: CalendarContext(
-                todayEvents: [],
-                upcomingEvents: [],
-                availableTimeSlots: []
-            ),
-            timestamp: Date()
-        )
+        // Use ContextMemoryService to get current context
+        return await contextMemoryService.getCurrentContext()
     }
     
     // MARK: - Input Splitting
@@ -325,7 +305,7 @@ class ContextualPARAEngine: ObservableObject {
         var category: PARACategory = .resource
         var workPersonal: WorkPersonalType = .personal
         var priority: TaskPriority = .medium
-        var confidence: Float = 0.5
+        let confidence: Float = 0.5
         
         for line in lines {
             if line.lowercased().contains("project") {
@@ -446,24 +426,14 @@ class ContextualPARAEngine: ObservableObject {
         userFeedback: String?
     ) async {
         
-        let correction = UserCorrection(
-            id: UUID(),
-            originalClassification: originalItem.paraClassification,
+        // Delegate to PersonalRulesService for correction handling
+        await PersonalRulesService.shared.recordUserCorrection(
+            originalItem: originalItem,
             correctedClassification: correctedClassification,
-            timestamp: Date(),
-            reasoning: userFeedback
+            userFeedback: userFeedback
         )
         
-        // Store correction
-        userCorrections.append(correction)
-        await persistUserCorrection(correction)
-        
-        // Extract and update personal rules
-        let newRule = await extractPersonalRule(from: correction)
-        if let rule = newRule {
-            personalRules.append(rule)
-            await persistPersonalRule(rule)
-        }
+        // Personal rules extraction is handled by PersonalRulesService
         
         // Update context memory
         await refreshContextMemory()
@@ -528,19 +498,19 @@ class ContextualPARAEngine: ObservableObject {
     
     /// Generate confidence-based clarification
     private func generateConfidenceClarification(for item: ContextualPARAItem) async -> ClarificationQuestion {
-        let uncertainties = identifyDetailedUncertainties(in: item)
-        let reasoning = generateConfidenceReasoning(for: item, uncertainties: uncertainties)
+        let uncertainties = identifyUncertainties(in: item)
+        let reasoning = "Confidence is low due to: \(uncertainties.joined(separator: ", "))"
         
         return ClarificationQuestion(
             id: UUID(),
             type: .confidence,
             item: item,
-            question: buildIntelligentQuestion(for: item, uncertainties: uncertainties),
-            options: generateSmartOptions(for: item, uncertainties: uncertainties),
+            question: "Classification confidence is low. How should this item be categorized?",
+            options: generateBasicOptions(for: item),
             reasoning: reasoning,
-            suggestedAction: generateSuggestedAction(for: item, uncertainties: uncertainties),
+            suggestedAction: "Review the item content and select the most appropriate category",
             confidence: item.confidence,
-            priority: determineClarificationPriority(for: item, uncertainties: uncertainties)
+            priority: .medium
         )
     }
     
@@ -737,21 +707,9 @@ class ContextualPARAEngine: ObservableObject {
     
     /// Update active context memory with new items
     private func updateContextMemory(with items: [ContextualPARAItem]) async {
-        
-        // Add to sliding window
+        // Convert to PARAItems and add to ContextMemoryService
         let newPARAItems = items.map { $0.toPARAItem() }
-        activeContextWindow.append(contentsOf: newPARAItems)
-        
-        // Maintain window size
-        if activeContextWindow.count > ContextConfig.slidingWindowSize {
-            activeContextWindow.removeFirst(activeContextWindow.count - ContextConfig.slidingWindowSize)
-        }
-        
-        // Update daily summary
-        await updateDailySummary(with: newPARAItems)
-        
-        // Persist to database
-        await persistContextMemory()
+        await contextMemoryService.addToContext(newPARAItems)
     }
     
     /// Generate daily summary of PARA activity
@@ -827,7 +785,7 @@ class ContextualPARAEngine: ObservableObject {
         return context.recentItems.filter { $0.category == .area }.map { $0.title }
     }
     
-    private func getPersonalRules(from context: ProcessingContext) -> [PersonalPARARule] {
+    private func getPersonalRules(from context: ProcessingContext) -> [ContextualPARARule] {
         // For now, return empty array since ProcessingContext doesn't have personalRules
         // In production, this would be loaded from PersonalRulesService
         return []
@@ -896,8 +854,8 @@ class ContextualPARAEngine: ObservableObject {
     private func suggestAlternativeCategories(for item: ContextualPARAItem) -> [CategorySuggestion] {
         return [
             CategorySuggestion(
-                name: item.item.paraCategory.rawValue.capitalized,
-                value: item.item.paraCategory.rawValue,
+                name: item.paraClassification.category.rawValue.capitalized,
+                value: item.paraClassification.category.rawValue,
                 reasoning: "Original AI classification",
                 confidence: item.confidence,
                 evidence: ["Based on content analysis"]
@@ -926,24 +884,283 @@ class ContextualPARAEngine: ObservableObject {
         }
     }
     
-    private func persistUserCorrection(_ correction: UserCorrection) async {
-        // Placeholder implementation - would persist to database
-        print("📝 CONTEXTUAL: Persisting user correction: \(correction.id)")
+    private func persistUserCorrection(_ correction: ContextualUserCorrection) async {
+        do {
+            let supabaseService = SupabaseService.shared
+            let logger = Logger.shared
+            
+            // Create database record for user correction
+            let correctionData: [String: Any] = [
+                "id": correction.id.uuidString,
+                "user_id": correction.userId.uuidString,
+                "original_item_id": correction.originalItemId.uuidString,
+                "corrected_classification": try JSONEncoder().encode(correction.correctedClassification),
+                "correction_type": correction.correctionType.rawValue,
+                "reasoning": correction.reasoning,
+                "confidence": correction.confidence,
+                "created_at": ISO8601DateFormatter().string(from: correction.createdAt),
+                "metadata": try JSONSerialization.data(withJSONObject: correction.metadata)
+            ]
+            
+            try await supabaseService.client
+                .from("contextual_user_corrections")
+                .insert(correctionData)
+                .execute()
+            
+            logger.success("✅ CONTEXTUAL: Persisted user correction: \(correction.id)")
+            
+            // Extract and persist any patterns as personal rules
+            if let rule = await extractPersonalRule(from: correction) {
+                await persistPersonalRule(rule)
+            }
+            
+        } catch {
+            logger.error("❌ CONTEXTUAL: Failed to persist user correction: \(error)")
+        }
     }
     
-    private func extractPersonalRule(from correction: UserCorrection) async -> PersonalPARARule? {
-        // Placeholder implementation - would extract patterns from correction
-        return nil
+    private func extractPersonalRule(from correction: ContextualUserCorrection) async -> ContextualPARARule? {
+        let logger = Logger.shared
+        
+        // Extract patterns from the correction that could become rules
+        guard correction.confidence > 0.8 else {
+            logger.debug("🔍 CONTEXTUAL: Correction confidence too low for rule extraction: \(correction.confidence)")
+            return nil
+        }
+        
+        // Analyze the correction for extractable patterns
+        let originalClassification = correction.originalClassification
+        let correctedClassification = correction.correctedClassification
+        
+        // Look for keyword patterns in the content
+        let contentWords = correction.originalContent.lowercased()
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { $0.count > 2 }
+        
+        // Find significant keywords that might predict the correct classification
+        var keywordPatterns: [String] = []
+        
+        // Check for domain-specific keywords
+        if correctedClassification.category == .project {
+            let projectKeywords = ["project", "build", "create", "develop", "launch", "complete"]
+            keywordPatterns = contentWords.filter { word in
+                projectKeywords.contains { $0.contains(word) || word.contains($0) }
+            }
+        } else if correctedClassification.category == .area {
+            let areaKeywords = ["maintain", "monitor", "health", "fitness", "learning", "skill"]
+            keywordPatterns = contentWords.filter { word in
+                areaKeywords.contains { $0.contains(word) || word.contains($0) }
+            }
+        }
+        
+        // Only create rule if we found meaningful patterns
+        guard !keywordPatterns.isEmpty else {
+            logger.debug("🔍 CONTEXTUAL: No extractable patterns found in correction")
+            return nil
+        }
+        
+        // Create a contextual PARA rule
+        let rule = ContextualPARARule(
+            id: UUID(),
+            userId: correction.userId,
+            pattern: keywordPatterns.joined(separator: " "),
+            targetClassification: correctedClassification,
+            confidence: min(correction.confidence, 0.9), // Cap at 0.9 for extracted rules
+            description: "Auto-extracted from user correction: \(correction.reasoning)",
+            ruleType: .keyword,
+            createdFrom: [correction.id],
+            createdAt: Date(),
+            lastUsed: nil,
+            usageCount: 0,
+            isActive: true,
+            metadata: [
+                "source": "user_correction",
+                "original_category": originalClassification.category.rawValue,
+                "corrected_category": correctedClassification.category.rawValue
+            ]
+        )
+        
+        logger.success("✅ CONTEXTUAL: Extracted personal rule from correction: \(rule.pattern)")
+        return rule
     }
     
     private func persistPersonalRule(_ rule: PersonalPARARule) async {
-        // Placeholder implementation - would persist to database
-        print("📝 CONTEXTUAL: Persisting personal rule: \(rule.id)")
+        do {
+            let supabaseService = SupabaseService.shared
+            let logger = Logger.shared
+            
+            // Create database record for personal rule
+            let ruleData: [String: Any] = [
+                "id": rule.id.uuidString,
+                "user_id": getCurrentUserId().uuidString,
+                "pattern": rule.pattern,
+                "target_classification": try JSONEncoder().encode(rule.targetClassification),
+                "confidence": rule.confidence,
+                "description": rule.description,
+                "rule_type": rule.ruleType.rawValue,
+                "created_from": rule.createdFrom.map { $0.uuidString },
+                "created_at": ISO8601DateFormatter().string(from: rule.createdAt),
+                "last_used": rule.lastUsed.map { ISO8601DateFormatter().string(from: $0) },
+                "usage_count": rule.usageCount,
+                "is_active": rule.isActive,
+                "metadata": try JSONSerialization.data(withJSONObject: rule.metadata)
+            ]
+            
+            try await supabaseService.client
+                .from("personal_para_rules")
+                .insert(ruleData)
+                .execute()
+            
+            logger.success("✅ CONTEXTUAL: Persisted personal rule: \(rule.pattern)")
+            
+            // Update local rule cache
+            await MainActor.run {
+                self.cachedPersonalRules.append(rule)
+            }
+            
+        } catch {
+            logger.error("❌ CONTEXTUAL: Failed to persist personal rule: \(error)")
+        }
     }
     
     private func refreshContextMemory() async {
-        // Placeholder implementation - would refresh context from database
-        print("📝 CONTEXTUAL: Refreshing context memory")
+        do {
+            let supabaseService = SupabaseService.shared
+            let logger = Logger.shared
+            let userId = getCurrentUserId()
+            
+            logger.info("🔄 CONTEXTUAL: Refreshing context memory for user")
+            
+            // Load recent PARA items (last 30 days)
+            let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+            let thirtyDaysAgoString = ISO8601DateFormatter().string(from: thirtyDaysAgo)
+            
+            // Fetch recent projects
+            let recentProjects: [Project] = try await supabaseService.client
+                .from("projects")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .gte("created_at", value: thirtyDaysAgoString)
+                .order("created_at", ascending: false)
+                .limit(20)
+                .execute()
+                .value
+            
+            // Fetch recent areas
+            let recentAreas: [Area] = try await supabaseService.client
+                .from("areas")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .gte("created_at", value: thirtyDaysAgoString)
+                .order("created_at", ascending: false)
+                .limit(20)
+                .execute()
+                .value
+            
+            // Fetch recent resources
+            let recentResources: [Resource] = try await supabaseService.client
+                .from("resources")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .gte("created_at", value: thirtyDaysAgoString)
+                .order("created_at", ascending: false)
+                .limit(20)
+                .execute()
+                .value
+            
+            // Fetch recent tasks
+            let recentTasks: [LifeTask] = try await supabaseService.client
+                .from("tasks")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .gte("created_at", value: thirtyDaysAgoString)
+                .order("created_at", ascending: false)
+                .limit(50)
+                .execute()
+                .value
+            
+            // Convert to PARAItems for context
+            let contextItems = [
+                recentProjects.map { project in
+                    PARAItem(
+                        id: project.id,
+                        title: project.title,
+                        content: project.description,
+                        contentType: .project,
+                        paraCategory: .project,
+                        workPersonal: project.workPersonal,
+                        priority: project.priority,
+                        createdAt: project.createdAt,
+                        tags: project.tags,
+                        isCompleted: project.isCompleted
+                    )
+                },
+                recentAreas.map { area in
+                    PARAItem(
+                        id: area.id,
+                        title: area.title,
+                        content: area.description,
+                        contentType: .area,
+                        paraCategory: .area,
+                        workPersonal: area.workPersonal,
+                        priority: .medium,
+                        createdAt: area.createdAt,
+                        tags: area.tags,
+                        isCompleted: false
+                    )
+                },
+                recentResources.map { resource in
+                    PARAItem(
+                        id: resource.id,
+                        title: resource.title,
+                        content: resource.description,
+                        contentType: .resource,
+                        paraCategory: .resource,
+                        workPersonal: resource.workPersonal,
+                        priority: .low,
+                        createdAt: resource.createdAt,
+                        tags: resource.tags,
+                        isCompleted: false
+                    )
+                },
+                recentTasks.map { task in
+                    PARAItem(
+                        id: task.id,
+                        title: task.title,
+                        content: task.content ?? "",
+                        contentType: .task,
+                        paraCategory: task.paraCategory ?? .area,
+                        workPersonal: task.workPersonal,
+                        priority: task.priority,
+                        createdAt: task.createdAt,
+                        tags: task.tags,
+                        isCompleted: task.isCompleted
+                    )
+                }
+            ].flatMap { $0 }
+            
+            // Extract active projects and focus areas
+            let activeProjects = recentProjects.filter { !$0.isCompleted }.map { $0.title }
+            let focusAreas = recentAreas.map { $0.title }
+            
+            // Generate daily summary from recent activity
+            let dailySummary = generateDailySummary(from: contextItems)
+            
+            // Update cached context
+            await MainActor.run {
+                self.cachedContext = ProcessingContext(
+                    recentItems: contextItems,
+                    dailySummary: dailySummary,
+                    activeProjects: activeProjects,
+                    focusAreas: focusAreas
+                )
+            }
+            
+            logger.success("✅ CONTEXTUAL: Refreshed context memory - \(contextItems.count) items, \(activeProjects.count) active projects, \(focusAreas.count) focus areas")
+            
+        } catch {
+            logger.error("❌ CONTEXTUAL: Failed to refresh context memory: \(error)")
+        }
     }
     
     private func identifyUncertainties(in item: ContextualPARAItem) -> [String] {
@@ -967,20 +1184,11 @@ class ContextualPARAEngine: ObservableObject {
     private func generateClarificationOptions(uncertainties: [String]) -> [ClarificationOption] {
         return [
             ClarificationOption(
-                label: "Project",
-                classification: PARAClassification(
-                    category: .project,
-                    subcategory: nil,
-                    suggestedProject: nil,
-                    suggestedArea: nil,
-                    priority: .medium,
-                    dueDate: nil,
-                    tags: [],
-                    workPersonal: .personal,
-                    confidence: 0.8,
-                    reasoning: "User selected project"
-                ),
-                explanation: "This is a project with specific outcomes"
+                id: UUID(),
+                text: "Project - Time-bound effort with specific outcome",
+                value: "project",
+                confidence: 0.8,
+                supportingEvidence: ["Has specific goals", "Time-bound"]
             )
         ]
     }
@@ -1103,10 +1311,37 @@ class ContextualPARAEngine: ObservableObject {
         return []
     }
     
-    private func loadRecentCorrections(days: Int) async -> [UserCorrection] {
+    private func loadRecentCorrections(days: Int) async -> [ContextualUserCorrection] {
         // Placeholder implementation - would load from database
         print("📝 CONTEXTUAL: Loading recent corrections for \(days) days")
         return []
+    }
+    
+    // MARK: - Detection Methods
+    
+    private func detectCategoryAmbiguity(in item: ContextualPARAItem) -> CategoryAmbiguity? {
+        // Placeholder implementation
+        if item.confidence < 0.7 {
+            return CategoryAmbiguity(
+                primaryCategory: item.paraClassification.category,
+                secondaryCategory: inferAlternativeCategory(for: item),
+                primaryConfidence: item.confidence,
+                secondaryConfidence: 1.0 - item.confidence,
+                primaryReasoning: "Original AI classification",
+                secondaryReasoning: "Alternative interpretation"
+            )
+        }
+        return nil
+    }
+    
+    private func detectContextMismatch(for item: ContextualPARAItem) async -> ContextMismatch? {
+        // Placeholder implementation
+        return nil
+    }
+    
+    private func detectPriorityUncertainty(in item: ContextualPARAItem) -> Bool {
+        // Check if priority assignment is uncertain
+        return item.confidence < 0.6 || item.paraClassification.priority == .medium
     }
     
     // MARK: - Utility Methods
@@ -1151,6 +1386,140 @@ class ContextualPARAEngine: ObservableObject {
         guard !items.isEmpty else { return 0.0 }
         return items.map { $0.confidence }.reduce(0, +) / Float(items.count)
     }
+    
+    // MARK: - Missing Helper Methods
+    
+    private func inferAlternativeCategory(for item: ContextualPARAItem) -> PARACategory {
+        // Simple heuristic to suggest alternative category
+        switch item.paraClassification.category {
+        case .project:
+            return .area
+        case .area:
+            return .project
+        case .resource:
+            return .archive
+        case .archive:
+            return .resource
+        }
+    }
+    
+    private func generateBasicOptions(for item: ContextualPARAItem) -> [ClarificationOption] {
+        return [
+            ClarificationOption(
+                id: UUID(),
+                text: "Project - Time-bound effort with specific outcome",
+                value: "project",
+                confidence: 0.8,
+                supportingEvidence: ["Has specific goals", "Time-bound"]
+            ),
+            ClarificationOption(
+                id: UUID(),
+                text: "Area - Ongoing responsibility or focus",
+                value: "area",
+                confidence: 0.8,
+                supportingEvidence: ["Ongoing nature", "No end date"]
+            ),
+            ClarificationOption(
+                id: UUID(),
+                text: "Resource - Reference material or knowledge",
+                value: "resource",
+                confidence: 0.8,
+                supportingEvidence: ["Information based", "Future utility"]
+            ),
+            ClarificationOption(
+                id: UUID(),
+                text: "Archive - Completed or inactive",
+                value: "archive",
+                confidence: 0.8,
+                supportingEvidence: ["No longer active", "Reference only"]
+            )
+        ]
+    }
+    
+    private func detectTemporalAmbiguity(in item: ContextualPARAItem) -> TemporalAmbiguity? {
+        // Check if there are conflicting time indicators
+        let content = item.originalItem.content.lowercased()
+        var timeframes: [String] = []
+        
+        if content.contains("today") || content.contains("asap") {
+            timeframes.append("immediate")
+        }
+        if content.contains("week") || content.contains("soon") {
+            timeframes.append("this week")
+        }
+        if content.contains("month") || content.contains("eventually") {
+            timeframes.append("longer term")
+        }
+        
+        if timeframes.count > 1 {
+            return TemporalAmbiguity(
+                detectedTimeframes: timeframes,
+                timeframeOptions: generateTimeframeOptions(for: item),
+                reasoning: "Multiple conflicting time indicators detected"
+            )
+        }
+        
+        return nil
+    }
+    
+    private func detectScopeAmbiguity(in item: ContextualPARAItem) -> Bool {
+        let content = item.originalItem.content.lowercased()
+        
+        // Check for scope indicators
+        let largeScope = content.contains("develop") || content.contains("implement") || content.contains("create")
+        let smallScope = content.contains("call") || content.contains("send") || content.contains("email")
+        
+        return largeScope && smallScope
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getCurrentUserId() -> UUID {
+        // In a real implementation, this would get the current user ID from authentication
+        // For now, using a default development user ID
+        return UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID()
+    }
+    
+    private func generateDailySummary(from items: [PARAItem]) -> String? {
+        guard !items.isEmpty else { return nil }
+        
+        let today = Date()
+        let calendar = Calendar.current
+        let todayItems = items.filter { item in
+            calendar.isDate(item.createdAt, inSameDayAs: today)
+        }
+        
+        guard !todayItems.isEmpty else { return nil }
+        
+        let projectCount = todayItems.filter { $0.paraCategory == .project }.count
+        let areaCount = todayItems.filter { $0.paraCategory == .area }.count
+        let resourceCount = todayItems.filter { $0.paraCategory == .resource }.count
+        let taskCount = todayItems.filter { $0.contentType == .task }.count
+        
+        var summary = "Today's activity: "
+        var parts: [String] = []
+        
+        if taskCount > 0 { parts.append("\(taskCount) tasks") }
+        if projectCount > 0 { parts.append("\(projectCount) projects") }
+        if areaCount > 0 { parts.append("\(areaCount) areas") }
+        if resourceCount > 0 { parts.append("\(resourceCount) resources") }
+        
+        summary += parts.joined(separator: ", ")
+        
+        // Add focus area if there's a dominant category
+        let maxCount = max(projectCount, areaCount, resourceCount)
+        if maxCount >= 3 {
+            if projectCount == maxCount {
+                summary += ". Strong focus on project work."
+            } else if areaCount == maxCount {
+                summary += ". Strong focus on area maintenance."
+            } else if resourceCount == maxCount {
+                summary += ". Strong focus on resource collection."
+            }
+        }
+        
+        return summary
+    }
 }
 
 // MARK: - Supporting Data Structures
@@ -1158,10 +1527,19 @@ class ContextualPARAEngine: ObservableObject {
 // ProcessingContext is defined in ContextMemoryService.swift
 
 struct AtomicItem {
+    let id: UUID
     let content: String
     let type: ContentType
     let contextualHints: [String]
     let confidence: Float
+    
+    init(content: String, type: ContentType, contextualHints: [String], confidence: Float) {
+        self.id = UUID()
+        self.content = content
+        self.type = type
+        self.contextualHints = contextualHints
+        self.confidence = confidence
+    }
 }
 
 struct ContextualPARAItem {
@@ -1322,33 +1700,9 @@ struct MetaSuggestion {
     }
 }
 
-// MARK: - Core Data Structures (temporary definitions until ContextMemoryService is restored)
+// MARK: - Core Data Structures
 
-struct DailySummary {
-    let date: Date
-    let summary: String
-    let keyThemes: [String]
-    let itemCount: Int
-    let categories: [String: Int]
-}
-
-struct WeeklySummary {
-    let weekStart: Date
-    let summary: String
-    let keyThemes: [String]
-    let itemCount: Int
-    let categories: [String: Int]
-}
-
-struct MonthlySummary {
-    let monthStart: Date
-    let summary: String
-    let keyThemes: [String]
-    let itemCount: Int
-    let categories: [String: Int]
-}
-
-struct UserCorrection {
+struct ContextualUserCorrection {
     let id: UUID
     let originalClassification: PARAClassification
     let correctedClassification: PARAClassification
@@ -1356,7 +1710,7 @@ struct UserCorrection {
     let reasoning: String?
 }
 
-struct PersonalPARARule {
+struct ContextualPARARule {
     let id: UUID
     let name: String
     let condition: String
@@ -1394,26 +1748,6 @@ enum ProcessingStage {
     case idle, preparingContext, splittingInput, analyzingItems, applyingCorrections, generatingClarifications, updatingContext
 }
 
-struct ContextItem {
-    let title: String
-    let content: String
-    let category: PARACategory
-    let workPersonal: WorkPersonalType
-    let timestamp: Date
-}
-
-struct ContextStats {
-    let totalItems: Int
-    let categoryCounts: [PARACategory: Int]
-    let averageConfidence: Float
-}
-
-struct CalendarContext {
-    let todayEvents: [String] // Simplified for now
-    let upcomingEvents: [String]
-    let availableTimeSlots: [String]
-}
-
 struct ItemMetadata {
     let extractedTags: [String]
     let detectedPeople: [String]
@@ -1428,7 +1762,7 @@ struct SentimentAnalysis {
     let emotions: [String]
 }
 
-struct PARAClassification {
+struct PARAClassification: Codable {
     let category: PARACategory
     let subcategory: String?
     let suggestedProject: String?
@@ -1446,17 +1780,6 @@ struct PARAClassification {
 }
 
 
-struct ProcessingContext {
-    let recentItems: [ContextItem]
-    let dailySummaries: [DailySummary]
-    let weeklySummaries: [WeeklySummary]
-    let monthlySummaries: [MonthlySummary]
-    let contextStats: ContextStats
-    let calendarContext: CalendarContext
-    let timestamp: Date
-}
-
-
 struct ContextualProcessingResult {
     let processedItems: [ContextualPARAItem]
     let clarificationQuestions: [ClarificationQuestion]
@@ -1464,6 +1787,9 @@ struct ContextualProcessingResult {
     let confidence: Float
     let suggestions: [MetaSuggestion]
 }
+
+// MARK: - Supporting Types for Detection Methods
+
 
 // MARK: - Extensions
 
