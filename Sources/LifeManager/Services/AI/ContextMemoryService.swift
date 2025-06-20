@@ -67,7 +67,7 @@ class ContextMemoryService: ObservableObject {
     // MARK: - Dependencies
     
     private let supabaseService = SupabaseService.shared
-    private let llmService = LLMService.shared
+    private let llmService = LLMServiceCoordinator.shared
     private var calendarService: CalendarOrchestrationService?
     private let embeddingsService = EmbeddingsService.shared
     
@@ -77,6 +77,12 @@ class ContextMemoryService: ObservableObject {
     private let contextQueue = DispatchQueue(label: "context.memory", qos: .utility)
     private var currentWindowSize: Int = ContextConfig.defaultSlidingWindowSize
     private var activityPatterns: ActivityPatterns = ActivityPatterns()
+    
+    // MARK: - Memory Management
+    
+    private var maxMemoryUsage: Int = 50_000_000 // 50MB limit
+    private var lastMemoryCleanup: Date = Date()
+    private let memoryCleanupInterval: TimeInterval = 3600 // 1 hour
     
     // MARK: - Initialization
     
@@ -121,6 +127,9 @@ class ContextMemoryService: ObservableObject {
             
             updateContextStats()
         }
+        
+        // Perform memory cleanup if needed
+        performMemoryCleanupIfNeeded()
         
         // Update summaries asynchronously
         await updateDailySummary(with: contextItems)
@@ -793,18 +802,16 @@ class ContextMemoryService: ObservableObject {
         
         var summaries: [DailySummary] = []
         for record in records {
-            guard let id = UUID(uuidString: record.id),
+            guard let _ = UUID(uuidString: record.id),
                   let date = ISO8601DateFormatter().date(from: record.date),
-                  let createdAt = ISO8601DateFormatter().date(from: record.created_at),
-                  let keyActivities = try? JSONDecoder().decode([String].self, from: record.key_activities),
-                  let insights = try? JSONDecoder().decode([String].self, from: record.insights) else {
+                  let _ = ISO8601DateFormatter().date(from: record.created_at),
+                  let _ = try? JSONDecoder().decode([String].self, from: record.key_activities),
+                  let _ = try? JSONDecoder().decode([String].self, from: record.insights) else {
                 continue
             }
             
             let summary = DailySummary(date: date)
-            // Set properties on the summary
-            // Note: Since DailySummary is a class with different structure,
-            // we'll create a basic summary instance
+            // TODO: Map additional fields from record to summary when DailySummary structure is finalized
             summaries.append(summary)
         }
         return summaries
@@ -843,14 +850,14 @@ class ContextMemoryService: ObservableObject {
         
         var summaries: [WeeklySummary] = []
         for record in records {
-            guard let id = UUID(uuidString: record.id),
+            guard let _ = UUID(uuidString: record.id),
                   let weekStart = ISO8601DateFormatter().date(from: record.week_start),
-                  let weekEnd = ISO8601DateFormatter().date(from: record.week_end),
-                  let createdAt = ISO8601DateFormatter().date(from: record.created_at),
-                  let productivityTrend = ProductivityTrend(rawValue: record.productivity_trend),
-                  let projectProgress = try? JSONDecoder().decode([String: Float].self, from: record.project_progress),
-                  let areaMaintenance = try? JSONDecoder().decode([String: Int].self, from: record.area_maintenance),
-                  let insights = try? JSONDecoder().decode([String].self, from: record.insights) else {
+                  let _ = ISO8601DateFormatter().date(from: record.week_end),
+                  let _ = ISO8601DateFormatter().date(from: record.created_at),
+                  let _ = ProductivityTrend(rawValue: record.productivity_trend),
+                  let _ = try? JSONDecoder().decode([String: Float].self, from: record.project_progress),
+                  let _ = try? JSONDecoder().decode([String: Int].self, from: record.area_maintenance),
+                  let _ = try? JSONDecoder().decode([String].self, from: record.insights) else {
                 continue
             }
             
@@ -897,13 +904,13 @@ class ContextMemoryService: ObservableObject {
         
         var summaries: [MonthlySummary] = []
         for record in records {
-            guard let id = UUID(uuidString: record.id),
+            guard let _ = UUID(uuidString: record.id),
                   let monthStart = ISO8601DateFormatter().date(from: record.month_start),
-                  let monthEnd = ISO8601DateFormatter().date(from: record.month_end),
-                  let createdAt = ISO8601DateFormatter().date(from: record.created_at),
-                  let keyAchievements = try? JSONDecoder().decode([String].self, from: record.key_achievements),
-                  let challenges = try? JSONDecoder().decode([String].self, from: record.challenges),
-                  let insights = try? JSONDecoder().decode([String].self, from: record.insights) else {
+                  let _ = ISO8601DateFormatter().date(from: record.month_end),
+                  let _ = ISO8601DateFormatter().date(from: record.created_at),
+                  let _ = try? JSONDecoder().decode([String].self, from: record.key_achievements),
+                  let _ = try? JSONDecoder().decode([String].self, from: record.challenges),
+                  let _ = try? JSONDecoder().decode([String].self, from: record.insights) else {
                 continue
             }
             
@@ -1421,6 +1428,87 @@ struct ActivityPatterns {
         return categoryDistribution
             .max { $0.value < $1.value }?
             .key ?? .project
+    }
+}
+
+// MARK: - Memory Management Extensions
+
+extension ContextMemoryService {
+    
+    /// Check and perform memory cleanup if needed
+    private func performMemoryCleanupIfNeeded() {
+        let now = Date()
+        guard now.timeIntervalSince(lastMemoryCleanup) >= memoryCleanupInterval else { return }
+        
+        let currentMemoryUsage = estimateMemoryUsage()
+        Logger.shared.debug("CONTEXT_MEMORY: Current memory usage: \(currentMemoryUsage / 1_000_000)MB")
+        
+        if currentMemoryUsage > maxMemoryUsage {
+            Logger.shared.warning("CONTEXT_MEMORY: Memory usage (\(currentMemoryUsage / 1_000_000)MB) exceeds limit, performing cleanup")
+            performMemoryCleanup()
+        }
+        
+        lastMemoryCleanup = now
+    }
+    
+    /// Estimate current memory usage
+    private func estimateMemoryUsage() -> Int {
+        var usage = 0
+        
+        // Estimate activeContextWindow memory
+        usage += activeContextWindow.count * 1000 // Rough estimate per item
+        
+        // Estimate summary collections memory  
+        usage += dailySummaries.count * 5000 // Rough estimate per summary
+        usage += weeklySummaries.count * 20000
+        usage += monthlySummaries.count * 50000
+        
+        return usage
+    }
+    
+    /// Perform aggressive memory cleanup
+    private func performMemoryCleanup() {
+        Logger.shared.info("CONTEXT_MEMORY: Performing memory cleanup")
+        
+        // Trim context window to essential items only
+        if activeContextWindow.count > 50 {
+            activeContextWindow = Array(activeContextWindow.suffix(50))
+            Logger.shared.debug("CONTEXT_MEMORY: Trimmed context window to 50 items")
+        }
+        
+        // Clean up old summaries beyond retention periods
+        let now = Date()
+        let calendar = Calendar.current
+        
+        // Remove old daily summaries
+        if let cutoffDate = calendar.date(byAdding: .day, value: -ContextConfig.dailySummaryRetentionDays, to: now) {
+            let beforeCount = dailySummaries.count
+            dailySummaries.removeAll { $0.date < cutoffDate }
+            if dailySummaries.count < beforeCount {
+                Logger.shared.debug("CONTEXT_MEMORY: Cleaned \(beforeCount - dailySummaries.count) old daily summaries")
+            }
+        }
+        
+        // Remove old weekly summaries  
+        if let cutoffDate = calendar.date(byAdding: .weekOfYear, value: -ContextConfig.weeklySummaryRetentionWeeks, to: now) {
+            let beforeCount = weeklySummaries.count
+            weeklySummaries.removeAll { $0.startDate < cutoffDate }
+            if weeklySummaries.count < beforeCount {
+                Logger.shared.debug("CONTEXT_MEMORY: Cleaned \(beforeCount - weeklySummaries.count) old weekly summaries")
+            }
+        }
+        
+        // Remove old monthly summaries
+        if let cutoffDate = calendar.date(byAdding: .month, value: -ContextConfig.monthlySummaryRetentionMonths, to: now) {
+            let beforeCount = monthlySummaries.count
+            monthlySummaries.removeAll { $0.startDate < cutoffDate }
+            if monthlySummaries.count < beforeCount {
+                Logger.shared.debug("CONTEXT_MEMORY: Cleaned \(beforeCount - monthlySummaries.count) old monthly summaries")
+            }
+        }
+        
+        let newMemoryUsage = estimateMemoryUsage()
+        Logger.shared.success("CONTEXT_MEMORY: Memory cleanup complete, usage now: \(newMemoryUsage / 1_000_000)MB")
     }
 }
 

@@ -21,7 +21,7 @@ class ContextualPARAEngine: ObservableObject {
     
     // MARK: - Dependencies
     
-    private let llmService = LLMService.shared
+    private let llmService = LLMServiceCoordinator.shared
     private let supabaseService = SupabaseService.shared
     private let embeddingsService = EmbeddingsService.shared
     private let contextMemoryService = ContextMemoryService.shared

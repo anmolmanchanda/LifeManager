@@ -222,7 +222,7 @@ class CalendarViewModel: ObservableObject {
     /// Handle drop operation for scheduling
     func handleDrop(on date: Date) async {
         // Placeholder for drop handling logic
-        print("Handling drop on \(date)")
+        LifeLogger.dragDrop(.info, "Handling drop on \(date)")
         
         // Clear drop target after handling
         await MainActor.run {
@@ -539,7 +539,7 @@ class CalendarViewModel: ObservableObject {
                 updateEventsWithTogglDataForDate(calendarEvents, date: date)
             }
         } catch {
-            print("🔧 TOGGL: Failed to sync specific date \(date): \(error.localizedDescription)")
+            LifeLogger.toggl(.error, "Failed to sync specific date \(date): \(error.localizedDescription)")
         }
     }
     
@@ -556,7 +556,7 @@ class CalendarViewModel: ObservableObject {
         events.append(contentsOf: togglEvents)
         applyFilters()
         
-        print("🔧 TOGGL: Updated \(togglEvents.count) events for date \(date)")
+        LifeLogger.toggl(.info, "Updated \(togglEvents.count) events for date \(date)")
     }
     
     /// Sync with Toggl for all visible dates in month view (optimized for rate limiting)
@@ -596,7 +596,7 @@ class CalendarViewModel: ObservableObject {
                 // Update events with optimized Toggl data
                 updateEventsWithTogglData(optimizedEntries)
                 togglSyncStatus = .success
-                print("🔧 TOGGL: Ultra-optimized sync - \(optimizedEntries.count) entries from \(togglEntries.count) total")
+                LifeLogger.toggl(.info, "Ultra-optimized sync - \(optimizedEntries.count) entries from \(togglEntries.count) total")
             }
         } catch {
             await MainActor.run {
@@ -806,7 +806,7 @@ class CalendarViewModel: ObservableObject {
     
     /// Start advanced calendar monitoring with auto-bumping and parking lot
     func startAdvancedCalendarFeatures() async {
-        print("🎭 CALENDAR: Starting advanced features - auto-bumping, parking lot, buffer management")
+        LifeLogger.calendar(.info, "Starting advanced features - auto-bumping, parking lot, buffer management")
         
         // Start orchestration service
         await orchestrationService.startContinuousMonitoring()
@@ -821,7 +821,7 @@ class CalendarViewModel: ObservableObject {
     /// Stop advanced calendar features
     func stopAdvancedCalendarFeatures() {
         orchestrationService.stopContinuousMonitoring()
-        print("🎭 CALENDAR: Stopped advanced features")
+        LifeLogger.calendar(.info, "Stopped advanced features")
     }
     
     /// Process schedule with intelligent bumping and parking
@@ -885,7 +885,7 @@ class CalendarViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
                 // Could trigger UI updates for buffer warnings
-                print("🎭 CALENDAR: Buffer status changed to: \(status.rawValue)")
+                LifeLogger.calendar(.debug, "Buffer status changed to: \(status.rawValue)")
             }
             .store(in: &cancellables)
     }

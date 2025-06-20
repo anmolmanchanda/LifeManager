@@ -76,9 +76,14 @@ python3 test_comprehensive_features.py
 ### Key Components
 
 #### Services Layer (`Sources/LifeManager/Services/`)
-- **LLMService**: OpenAI/Claude API integration for AI processing (1,693 lines)
+- **LLMServiceCoordinator**: Unified coordinator for all LLM operations (289 lines)
+  - **LLMConfigurationService**: API key management and provider configuration
+  - **LLMPromptService**: Template management and prompt generation  
+  - **LLMCommunicationService**: Direct API communication with providers
+  - **LLMProcessingService**: High-level AI processing workflows
 - **SupabaseService**: Database operations and authentication (492 lines)
-- **EmbeddingsService**: OpenAI embeddings for semantic search and similarity
+- **EmbeddingsService**: OpenAI embeddings with memory management and caching (929 lines)
+- **ContextMemoryService**: Active context memory with sliding window management
 - **ContextualPARAEngine**: AI-powered PARA categorization engine
 - **CalendarOrchestrationService**: Intelligent scheduling with buffer management
 - **TogglService**: Time tracking integration (614 lines)
@@ -162,10 +167,42 @@ func fetchByWorkPersonal<T: Codable>(_ type: T.Type, from table: String, workPer
 ```
 
 ### AI Integration
+
+#### Modular LLM Service Architecture
+The LLM service has been decomposed into focused, coordinated services:
+
+- **LLMServiceCoordinator**: Central coordinator maintaining backward compatibility
+- **LLMConfigurationService**: API key management and provider selection
+- **LLMPromptService**: Template management and prompt generation
+- **LLMCommunicationService**: Direct API communication with rate limiting
+- **LLMProcessingService**: High-level AI workflows and result parsing
+
+#### AI Processing Features
 - **Natural Language Processing**: Brain dump text → structured PARA items
 - **Task Extraction**: Automatic detection of actionable items with priorities
 - **Content Categorization**: Intelligent classification into Projects/Areas/Resources/Archives
-- **Embeddings**: Semantic similarity for contextual PARA placement
+- **Embeddings**: Semantic similarity with memory management and caching
+- **Context Memory**: Active sliding window with summarized history
+
+#### Memory Management for AI Services
+Production-ready memory management patterns implemented:
+
+```swift
+// Memory bounds with automatic cleanup
+private var maxMemoryUsage: Int = 50_000_000 // 50MB limit
+private var lastMemoryCleanup: Date = Date()
+private let memoryCleanupInterval: TimeInterval = 3600 // 1 hour
+
+// LRU cache management
+private func performCacheCleanup() {
+    let sortedKeys = cache.keys.sorted { key1, key2 in
+        let date1 = cache[key1]?.createdAt ?? Date.distantPast
+        let date2 = cache[key2]?.createdAt ?? Date.distantPast
+        return date1 < date2
+    }
+    // Remove oldest entries until under limits
+}
+```
 
 ### Real-time Features
 - **Live Data Updates**: Supabase real-time subscriptions across all views
@@ -173,20 +210,41 @@ func fetchByWorkPersonal<T: Codable>(_ type: T.Type, from table: String, workPer
 - **Cross-View Consistency**: Changes propagate immediately across all UI components
 
 ### Logging System
-Comprehensive logging with multiple approaches:
+Production-ready structured logging system with comprehensive coverage:
 
-1. **Centralized Logger**: `Logger.shared` for structured logging
+1. **Centralized Logger**: `Logger.shared` for structured logging across all services
 2. **Categorical Logging**: `LifeLogger` for specific domains (calendar, database, UI)
 3. **Performance Tracking**: `PerformanceTimer` for operation timing
 4. **File-based Logging**: Persistent logs in `~/Documents/LifeManager/Logs/`
 
+#### Logging Standards (Phase 3 Implementation)
+All debug prints have been systematically replaced with proper Logger calls:
+- **Context-aware logging**: Each service uses appropriate categories (e.g., "EMBEDDINGS:", "CONTEXT_MEMORY:")
+- **Proper log levels**: Categorized by severity and purpose rather than generic info
+- **Consistent formatting**: Structured messages for easy parsing and monitoring
+
 Log levels and usage:
-- **DEBUG**: Development information, API responses
-- **INFO**: General application flow
-- **WARN**: Recoverable errors, fallback usage
-- **ERROR**: Serious errors requiring attention
-- **SUCCESS**: Completed operations, achievements
-- **PROGRESS**: Long-running operation updates
+- **DEBUG**: Development information, API responses, detailed flow tracking
+- **INFO**: General application flow, service initialization, normal operations
+- **WARNING**: Recoverable errors, fallback usage, configuration issues
+- **ERROR**: Serious errors requiring attention, API failures, critical issues
+- **SUCCESS**: Completed operations, achievements, successful API calls
+- **PROGRESS**: Long-running operation updates, batch processing status
+
+#### Example Logging Patterns
+```swift
+// Service initialization
+Logger.shared.info("SERVICE_NAME: Service initialized")
+
+// Successful operations
+Logger.shared.success("SERVICE_NAME: Operation completed successfully")
+
+// Errors with context
+Logger.shared.error("SERVICE_NAME: Failed to process data: \(error)")
+
+// Performance tracking
+Logger.shared.debug("SERVICE_NAME: Processing \(count) items took \(duration)ms")
+```
 
 ### Development Standards
 - **Production Quality**: No TODOs or placeholders in shipped code
@@ -210,11 +268,14 @@ Log levels and usage:
 5. Update tests to cover new functionality
 
 ### Integrating New LLM Providers
-1. Extend `LLMService.swift` with new provider configuration
-2. Add API client implementation following existing patterns
-3. Update prompt templates for provider-specific formatting
-4. Add comprehensive error handling and logging
-5. Create tests for new provider integration
+With the new modular LLM architecture:
+1. Add provider configuration to `LLMConfigurationService.swift`
+2. Implement communication logic in `LLMCommunicationService.swift`
+3. Update prompt templates in `LLMPromptService.swift`
+4. Add processing workflows in `LLMProcessingService.swift`
+5. Test integration through `LLMServiceCoordinator.swift`
+6. Add comprehensive error handling and logging
+7. Create tests for new provider integration
 
 ### Adding New Services
 When creating new services, follow the established patterns:
