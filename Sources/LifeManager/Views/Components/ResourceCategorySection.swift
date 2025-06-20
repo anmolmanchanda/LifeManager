@@ -36,10 +36,10 @@ struct ResourceCategorySection: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ResourceCategorySection(
         category: "Research Papers",
         blobs: []
     )
     .environmentObject(MainViewModel())
-}
+}*/

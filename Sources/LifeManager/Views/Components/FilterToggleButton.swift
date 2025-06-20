@@ -33,7 +33,7 @@ struct FilterToggleButton: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     HStack {
         FilterToggleButton(
             title: "Personal",
@@ -48,4 +48,4 @@ struct FilterToggleButton: View {
         )
     }
     .padding()
-}
+}*/

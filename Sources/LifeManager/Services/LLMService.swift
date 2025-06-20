@@ -1610,6 +1610,8 @@ class LLMService: ObservableObject {
         return "[]"
     }
     
+    // TODO: Define PARAContext struct and implement this method for v2.0
+    /*
     private func buildComprehensivePrompt(input: String, context: PARAContext) -> String {
         let projectsList = context.projects.map { "- \($0.name): \($0.description ?? "")" }.joined(separator: "\n")
         let areasList = context.areas.map { "- \($0.name): \($0.description ?? "")" }.joined(separator: "\n")
@@ -1717,6 +1719,7 @@ class LLMService: ObservableObject {
         Return ONLY the JSON array - no other text. Be precise, not generic.
         """
     }
+    */
     
     private func calculateAverageConfidence(from items: [BrainDumpItem]) -> Double {
         guard !items.isEmpty else { return 0.0 }

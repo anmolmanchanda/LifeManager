@@ -47,7 +47,7 @@ struct ProcessingSummaryView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ProcessingSummaryView()
         .environmentObject(MainViewModel())
-}
+}*/

@@ -247,8 +247,8 @@ struct CalendarMonthDayCell: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     CalendarMonthView()
         .environmentObject(CalendarViewModel())
         .frame(width: 800, height: 600)
-} 
+} */

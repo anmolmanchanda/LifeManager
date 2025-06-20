@@ -190,6 +190,8 @@ enum ContentType: String, CaseIterable, Codable {
     case appointment = "appointment"
     case habit = "habit"
     case goal = "goal"
+    case project = "project"
+    case area = "area"
     
     var displayName: String {
         switch self {
@@ -203,6 +205,8 @@ enum ContentType: String, CaseIterable, Codable {
         case .appointment: return "Appointment"
         case .habit: return "Habit"
         case .goal: return "Goal"
+        case .project: return "Project"
+        case .area: return "Area"
         }
     }
     
@@ -218,6 +222,8 @@ enum ContentType: String, CaseIterable, Codable {
         case .appointment: return "calendar"
         case .habit: return "repeat"
         case .goal: return "target"
+        case .project: return "folder"
+        case .area: return "square.stack.3d.up"
         }
     }
 }

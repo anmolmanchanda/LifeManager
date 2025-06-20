@@ -1,7 +1,7 @@
 # LifeManager Feature Matrix & Code Traceability
 
 > **Purpose**: Track which roadmap features are implemented, in-progress, or pending, with direct links to code files.
-> **Last Updated**: June 14, 2025
+> **Last Updated**: June 18, 2025
 
 ## Quick Status Legend
 - ✅ **Complete**: Feature fully implemented and tested
@@ -125,7 +125,51 @@
 
 ---
 
-## v2.0 - Intelligence Expansion (PLANNED)
+## v2.0 Phase 1A - Enhanced Views (SHIPPED ✅)
+
+| Feature | Status | Primary Files | Notes |
+|---------|--------|---------------|-------|
+| **UI Modularization** |
+| Dedicated ProjectsView | ✅ | `Views/ProjectsView.swift` | 342 lines, full functionality |
+| Dedicated ResourcesView | ✅ | `Views/ResourcesView.swift` | 298 lines, complete implementation |
+| Dedicated ArchivesView | ✅ | `Views/ArchivesView.swift` | 275 lines, full feature parity |
+
+---
+
+## v2.0 Phase 1B - Advanced AI Restoration (SHIPPED ✅)
+
+| Feature | Status | Primary Files | Notes |
+|---------|--------|---------------|-------|
+| **Advanced AI Services** |
+| ContextualPARAEngine | ✅ | `Services/AI/ContextualPARAEngine.swift` | Context-aware PARA processing |
+| ContextMemoryService | ✅ | `Services/AI/ContextMemoryService.swift` | Sliding window memory |
+| PersonalRulesService | ✅ | `Services/AI/PersonalRulesService.swift` | Self-improving AI with user feedback |
+
+---
+
+## v2.0 Phase 1C - AI Pipeline Integration (SHIPPED ✅)
+
+| Feature | Status | Primary Files | Notes |
+|---------|--------|---------------|-------|
+| **Enhanced Brain Dump Processing** |
+| LLMBrainDumpProcessor Enhanced | ✅ | `Services/LLMBrainDumpProcessor.swift` | Full AI service integration |
+| BrainDumpModels Framework | ✅ | `Models/BrainDumpModels.swift` | Comprehensive data structures |
+| MainViewModel AI Integration | ✅ | `ViewModels/MainViewModel.swift` | Enhanced progress feedback |
+| BrainDumpReviewView Enhanced | ✅ | `Views/BrainDumpReviewView.swift` | AI insights and corrections |
+| **AI Service Coordination** |
+| Context Memory Integration | ✅ | Pipeline integration | Contextual processing |
+| Personal Rules Application | ✅ | Pipeline integration | Auto-rule application |
+| Contextual Processing | ✅ | Pipeline integration | Semantic understanding |
+| **Enhanced User Experience** |
+| AI Insights Display | ✅ | `Views/BrainDumpReviewView.swift` | Clarifications and suggestions |
+| User Correction Tracking | ✅ | Review workflow | Learning from feedback |
+| **Comprehensive Testing** |
+| Unit Tests for AI Pipeline | ✅ | `Tests/LLMBrainDumpProcessorTests.swift` | 900+ lines of tests |
+| Integration Tests | ✅ | `Tests/AIServiceIntegrationTests.swift` | 800+ lines of tests |
+
+---
+
+## v2.0 Phase 2 - Intelligence Expansion (PLANNED)
 
 | Feature | Status | Primary Files | Notes |
 |---------|--------|---------------|-------|

@@ -83,8 +83,8 @@ struct CalendarMainView: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     CalendarMainView()
         .environmentObject(CalendarViewModel())
         .frame(width: 800, height: 600)
-} 
+} */

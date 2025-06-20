@@ -421,7 +421,7 @@ struct FeatureRow: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     AuthenticationView()
         .environmentObject(MainViewModel())
-} 
+} */

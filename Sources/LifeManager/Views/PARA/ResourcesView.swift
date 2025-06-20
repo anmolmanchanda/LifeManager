@@ -213,8 +213,8 @@ struct ResourcesView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ResourcesView()
         .environmentObject(MainViewModel())
         .frame(width: 800, height: 600)
-}
+}*/

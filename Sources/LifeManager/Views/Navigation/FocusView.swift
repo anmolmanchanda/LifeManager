@@ -33,7 +33,7 @@ struct FocusView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     FocusView()
         .environmentObject(MainViewModel())
-}
+}*/

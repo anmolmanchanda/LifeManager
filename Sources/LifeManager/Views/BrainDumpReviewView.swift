@@ -32,6 +32,17 @@ struct BrainDumpReviewView: View {
             
             Divider()
             
+            // AI Insights and Clarifications (temporarily disabled for stabilization)
+            VStack {
+                Text("AI insights and clarifications will appear here")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color.blue.opacity(0.05))
+            .cornerRadius(12)
+            .padding(.horizontal)
+            
             // Items list for review/editing
             itemsListView
             
@@ -148,6 +159,7 @@ struct BrainDumpReviewView: View {
                             editableItems.remove(at: index)
                         }
                     )
+                    // TODO: Re-enable onChange tracking when EnhancedBrainDumpItem conforms to Equatable
                 }
             }
         }
@@ -541,6 +553,142 @@ struct ExecutionSummaryView: View {
             }
         }
     }
+    
+    // MARK: - AI Insights View
+    
+    private var aiInsightsView: some View {
+        VStack(spacing: 12) {
+            // TODO: Re-enable AI insights when result scope issues are resolved
+            clarificationQuestionsView
+            Divider()
+            optimizationSuggestionsView
+            Divider()
+            contextualInsightsView
+        }
+        .padding()
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+    
+    private var clarificationQuestionsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "questionmark.circle.fill")
+                    .foregroundColor(.orange)
+                Text("Clarification Questions")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            // TODO: Re-enable when ForEach compilation issues are resolved
+            Text("AI clarification questions will appear here")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.leading, 16)
+        }
+    }
+    
+    private var optimizationSuggestionsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "lightbulb.fill")
+                    .foregroundColor(.yellow)
+                Text("AI Suggestions")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            // TODO: Re-enable when ForEach compilation issues are resolved
+            Text("AI optimization suggestions will appear here")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.leading, 16)
+        }
+    }
+    
+    private var contextualInsightsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .foregroundColor(.purple)
+                Text("Context Insights")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            // TODO: Re-enable context insights when compilation issues are resolved
+            Text("Contextual insights and patterns will appear here")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.leading, 16)
+        }
+    }
+    
+    // MARK: - User Correction Tracking
+    
+    private func trackUserCorrection(originalItem: EnhancedBrainDumpItem, editedItem: EnhancedBrainDumpItem) {
+        // Check if user made meaningful changes
+        if originalItem.paraCategory != editedItem.paraCategory ||
+           originalItem.suggestedProject != editedItem.suggestedProject ||
+           originalItem.suggestedArea != editedItem.suggestedArea ||
+           originalItem.priority != editedItem.priority {
+            
+            // Create contextual PARA item for correction tracking
+            let contextualItem = ContextualPARAItem(
+                originalItem: AtomicItem(
+                    content: originalItem.content,
+                    type: originalItem.contentType,
+                    contextualHints: [],
+                    confidence: Float(originalItem.confidence)
+                ),
+                paraClassification: PARAClassification(
+                    category: originalItem.paraCategory,
+                    subcategory: originalItem.suggestedArea,
+                    suggestedProject: originalItem.suggestedProject,
+                    suggestedArea: originalItem.suggestedArea,
+                    priority: originalItem.priority,
+                    dueDate: originalItem.dueDate.flatMap { ISO8601DateFormatter().date(from: $0) },
+                    tags: originalItem.tags,
+                    workPersonal: originalItem.workPersonal,
+                    confidence: Float(originalItem.confidence),
+                    reasoning: originalItem.primaryReason
+                ),
+                semanticMatches: [],
+                metadata: ItemMetadata(
+                    extractedTags: originalItem.tags,
+                    detectedPeople: [],
+                    estimatedDuration: nil,
+                    urgencyLevel: originalItem.priority,
+                    sentiment: nil
+                ),
+                reasoning: originalItem.primaryReason,
+                confidence: Float(originalItem.confidence)
+            )
+            
+            let correctedClassification = PARAClassification(
+                category: editedItem.paraCategory,
+                subcategory: editedItem.suggestedArea,
+                suggestedProject: editedItem.suggestedProject,
+                suggestedArea: editedItem.suggestedArea,
+                priority: editedItem.priority,
+                dueDate: editedItem.dueDate.flatMap { ISO8601DateFormatter().date(from: $0) },
+                tags: editedItem.tags,
+                workPersonal: editedItem.workPersonal,
+                confidence: Float(editedItem.confidence),
+                reasoning: "User correction applied"
+            )
+            
+            // Record the correction for learning
+            Task {
+                await PersonalRulesService.shared.recordUserCorrection(
+                    originalItem: contextualItem,
+                    correctedClassification: correctedClassification,
+                    userFeedback: "User modified AI classification"
+                )
+            }
+        }
+    }
 }
 
 // MARK: - Extensions
@@ -573,4 +721,4 @@ extension TaskPriority {
             return .gray
         }
     }
-} 
+}

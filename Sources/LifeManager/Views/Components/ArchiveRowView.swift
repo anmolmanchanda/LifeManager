@@ -21,11 +21,9 @@ struct ArchiveRowView: View {
             Text(archive.title)
                 .font(.headline)
             
-            if let description = archive.description {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
+            Text("Archived \(archive.contentType)")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
             
             Text("Archive row component - full implementation needed")
                 .font(.caption)
@@ -37,7 +35,7 @@ struct ArchiveRowView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ArchiveRowView(archive: Archive(
         id: UUID(),
         title: "Sample Archive",
@@ -48,4 +46,4 @@ struct ArchiveRowView: View {
         archivedAt: "2025-06-18T12:00:00Z"
     ))
     .environmentObject(MainViewModel())
-}
+}*/

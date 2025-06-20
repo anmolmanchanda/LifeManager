@@ -169,7 +169,7 @@ struct PARADetailView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ContentView()
         .frame(width: 1200, height: 800)
-}
+}*/

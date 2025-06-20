@@ -50,7 +50,7 @@ struct InboxHistoryRow: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     InboxHistoryRow(
         item: InboxHistoryItem(
             input: "Sample brain dump input for testing the history display",
@@ -60,4 +60,4 @@ struct InboxHistoryRow: View {
         )
     )
     .padding()
-}
+}*/

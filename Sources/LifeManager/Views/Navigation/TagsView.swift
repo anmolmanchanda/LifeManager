@@ -34,7 +34,7 @@ struct TagsView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     TagsView()
         .environmentObject(MainViewModel())
-}
+}*/

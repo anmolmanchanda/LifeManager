@@ -180,8 +180,8 @@ struct NaturalLanguageInputView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     NaturalLanguageInputView()
         .environmentObject(MainViewModel())
         .frame(width: 600, height: 400)
-}
+}*/

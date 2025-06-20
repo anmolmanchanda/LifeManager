@@ -89,7 +89,7 @@ struct SidebarView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     SidebarView()
         .environmentObject(MainViewModel())
-}
+}*/

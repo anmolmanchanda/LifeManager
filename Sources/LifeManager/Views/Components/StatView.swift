@@ -32,7 +32,7 @@ struct StatView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     HStack(spacing: 20) {
         StatView(
             title: "Active Projects",
@@ -53,4 +53,4 @@ struct StatView: View {
         )
     }
     .padding()
-}
+}*/

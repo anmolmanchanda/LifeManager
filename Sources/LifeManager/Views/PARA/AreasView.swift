@@ -72,8 +72,8 @@ struct AreasView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     AreasView()
         .environmentObject(MainViewModel())
         .frame(width: 800, height: 600)
-}
+}*/

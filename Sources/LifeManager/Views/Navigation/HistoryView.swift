@@ -34,7 +34,7 @@ struct HistoryView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     HistoryView()
         .environmentObject(MainViewModel())
-}
+}*/

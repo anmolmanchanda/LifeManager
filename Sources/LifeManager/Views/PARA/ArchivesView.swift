@@ -253,8 +253,8 @@ struct ArchivesView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ArchivesView()
         .environmentObject(MainViewModel())
         .frame(width: 800, height: 600)
-}
+}*/

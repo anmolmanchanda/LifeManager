@@ -37,11 +37,11 @@ struct ArchiveCategorySection: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ArchiveCategorySection(
         category: "Completed Tasks",
         blobs: [],
         tasks: []
     )
     .environmentObject(MainViewModel())
-}
+}*/

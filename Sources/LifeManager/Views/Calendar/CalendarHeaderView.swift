@@ -439,9 +439,9 @@ struct FilterToggleRow: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     CalendarHeaderView()
         .environmentObject(CalendarViewModel())
         .environmentObject(MainViewModel())
         .frame(width: 800)
-} 
+} */

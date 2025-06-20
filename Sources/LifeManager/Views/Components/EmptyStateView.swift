@@ -45,11 +45,11 @@ struct EmptyStateView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     EmptyStateView(
         title: "No items yet",
         systemImage: "tray",
         description: "Items will appear here as you add them"
     )
     .frame(width: 400, height: 300)
-}
+}*/

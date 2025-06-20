@@ -2285,17 +2285,28 @@ class MainViewModel: ObservableObject {
                 try await Task.sleep(nanoseconds: 800_000_000) // 0.8 second delay for UI feedback
                 
                 await MainActor.run {
-                    self.successMessage = "🤖 Connecting to AI..."
+                    self.successMessage = "🧠 Loading context memory..."
+                }
+                Logger.shared.brainDumpProgress("UI: Showing context loading message")
+                
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                
+                await MainActor.run {
+                    self.successMessage = "🤖 Connecting to AI services..."
                 }
                 Logger.shared.brainDumpProgress("UI: Showing AI connection message")
                 
                 try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
                 
-                // Removed toast message for brain dump processing
-                Logger.shared.brainDumpProgress("UI: Processing with AI (no toast shown)")
+                await MainActor.run {
+                    self.successMessage = "🎯 Applying personal rules & context..."
+                }
+                Logger.shared.brainDumpProgress("UI: Showing intelligent processing message")
                 
-                Logger.shared.brainDumpProgress("Calling brain dump processor...")
-                // Use comprehensive brain dump processor
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                
+                Logger.shared.brainDumpProgress("Calling enhanced brain dump processor with AI services...")
+                // Use enhanced brain dump processor with integrated AI services
                 let result = try await brainDumpProcessor.processBrainDump(inboxInput)
                 
                 let processingTime = Date().timeIntervalSince(startTime)

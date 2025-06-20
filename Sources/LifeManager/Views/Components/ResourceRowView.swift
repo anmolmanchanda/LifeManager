@@ -21,8 +21,8 @@ struct ResourceRowView: View {
             Text(resource.title)
                 .font(.headline)
             
-            if let description = resource.description {
-                Text(description)
+            if let summary = resource.summary {
+                Text(summary)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -37,7 +37,7 @@ struct ResourceRowView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ResourceRowView(resource: Resource(
         id: UUID(),
         title: "Sample Resource",
@@ -48,4 +48,4 @@ struct ResourceRowView: View {
         updatedAt: "2025-06-18T12:00:00Z"
     ))
     .environmentObject(MainViewModel())
-}
+}*/

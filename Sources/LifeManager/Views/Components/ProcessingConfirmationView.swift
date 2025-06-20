@@ -42,7 +42,7 @@ struct ProcessingConfirmationView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ProcessingConfirmationView()
         .environmentObject(MainViewModel())
-}
+}*/

@@ -116,8 +116,8 @@ struct ProjectsView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ProjectsView()
         .environmentObject(MainViewModel())
         .frame(width: 800, height: 600)
-}
+}*/
