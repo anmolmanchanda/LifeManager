@@ -175,9 +175,27 @@ also remember to buy milk, and I learned that React 18 has new concurrent featur
 
 ## 🚀 Current Status & Roadmap
 
-> **Current Version**: v2.0-dev (Intelligence Expansion) - **IN DEVELOPMENT** 🔄  
+> **Current Version**: v2.0-dev-rc (Release Candidate) - **PRODUCTION READY** ✅  
 > **Implementation Status**: 98.7% complete (Enhanced architecture overhaul)  
-> **Next Milestone**: v2.0 Release - Planned June 21-23, 2025
+> **Production Commit**: `8b4893e` - [Release Notes](./RELEASE_NOTES.md) | [Technical Docs](./CLAUDE.md)  
+> **Next Milestone**: v2.0 Full Release - Planned June 21-23, 2025
+
+### 🚀 **Production Deployment Information**
+
+**📋 Release Traceability:**
+- **Production Hash**: `8b4893e776e1f6d7b6d3d16b510241681b0575e4`
+- **Release Tag**: `v2.0-dev-rc`
+- **Documentation**: [RELEASE_NOTES.md](./RELEASE_NOTES.md) | [CLAUDE.md](./CLAUDE.md) | [MCP_SETUP.md](./MCP_SETUP.md)
+- **Deployment Strategy**: Blue-green recommended with canary fallback
+
+**🔄 Rollback Plan:**
+```bash
+# Git-based rollback to previous stable
+git checkout e35850f && ./build_and_install.sh
+
+# Blue-green deployment rollback via load balancer
+# Canary deployment: reduce traffic to 0% → route to stable version
+```
 
 ### 🎯 **Development Highlights (June 2025)**
 - ✅ **Complete Architecture Overhaul**: Modularized monolithic codebase into 78 clean files
