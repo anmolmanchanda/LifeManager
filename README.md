@@ -1,8 +1,8 @@
 # LifeManager 🚀
 
-**Next-Generation AI-Powered Personal Knowledge Management & Productivity System for macOS**
+**Next-Generation AI-Powered Personal Knowledge Management & Productivity System with Intelligent Automation**
 
-*Transform chaos into clarity. Never lose a thought again. Your intelligent productivity companion that thinks with you.*
+*Transform chaos into clarity with autonomous intelligence. Never lose a thought again. Your AI companion that learns, adapts, and automates your productivity.*
 
 [![Version](https://img.shields.io/badge/version-v2.0-blue.svg)](https://github.com/anmolmanchanda/LifeManager)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/anmolmanchanda/LifeManager)
@@ -19,10 +19,12 @@
 | **📦 Project Name** | LifeManager |
 | **🏷️ Current Version** | v2.0 (Production) |
 | **📅 Last Updated** | June 22, 2025 |
-| **📊 Total Lines of Code** | 43,000+ lines |
-| **📁 Swift Source Files** | 78 files |
+| **📊 Total Lines of Code** | 48,000+ lines |
+| **📁 Swift Source Files** | 80+ files |
 | **🔧 Core Services** | 19 specialized services |
 | **🤖 AI Services** | 3 advanced AI services |
+| **🧠 Intelligent Automation** | 7 automation services |
+| **📱 UI Components** | 15+ SwiftUI views |
 | **🌐 MCP Servers** | 10 configured servers |
 | **🧪 Test Coverage** | 85%+ comprehensive |
 | **🎯 Architecture** | MVVM with Service-Oriented Design |
@@ -56,8 +58,13 @@ LifeManager doesn't just categorize—it **learns, adapts, and evolves** with yo
 • **⚡ Multi-Modal AI Processing**: Handles everything from simple tasks to complex project planning with contextual awareness of your work/personal balance
 • **🤖 Intelligent Task Automation**: Revolutionary auto-rescheduling system that handles overdue tasks with full user control and transparency
 • **📅 Proactive Support**: Context-aware notifications and gentle nudges that keep you on track without being intrusive
+• **🧠 AI Learning Engine**: Continuous learning from user patterns, decision effectiveness, and behavioral analysis
+• **🎛️ Automation Orchestration**: Central coordination of all intelligent services with cross-service optimization
+• **📊 Performance Monitoring**: Real-time system health monitoring with automatic optimization
+• **🔗 Dependency Management**: Intelligent task dependency tracking with critical path analysis
+• **📱 Automation Dashboard**: Comprehensive UI for monitoring and controlling all intelligent automation
 
-*This isn't just AI categorization—it's an AI that becomes your personalized productivity partner with true "set it and forget it" automation.*
+*This isn't just AI categorization—it's a complete intelligent automation ecosystem that learns, adapts, and optimizes your entire productivity workflow autonomously.*
 
 ---
 
@@ -141,12 +148,16 @@ also remember to buy milk, and I learned that React 18 has new concurrent featur
 - **Auto-Bumping**: Cascade rescheduling when conflicts arise
 - **Multi-View Support**: Day, Week, Month views with visual project bars
 
-### 🤖 **Intelligent Task Automation** *(v2.0)* 🆕
-- **Smart Auto-Rescheduling**: AI automatically reschedules overdue tasks to optimal time slots
-- **Priority Intelligence Engine**: ML-powered priority assessment beyond simple keyword matching
-- **Proactive Notifications**: Context-aware gentle nudges and achievement celebrations
-- **Pattern Learning**: System learns from your scheduling patterns and preferences
-- **Zero-Effort Management**: Automatic task optimization with full transparency and user control
+### 🤖 **Intelligent Automation Ecosystem** *(v2.0)* 🆕
+- **Smart Auto-Rescheduling**: AI automatically reschedules overdue tasks to optimal time slots with confidence scoring
+- **AI Learning Engine**: Continuous learning from user patterns, decision effectiveness, and behavioral analysis
+- **Automation Orchestration**: Central coordination of all intelligent services with cross-service optimization
+- **Performance Monitoring**: Real-time system health monitoring with automatic optimization and alerting
+- **Task Dependency Management**: Intelligent dependency tracking with critical path analysis and cascade effects
+- **Advanced Notifications**: Multi-channel escalation system (in-app, push, email, SMS, webhook)
+- **External Calendar Integration**: EventKit calendar integration with conflict detection and resolution
+- **Automation Dashboard**: Comprehensive UI for monitoring and controlling all intelligent automation services
+- **User Feedback Integration**: Learning from user interactions to continuously improve automation accuracy
 
 ### 🗂️ **PARA Framework Implementation**
 - **Projects**: Time-bound efforts with clear outcomes and AI-suggested milestones
