@@ -16,6 +16,8 @@ class IntelligentReschedulingService: ObservableObject {
     private let bufferService = BufferManagementService.shared
     private let llmService = LLMServiceCoordinator.shared
     private let notificationService = NotificationService.shared
+    private let advancedNotificationService = AdvancedNotificationService.shared
+    private let externalCalendar = ExternalCalendarIntegrationService.shared
     private let userPreferencesRepository = UserPreferencesRepository()
     private let logger = Logger.shared
     
@@ -48,6 +50,9 @@ class IntelligentReschedulingService: ObservableObject {
     private let monitoringInterval: TimeInterval = 300 // 5 minutes
     private let maxReschedulingCascade = 5
     private let reschedulingConfidenceThreshold = 0.7
+    private let aiDecisionThreshold = 0.8 // Minimum confidence for AI-only decisions
+    private let complexDecisionThreshold = 0.6 // Require user input below this
+    private let learningDecayFactor = 0.95 // Learning weight decay over time
     
     // MARK: - Initialization
     
@@ -1280,4 +1285,620 @@ struct ReschedulingStatistics {
 extension NotificationService.NotificationCategory {
     static let reschedulingUpdate = NotificationService.NotificationCategory(rawValue: "rescheduling_update")
     static let intelligentSuggestion = NotificationService.NotificationCategory(rawValue: "intelligent_suggestion")
+}
+
+// MARK: - Phase 2: Enhanced AI Decision Engine
+
+extension IntelligentReschedulingService {
+    
+    /// Phase 2: Advanced AI-powered decision making for complex rescheduling scenarios
+    func processComplexReschedulingDecision(
+        for task: LifeTask,
+        scenarios: [ReschedulingScenario],
+        constraints: ReschedulingConstraints
+    ) async -> ReschedulingDecision {
+        
+        logger.info("INTELLIGENT_RESCHEDULING: Phase 2 - Processing complex decision for: \(task.title)")
+        
+        // Step 1: Analyze all scenarios with advanced AI reasoning
+        let analysisResults = await analyzeReschedulingScenarios(
+            task: task,
+            scenarios: scenarios,
+            constraints: constraints
+        )
+        
+        // Step 2: Generate AI decision with confidence scoring
+        let aiDecision = await generateAIDecision(
+            task: task,
+            scenarios: scenarios,
+            analysis: analysisResults,
+            constraints: constraints
+        )
+        
+        // Step 3: Determine if human input is needed based on complexity and confidence
+        let decision = await finalizeReschedulingDecision(
+            aiDecision: aiDecision,
+            task: task,
+            scenarios: scenarios
+        )
+        
+        // Step 4: Learn from the decision for future improvements
+        await updateLearningModel(decision: decision, task: task, scenarios: scenarios)
+        
+        logger.success("INTELLIGENT_RESCHEDULING: Phase 2 - Complex decision completed for: \(task.title)")
+        return decision
+    }
+    
+    /// Analyze multiple rescheduling scenarios with AI reasoning
+    private func analyzeReschedulingScenarios(
+        task: LifeTask,
+        scenarios: [ReschedulingScenario],
+        constraints: ReschedulingConstraints
+    ) async -> ScenarioAnalysisResult {
+        
+        logger.debug("INTELLIGENT_RESCHEDULING: Analyzing \(scenarios.count) scenarios for task: \(task.title)")
+        
+        var scenarioScores: [ReschedulingScenario: ScenarioScore] = [:]
+        
+        for scenario in scenarios {
+            let score = await analyzeIndividualScenario(
+                scenario: scenario,
+                task: task,
+                constraints: constraints
+            )
+            scenarioScores[scenario] = score
+        }
+        
+        // Generate comprehensive analysis using LLM
+        let overallAnalysis = await generateScenarioAnalysis(
+            task: task,
+            scenarios: scenarios,
+            scores: scenarioScores,
+            constraints: constraints
+        )
+        
+        return ScenarioAnalysisResult(
+            scenarioScores: scenarioScores,
+            overallAnalysis: overallAnalysis,
+            recommendedScenario: scenarioScores.max { $0.value.overallScore < $1.value.overallScore }?.key,
+            complexityLevel: calculateComplexityLevel(scenarios: scenarios, constraints: constraints)
+        )
+    }
+    
+    /// Analyze individual rescheduling scenario
+    private func analyzeIndividualScenario(
+        scenario: ReschedulingScenario,
+        task: LifeTask,
+        constraints: ReschedulingConstraints
+    ) async -> ScenarioScore {
+        
+        // Base scoring factors
+        let timeScore = calculateTimeCompatibilityScore(scenario: scenario, task: task)
+        let resourceScore = calculateResourceAvailabilityScore(scenario: scenario, constraints: constraints)
+        let impactScore = await calculateImpactScore(scenario: scenario, task: task)
+        let riskScore = calculateRiskScore(scenario: scenario, constraints: constraints)
+        
+        // Advanced AI analysis
+        let aiScore = await calculateAIAnalysisScore(scenario: scenario, task: task)
+        
+        let overallScore = (timeScore * 0.25) + (resourceScore * 0.2) + (impactScore * 0.25) + (riskScore * 0.15) + (aiScore * 0.15)
+        
+        return ScenarioScore(
+            overallScore: overallScore,
+            timeCompatibility: timeScore,
+            resourceAvailability: resourceScore,
+            projectImpact: impactScore,
+            riskFactor: riskScore,
+            aiConfidence: aiScore
+        )
+    }
+    
+    /// Generate comprehensive scenario analysis using LLM
+    private func generateScenarioAnalysis(
+        task: LifeTask,
+        scenarios: [ReschedulingScenario],
+        scores: [ReschedulingScenario: ScenarioScore],
+        constraints: ReschedulingConstraints
+    ) async -> String {
+        
+        do {
+            let prompt = """
+            Analyze these rescheduling scenarios for the task '\(task.title)':
+            
+            Task Details:
+            - Priority: \(task.priority.displayName)
+            - Duration: \(task.estimatedDuration ?? 60) minutes
+            - Type: \(task.workPersonal.displayName)
+            
+            Scenarios:
+            \(scenarios.enumerated().map { index, scenario in
+                let score = scores[scenario]?.overallScore ?? 0.0
+                return "Scenario \(index + 1): \(scenario.description) (Score: \(String(format: "%.2f", score)))"
+            }.joined(separator: "\n"))
+            
+            Provide a brief analysis considering:
+            1. Overall complexity level
+            2. Key trade-offs between scenarios  
+            3. Risk factors to consider
+            4. Recommended approach
+            
+            Keep response under 200 words.
+            """
+            
+            let response = try await llmService.processText(prompt)
+            return response.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+        } catch {
+            logger.warning("INTELLIGENT_RESCHEDULING: LLM analysis failed: \(error)")
+            return "Standard rule-based analysis completed. Multiple scenarios evaluated."
+        }
+    }
+    
+    /// Generate AI decision using advanced LLM reasoning
+    private func generateAIDecision(
+        task: LifeTask,
+        scenarios: [ReschedulingScenario],
+        analysis: ScenarioAnalysisResult,
+        constraints: ReschedulingConstraints
+    ) async -> AIReschedulingDecision {
+        
+        do {
+            // Create comprehensive prompt for AI decision making
+            let prompt = createAdvancedDecisionPrompt(
+                task: task,
+                scenarios: scenarios,
+                analysis: analysis,
+                constraints: constraints
+            )
+            
+            let response = try await llmService.processText(prompt)
+            
+            // Parse AI response into structured decision
+            let decision = await parseAIDecisionResponse(
+                response: response,
+                scenarios: scenarios,
+                analysis: analysis
+            )
+            
+            logger.debug("INTELLIGENT_RESCHEDULING: AI decision generated with confidence: \(String(format: "%.2f", decision.confidence))")
+            
+            return decision
+            
+        } catch {
+            logger.error("INTELLIGENT_RESCHEDULING: AI decision generation failed: \(error)")
+            
+            // Fallback to rule-based decision
+            return createFallbackDecision(analysis: analysis, scenarios: scenarios)
+        }
+    }
+    
+    /// Create advanced decision prompt for LLM
+    private func createAdvancedDecisionPrompt(
+        task: LifeTask,
+        scenarios: [ReschedulingScenario],
+        analysis: ScenarioAnalysisResult,
+        constraints: ReschedulingConstraints
+    ) -> String {
+        
+        let scenarioDescriptions = scenarios.enumerated().map { index, scenario in
+            let score = analysis.scenarioScores[scenario] ?? ScenarioScore(overallScore: 0, timeCompatibility: 0, resourceAvailability: 0, projectImpact: 0, riskFactor: 0, aiConfidence: 0)
+            return """
+            Scenario \(index + 1): \(scenario.description)
+            - New Time: \(formatDate(scenario.proposedTime))
+            - Duration: \(scenario.duration) minutes
+            - Score: \(String(format: "%.2f", score.overallScore))
+            - Time Compatibility: \(String(format: "%.2f", score.timeCompatibility))
+            - Resource Availability: \(String(format: "%.2f", score.resourceAvailability))
+            - Project Impact: \(String(format: "%.2f", score.projectImpact))
+            - Risk Factor: \(String(format: "%.2f", score.riskFactor))
+            """
+        }.joined(separator: "\n\n")
+        
+        return """
+        As an intelligent scheduling assistant, analyze this rescheduling decision:
+        
+        TASK DETAILS:
+        - Title: \(task.title)
+        - Description: \(task.description ?? "None")
+        - Priority: \(task.priority.displayName)
+        - Current Due Date: \(task.dueDate ?? "Not set")
+        - Estimated Duration: \(task.estimatedDuration ?? 60) minutes
+        - Work/Personal: \(task.workPersonal.displayName)
+        
+        CONSTRAINTS:
+        - Must complete by: \(formatDate(constraints.hardDeadline))
+        - Available time slots: \(constraints.availableTimeSlots.count)
+        - Resource limitations: \(constraints.resourceLimitations.joined(separator: ", "))
+        - Dependency requirements: \(constraints.dependencyRequirements.map { $0.description }.joined(separator: ", "))
+        
+        SCENARIOS:
+        \(scenarioDescriptions)
+        
+        ANALYSIS:
+        - Overall complexity: \(analysis.complexityLevel.rawValue)
+        - Recommended scenario: \(analysis.recommendedScenario?.description ?? "None")
+        - Key insights: \(analysis.overallAnalysis)
+        
+        INSTRUCTIONS:
+        1. Choose the best scenario (1-\(scenarios.count)) or recommend "DEFER" if human input needed
+        2. Provide confidence score (0.0-1.0)
+        3. Give 2-3 sentence reasoning
+        4. Suggest any modifications to the chosen scenario
+        
+        Respond in JSON format:
+        {
+          "decision": "scenario_number_or_DEFER",
+          "confidence": 0.0-1.0,
+          "reasoning": "brief explanation",
+          "modifications": "suggested changes or null",
+          "risk_level": "low/medium/high"
+        }
+        """
+    }
+    
+    /// Parse AI decision response into structured format
+    private func parseAIDecisionResponse(
+        response: String,
+        scenarios: [ReschedulingScenario],
+        analysis: ScenarioAnalysisResult
+    ) async -> AIReschedulingDecision {
+        
+        // Try to parse JSON response
+        if let jsonData = response.data(using: .utf8),
+           let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+            
+            let decision = parsed["decision"] as? String ?? "DEFER"
+            let confidence = parsed["confidence"] as? Double ?? 0.5
+            let reasoning = parsed["reasoning"] as? String ?? "AI analysis completed"
+            let modifications = parsed["modifications"] as? String
+            let riskLevel = RiskLevel(rawValue: parsed["risk_level"] as? String ?? "medium") ?? .medium
+            
+            var selectedScenario: ReschedulingScenario?
+            var requiresUserInput = false
+            
+            if decision == "DEFER" {
+                requiresUserInput = true
+            } else if let scenarioIndex = Int(decision), scenarioIndex >= 1 && scenarioIndex <= scenarios.count {
+                selectedScenario = scenarios[scenarioIndex - 1]
+            } else {
+                requiresUserInput = true
+            }
+            
+            return AIReschedulingDecision(
+                selectedScenario: selectedScenario,
+                confidence: confidence,
+                reasoning: reasoning,
+                modifications: modifications,
+                riskLevel: riskLevel,
+                requiresUserInput: requiresUserInput || confidence < complexDecisionThreshold
+            )
+        }
+        
+        // Fallback parsing if JSON fails
+        return createFallbackDecision(analysis: analysis, scenarios: scenarios)
+    }
+    
+    /// Create fallback decision when AI analysis fails
+    private func createFallbackDecision(
+        analysis: ScenarioAnalysisResult,
+        scenarios: [ReschedulingScenario]
+    ) -> AIReschedulingDecision {
+        
+        return AIReschedulingDecision(
+            selectedScenario: analysis.recommendedScenario,
+            confidence: 0.5,
+            reasoning: "Fallback to rule-based recommendation",
+            modifications: nil,
+            riskLevel: .medium,
+            requiresUserInput: true
+        )
+    }
+    
+    /// Finalize rescheduling decision based on AI analysis and confidence
+    private func finalizeReschedulingDecision(
+        aiDecision: AIReschedulingDecision,
+        task: LifeTask,
+        scenarios: [ReschedulingScenario]
+    ) async -> ReschedulingDecision {
+        
+        // Determine if we can proceed automatically or need user input
+        let canProceedAutomatically = aiDecision.confidence >= aiDecisionThreshold && !aiDecision.requiresUserInput
+        
+        if canProceedAutomatically {
+            logger.info("INTELLIGENT_RESCHEDULING: Proceeding with automatic rescheduling (confidence: \(String(format: "%.2f", aiDecision.confidence)))")
+            
+            // Execute automatic rescheduling
+            return await executeAutomaticRescheduling(
+                task: task,
+                aiDecision: aiDecision
+            )
+        } else {
+            logger.info("INTELLIGENT_RESCHEDULING: Requesting user input for complex decision (confidence: \(String(format: "%.2f", aiDecision.confidence)))")
+            
+            // Send intelligent notification for user decision
+            await sendIntelligentReschedulingNotification(
+                task: task,
+                aiDecision: aiDecision,
+                scenarios: scenarios
+            )
+            
+            return ReschedulingDecision(
+                action: .requestUserInput,
+                selectedScenario: aiDecision.selectedScenario,
+                confidence: aiDecision.confidence,
+                reasoning: aiDecision.reasoning,
+                automaticExecution: false,
+                userNotificationSent: true,
+                timestamp: Date()
+            )
+        }
+    }
+    
+    /// Execute automatic rescheduling with AI decision
+    private func executeAutomaticRescheduling(
+        task: LifeTask,
+        aiDecision: AIReschedulingDecision
+    ) async -> ReschedulingDecision {
+        
+        guard let scenario = aiDecision.selectedScenario else {
+            return ReschedulingDecision(
+                action: .failed,
+                selectedScenario: nil,
+                confidence: 0.0,
+                reasoning: "No scenario selected by AI",
+                automaticExecution: false,
+                userNotificationSent: false,
+                timestamp: Date()
+            )
+        }
+        
+        do {
+            // Execute the rescheduling
+            await executeScenarioRescheduling(task: task, scenario: scenario)
+            
+            // Send success notification
+            await sendSuccessfulReschedulingNotification(task: task, scenario: scenario, aiDecision: aiDecision)
+            
+            return ReschedulingDecision(
+                action: .automaticReschedule,
+                selectedScenario: scenario,
+                confidence: aiDecision.confidence,
+                reasoning: aiDecision.reasoning,
+                automaticExecution: true,
+                userNotificationSent: true,
+                timestamp: Date()
+            )
+            
+        } catch {
+            logger.error("INTELLIGENT_RESCHEDULING: Automatic rescheduling failed: \(error)")
+            
+            return ReschedulingDecision(
+                action: .failed,
+                selectedScenario: scenario,
+                confidence: aiDecision.confidence,
+                reasoning: "Execution failed: \(error.localizedDescription)",
+                automaticExecution: false,
+                userNotificationSent: false,
+                timestamp: Date()
+            )
+        }
+    }
+    
+    /// Send intelligent notification for user decision with AI recommendations
+    private func sendIntelligentReschedulingNotification(
+        task: LifeTask,
+        aiDecision: AIReschedulingDecision,
+        scenarios: [ReschedulingScenario]
+    ) async {
+        
+        let title = "Smart Rescheduling Decision Needed"
+        let message = "AI analysis complete for '\(task.title)'. \(aiDecision.reasoning)"
+        
+        // Create actionable suggestions based on scenarios
+        let suggestions = scenarios.prefix(3).enumerated().map { index, scenario in
+            ProactiveSuggestion(
+                id: UUID(),
+                title: "Option \(index + 1)",
+                description: "\(formatDate(scenario.proposedTime)) - \(scenario.description)",
+                action: "select_scenario_\(index)",
+                confidence: aiDecision.confidence
+            )
+        }
+        
+        await advancedNotificationService.sendProactiveSuggestion(
+            title: title,
+            message: message,
+            suggestions: Array(suggestions),
+            confidence: aiDecision.confidence,
+            context: NotificationContext(
+                category: "rescheduling_decision",
+                source: "intelligent_rescheduling",
+                metadata: ["taskId": task.id.uuidString]
+            )
+        )
+    }
+    
+    /// Send notification for successful automatic rescheduling
+    private func sendSuccessfulReschedulingNotification(
+        task: LifeTask,
+        scenario: ReschedulingScenario,
+        aiDecision: AIReschedulingDecision
+    ) async {
+        
+        let title = "Task Automatically Rescheduled"
+        let message = "'\(task.title)' moved to \(formatDate(scenario.proposedTime)). \(aiDecision.reasoning)"
+        
+        await advancedNotificationService.sendAdvancedNotification(
+            title: title,
+            message: message,
+            priority: .normal,
+            category: .scheduleChange,
+            context: NotificationContext(
+                category: "automatic_reschedule",
+                source: "intelligent_rescheduling",
+                metadata: ["taskId": task.id.uuidString, "confidence": aiDecision.confidence]
+            ),
+            escalationRules: nil
+        )
+    }
+    
+    /// Update learning model based on rescheduling decisions
+    private func updateLearningModel(
+        decision: ReschedulingDecision,
+        task: LifeTask,
+        scenarios: [ReschedulingScenario]
+    ) async {
+        
+        logger.debug("INTELLIGENT_RESCHEDULING: Updating learning model with decision: \(decision.action)")
+        
+        // Store decision patterns for future learning
+        let learningData = ReschedulingLearningData(
+            taskCharacteristics: extractTaskCharacteristics(task),
+            scenarios: scenarios,
+            decision: decision,
+            timestamp: Date(),
+            userContext: await contextMemory.getCurrentContext()
+        )
+        
+        // This would persist learning data for future AI improvements
+        // For now, we'll just log the learning event
+        logger.info("INTELLIGENT_RESCHEDULING: Learning data recorded for task type: \(task.priority.displayName)")
+    }
+    
+    // MARK: - Helper Methods for Phase 2
+    
+    /// Calculate time compatibility score for scenario
+    private func calculateTimeCompatibilityScore(scenario: ReschedulingScenario, task: LifeTask) -> Double {
+        var score = 0.5
+        
+        let hour = Calendar.current.component(.hour, from: scenario.proposedTime)
+        
+        // Align with work/personal preferences
+        if task.workPersonal == .work && hour >= 9 && hour <= 17 {
+            score += 0.3
+        } else if task.workPersonal == .personal && (hour <= 9 || hour >= 18) {
+            score += 0.2
+        }
+        
+        // Consider task priority alignment with time
+        if task.priority == .urgent && hour >= 9 && hour <= 11 {
+            score += 0.2 // Urgent tasks in prime time
+        }
+        
+        return min(1.0, score)
+    }
+    
+    /// Calculate resource availability score
+    private func calculateResourceAvailabilityScore(scenario: ReschedulingScenario, constraints: ReschedulingConstraints) -> Double {
+        // Check if all required resources are available during the proposed time
+        var score = 1.0
+        
+        for limitation in constraints.resourceLimitations {
+            if scenario.requiredResources.contains(limitation) {
+                score -= 0.2
+            }
+        }
+        
+        return max(0.0, score)
+    }
+    
+    /// Calculate impact score on project and related tasks
+    private func calculateImpactScore(scenario: ReschedulingScenario, task: LifeTask) async -> Double {
+        var score = 0.8 // Base score assuming minimal impact
+        
+        // Check impact on dependent tasks
+        if scenario.affectedDependencies.count > 0 {
+            score -= Double(scenario.affectedDependencies.count) * 0.1
+        }
+        
+        // Consider project timeline impact
+        if task.projectId != nil {
+            // More sophisticated project impact analysis would go here
+            score -= 0.05
+        }
+        
+        return max(0.0, score)
+    }
+    
+    /// Calculate risk score for scenario
+    private func calculateRiskScore(scenario: ReschedulingScenario, constraints: ReschedulingConstraints) -> Double {
+        var riskScore = 0.0
+        
+        // Time pressure risk
+        let timeUntilDeadline = constraints.hardDeadline.timeIntervalSince(scenario.proposedTime)
+        if timeUntilDeadline < 24 * 3600 { // Less than 24 hours
+            riskScore += 0.3
+        }
+        
+        // Complexity risk
+        if scenario.complexityFactors.count > 2 {
+            riskScore += 0.2
+        }
+        
+        return min(1.0, riskScore)
+    }
+    
+    /// Calculate AI analysis score using advanced reasoning
+    private func calculateAIAnalysisScore(scenario: ReschedulingScenario, task: LifeTask) async -> Double {
+        // This would use more sophisticated AI analysis
+        // For now, return a composite score based on scenario characteristics
+        return min(1.0, scenario.likelihood * scenario.feasibility)
+    }
+    
+    /// Calculate complexity level for decision making
+    private func calculateComplexityLevel(scenarios: [ReschedulingScenario], constraints: ReschedulingConstraints) -> ComplexityLevel {
+        let factorCount = scenarios.count + constraints.dependencyRequirements.count + constraints.resourceLimitations.count
+        
+        if factorCount <= 3 {
+            return .simple
+        } else if factorCount <= 6 {
+            return .moderate
+        } else {
+            return .complex
+        }
+    }
+    
+    /// Execute scenario rescheduling
+    private func executeScenarioRescheduling(task: LifeTask, scenario: ReschedulingScenario) async throws {
+        // Create optimal time slot from scenario
+        let optimalSlot = OptimalTimeSlot(
+            startTime: scenario.proposedTime,
+            endTime: scenario.proposedTime.addingTimeInterval(TimeInterval(scenario.duration * 60)),
+            confidence: scenario.likelihood * scenario.feasibility,
+            reasoning: scenario.description
+        )
+        
+        // Create rescheduling event
+        let reschedulingEvent = ReschedulingEvent(
+            taskId: task.id,
+            originalDate: task.dueDate ?? "",
+            newDate: ISO8601DateFormatter().string(from: scenario.proposedTime),
+            reason: .aiOptimization,
+            wasAutomatic: true,
+            confidence: optimalSlot.confidence
+        )
+        
+        // Execute using existing rescheduling infrastructure
+        await executeRescheduling(task: task, to: optimalSlot, event: reschedulingEvent)
+    }
+    
+    /// Extract task characteristics for learning
+    private func extractTaskCharacteristics(_ task: LifeTask) -> TaskCharacteristics {
+        return TaskCharacteristics(
+            priority: task.priority,
+            workPersonal: task.workPersonal,
+            estimatedDuration: task.estimatedDuration ?? 60,
+            hasProject: task.projectId != nil,
+            isFocus: task.isFocus,
+            overdueHours: task.overdueByHours
+        )
+    }
+    
+    /// Format date for display
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
 }
