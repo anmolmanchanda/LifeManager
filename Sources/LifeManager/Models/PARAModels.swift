@@ -265,4 +265,131 @@ enum ResourceType: String, CaseIterable, Codable {
         case .document: return "Document"
         }
     }
+}
+
+// MARK: - LLM Processing Result Types
+
+/// Result of PARA categorization processing
+struct PARAProcessingResult {
+    let category: PARACategory
+    let subcategory: String?
+    let confidence: Double
+    let reasoning: String
+    let suggestedTags: [String]
+    let extractedTasks: [ExtractedTask]
+    let suggestedProject: String?
+    let suggestedArea: String?
+    let crossLinks: [LLMCrossLinkSuggestion]
+    let actions: [LLMProcessingAction]
+    
+    init(
+        category: PARACategory,
+        subcategory: String? = nil,
+        confidence: Double,
+        reasoning: String,
+        suggestedTags: [String] = [],
+        extractedTasks: [ExtractedTask] = [],
+        suggestedProject: String? = nil,
+        suggestedArea: String? = nil,
+        crossLinks: [LLMCrossLinkSuggestion] = [],
+        actions: [LLMProcessingAction] = []
+    ) {
+        self.category = category
+        self.subcategory = subcategory
+        self.confidence = confidence
+        self.reasoning = reasoning
+        self.suggestedTags = suggestedTags
+        self.extractedTasks = extractedTasks
+        self.suggestedProject = suggestedProject
+        self.suggestedArea = suggestedArea
+        self.crossLinks = crossLinks
+        self.actions = actions
+    }
+}
+
+/// Result of task extraction processing
+struct TaskExtractionResult {
+    let tasks: [ExtractedTask]
+    let confidence: Double
+    let reasoning: String
+    
+    init(tasks: [ExtractedTask], confidence: Double, reasoning: String) {
+        self.tasks = tasks
+        self.confidence = confidence
+        self.reasoning = reasoning
+    }
+}
+
+/// Result of task priority analysis
+struct TaskPriorityResult {
+    let priority: TaskPriority
+    let suggestedDueDate: Date?
+    let confidenceScore: Double
+    let reasoning: String
+    
+    init(priority: TaskPriority, suggestedDueDate: Date? = nil, confidenceScore: Double, reasoning: String) {
+        self.priority = priority
+        self.suggestedDueDate = suggestedDueDate
+        self.confidenceScore = confidenceScore
+        self.reasoning = reasoning
+    }
+}
+
+/// Extracted task from content processing
+struct ExtractedTask {
+    let title: String
+    let description: String?
+    let priority: TaskPriority
+    let estimatedDuration: Int?
+    let suggestedDueDate: Date?
+    let tags: [String]
+    let confidence: Double
+    
+    init(
+        title: String,
+        description: String? = nil,
+        priority: TaskPriority = .medium,
+        estimatedDuration: Int? = nil,
+        suggestedDueDate: Date? = nil,
+        tags: [String] = [],
+        confidence: Double = 0.5
+    ) {
+        self.title = title
+        self.description = description
+        self.priority = priority
+        self.estimatedDuration = estimatedDuration
+        self.suggestedDueDate = suggestedDueDate
+        self.tags = tags
+        self.confidence = confidence
+    }
+}
+
+/// Cross-link suggestion from LLM processing
+struct LLMCrossLinkSuggestion {
+    let type: String
+    let target: String
+    let reasoning: String
+    let confidence: Double
+    
+    init(type: String, target: String, reasoning: String, confidence: Double = 0.5) {
+        self.type = type
+        self.target = target
+        self.reasoning = reasoning
+        self.confidence = confidence
+    }
+}
+
+/// Processing action suggested by LLM
+struct LLMProcessingAction {
+    let type: String
+    let description: String
+    let priority: String
+    let metadata: [String: String]
+    
+    init(type: String, description: String, priority: String = "medium", metadata: [String: String] = [:]) {
+        self.type = type
+        self.description = description
+        self.priority = priority
+        self.metadata = metadata
+    }
 } 

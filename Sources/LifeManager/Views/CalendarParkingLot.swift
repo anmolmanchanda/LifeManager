@@ -207,7 +207,7 @@ struct PARATasksParkingLot: View {
         .background(Color(NSColor.windowBackgroundColor))
         .clipped() // Prevent overflow outside bounds
         .zIndex(100) // Ensure parking lot appears above calendar views
-        .onChange(of: selectedFilter) { _, newFilter in
+        .onChange(of: selectedFilter) { newFilter in
             if newFilter == .archive {
                 Task {
                     await loadRecentlyDeletedTasks()
@@ -328,6 +328,7 @@ struct PARATasksParkingLot: View {
         case .focus: return "No focus tasks"
         case .work: return "No work tasks"
         case .personal: return "No personal tasks"
+        case .archive: return "No deleted tasks"
         }
     }
     
@@ -339,6 +340,65 @@ struct PARATasksParkingLot: View {
         case .focus: return "Mark important tasks as focus to see them here."  
         case .work: return "Work-related tasks will appear here."
         case .personal: return "Personal tasks will appear here."
+        case .archive: return "Recently deleted tasks will appear here."
+        }
+    }
+    
+    // MARK: - Archive Methods
+    
+    /// Filter archive tasks with search support
+    private func filterArchiveTasks() -> [LifeTask] {
+        let filtered = recentlyDeletedTasks
+        
+        // Apply search filter to archived tasks
+        if searchText.isEmpty {
+            return filtered
+        } else {
+            return filtered.filter { task in
+                task.title.localizedCaseInsensitiveContains(searchText) ||
+                (task.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
+        }
+    }
+    
+    /// Load recently deleted tasks for archive view
+    private func loadRecentlyDeletedTasks() async {
+        guard selectedFilter == .archive else { return }
+        
+        isLoadingArchive = true
+        do {
+            let taskRepository = TaskRepository()
+            let deleted = try await taskRepository.fetchRecentlyDeletedTasks()
+            
+            await MainActor.run {
+                recentlyDeletedTasks = deleted
+                isLoadingArchive = false
+            }
+            
+            Logger.shared.debug("PARKING_LOT: Loaded \(deleted.count) recently deleted tasks")
+        } catch {
+            Logger.shared.error("PARKING_LOT: Failed to load archive: \(error)")
+            await MainActor.run {
+                isLoadingArchive = false
+            }
+        }
+    }
+    
+    /// Restore a deleted task
+    private func restoreTask(_ task: LifeTask) async {
+        do {
+            let taskRepository = TaskRepository()
+            try await taskRepository.restoreDeletedTask(id: task.id)
+            
+            // Refresh archive list
+            await loadRecentlyDeletedTasks()
+            
+            // Refresh main data to show restored task
+            await viewModel.refreshData()
+            
+            Logger.shared.success("PARKING_LOT: Restored task: \(task.title)")
+        } catch {
+            Logger.shared.error("PARKING_LOT: Failed to restore task: \(error)")
         }
     }
 }
@@ -520,64 +580,6 @@ struct ParkingLotTaskRow: View {
             return Color(NSColor.controlBackgroundColor).opacity(0.9)
         } else {
             return Color(NSColor.controlBackgroundColor).opacity(0.7)
-        }
-    }
-    
-    // MARK: - Archive Methods
-    
-    /// Filter archive tasks with search support
-    private func filterArchiveTasks() -> [LifeTask] {
-        let filtered = recentlyDeletedTasks
-        
-        // Apply search filter to archived tasks
-        if searchText.isEmpty {
-            return filtered
-        } else {
-            return filtered.filter { task in
-                task.title.localizedCaseInsensitiveContains(searchText) ||
-                (task.description?.localizedCaseInsensitiveContains(searchText) ?? false)
-            }
-        }
-    }
-    
-    /// Load recently deleted tasks for archive view
-    private func loadRecentlyDeletedTasks() async {
-        guard selectedFilter == .archive else { return }
-        
-        isLoadingArchive = true
-        do {
-            let taskRepository = TaskRepository()
-            let deleted = try await taskRepository.fetchRecentlyDeletedTasks()
-            
-            await MainActor.run {
-                recentlyDeletedTasks = deleted
-                isLoadingArchive = false
-            }
-            
-            Logger.shared.debug("PARKING_LOT: Loaded \(deleted.count) recently deleted tasks")
-        } catch {
-            Logger.shared.error("PARKING_LOT: Failed to load archive: \(error)")
-            await MainActor.run {
-                isLoadingArchive = false
-            }
-        }
-    }
-    
-    /// Restore a deleted task
-    private func restoreTask(_ task: LifeTask) async {
-        do {
-            let taskRepository = TaskRepository()
-            try await taskRepository.restoreDeletedTask(id: task.id)
-            
-            // Refresh archive list
-            await loadRecentlyDeletedTasks()
-            
-            // Refresh main data to show restored task
-            await viewModel.refreshData()
-            
-            Logger.shared.success("PARKING_LOT: Restored task: \(task.title)")
-        } catch {
-            Logger.shared.error("PARKING_LOT: Failed to restore task: \(error)")
         }
     }
     

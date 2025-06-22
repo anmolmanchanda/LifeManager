@@ -1,0 +1,13 @@
+#!/bin/bash
+# 
+# Pre-commit hook to enforce LifeManager code quality standards
+# To install: cp pre-commit-hook.template .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+#
+
+echo "🔍 Running pre-commit quality checks..."
+
+# Run the lint check
+./lint_check.sh
+
+# Exit with the same code as lint check
+exit $?

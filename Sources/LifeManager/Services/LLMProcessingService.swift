@@ -192,11 +192,11 @@ class LLMProcessingService: ObservableObject {
         return PARAProcessingResult(
             category: category,
             confidence: confidence,
-            suggestedArea: suggestedArea,
+            reasoning: reasoning,
+            suggestedTags: suggestedTags,
+            extractedTasks: extractedTasks.map { ExtractedTask(title: $0.title, description: $0.description, priority: $0.priority, estimatedDuration: $0.estimatedDuration, tags: $0.tags, confidence: $0.confidence) },
             suggestedProject: suggestedProject,
-            extractedTasks: extractedTasks,
-            autoTags: suggestedTags,
-            reasoning: reasoning
+            suggestedArea: suggestedArea
         )
     }
     
@@ -236,9 +236,9 @@ class LLMProcessingService: ObservableObject {
         let summary = json["summary"] as? String ?? ""
         
         return TaskExtractionResult(
-            tasks: tasks,
-            summary: summary,
-            totalTasksFound: tasks.count
+            tasks: tasks.map { ExtractedTask(title: $0.title, description: $0.description, priority: $0.priority, estimatedDuration: $0.estimatedDuration, tags: $0.tags, confidence: $0.confidence) },
+            confidence: 0.8,  // Default confidence
+            reasoning: summary
         )
     }
     
@@ -255,11 +255,9 @@ class LLMProcessingService: ObservableObject {
         
         return TaskPriorityResult(
             priority: priority,
-            urgencyScore: json["urgency_score"] as? Double ?? 0.5,
-            importanceScore: json["importance_score"] as? Double ?? 0.5,
-            reasoning: json["reasoning"] as? String ?? "",
-            suggestedDeadline: json["suggested_deadline"] as? String,
-            timeSensitivity: json["time_sensitivity"] as? String ?? "medium"
+            suggestedDueDate: nil,  // TODO: Parse date from JSON if provided
+            confidenceScore: json["urgency_score"] as? Double ?? 0.5,
+            reasoning: json["reasoning"] as? String ?? ""
         )
     }
     
@@ -295,31 +293,29 @@ class LLMProcessingService: ObservableObject {
         }
         
         // Parse cross-links
-        var crossLinks: [LLMCrossLinkSuggestion] = []
+        var crossLinks: [CrossLinkSuggestion] = []
         if let linksArray = json["cross_links"] as? [[String: Any]] {
             for linkJson in linksArray {
                 if let type = linkJson["type"] as? String,
-                   let target = linkJson["target"] as? String,
-                   let reasoning = linkJson["reasoning"] as? String {
-                    crossLinks.append(LLMCrossLinkSuggestion(
-                        type: type,
-                        target: target,
-                        reasoning: reasoning
+                   let target = linkJson["target"] as? String {
+                    crossLinks.append(CrossLinkSuggestion(
+                        type: CrossLinkType(rawValue: type) ?? .project,
+                        targetName: target,
+                        confidence: linkJson["confidence"] as? Double ?? 0.7
                     ))
                 }
             }
         }
         
         // Parse actions
-        var actions: [LLMProcessingAction] = []
+        var actions: [ProcessingAction] = []
         if let actionsArray = json["actions"] as? [[String: Any]] {
             for actionJson in actionsArray {
                 if let type = actionJson["type"] as? String,
                    let description = actionJson["description"] as? String {
-                    actions.append(LLMProcessingAction(
-                        type: type,
-                        description: description,
-                        priority: actionJson["priority"] as? String ?? "medium"
+                    actions.append(ProcessingAction(
+                        type: ProcessingActionType(rawValue: type) ?? .taskExtracted,
+                        description: description
                     ))
                 }
             }
@@ -379,16 +375,28 @@ class LLMProcessingService: ObservableObject {
             )
         }
         
+        // Create enhanced task with new properties
+        let enhancedTask = LifeTask(
+            id: task.id,
+            blobId: task.blobId,
+            title: enhancedTitle,
+            description: enhancedDescription,
+            priority: improvedPriority,
+            status: task.status,
+            dueDate: task.dueDate,
+            estimatedDuration: realisticDuration,
+            workPersonal: task.workPersonal,
+            projectId: task.projectId,
+            areaId: task.areaId
+        )
+        
         return TaskEnhancementResult(
             originalTask: task,
-            enhancedTitle: enhancedTitle,
-            enhancedDescription: enhancedDescription,
-            improvedPriority: improvedPriority,
-            realisticDuration: realisticDuration,
-            prerequisites: json["prerequisites"] as? [String] ?? [],
-            subtasks: subtasks,
-            optimalScheduling: optimalScheduling,
-            enhancementReasoning: json["enhancement_reasoning"] as? String ?? ""
+            enhancedTask: enhancedTask,
+            priorityScore: improvedPriority.priorityScore,
+            priorityReasoning: json["enhancement_reasoning"] as? String ?? "Enhanced through LLM processing",
+            wasEnhanced: enhancedTitle != task.title || enhancedDescription != task.description,
+            confidence: 0.8
         )
     }
     
@@ -425,7 +433,7 @@ class LLMProcessingService: ObservableObject {
     
     /// Quick task extraction
     func extractTasks(content: String) async throws -> [[String: Any]] {
-        let result = try await extractTasks(from: content)
+        let result = try await extractTasks(from: content, context: "")
         
         return result.tasks.map { task in
             var dict: [String: Any] = [

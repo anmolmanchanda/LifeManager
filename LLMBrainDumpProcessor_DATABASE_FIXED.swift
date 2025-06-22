@@ -1,15 +1,9 @@
 //
-// LLMBrainDumpProcessor.swift
+// LLMBrainDumpProcessor.swift - DATABASE PERSISTENCE FIXED
 // LifeManager
 //
-// Implements: v2.0 "Intelligence Expansion" - Enhanced Brain Dump Processing
-// Roadmap Reference: v2.0 Intelligence Expansion → Advanced AI Processing Pipeline
-// Status: ✅ RESTORED June 18, 2025 - Phase 1C AI Pipeline Integration
-// Future: v2.5 Multi-Modal Processing, Advanced Context Analysis
-//
-// RESTORED from temp_excluded/ during Phase 1C AI pipeline integration.
-// Enhanced with ContextualPARAEngine, ContextMemoryService, and PersonalRulesService
-// for comprehensive, context-aware, self-improving brain dump processing.
+// FIXED: Database persistence - items now actually get saved to database
+// FIXED: Added notification system for UI refresh after data creation
 //
 
 import Foundation
@@ -22,8 +16,8 @@ class LLMBrainDumpProcessor {
     private let blobRepository: BlobRepository
     private let taskRepository: TaskRepository
     private let paraRepository: PARARepository
-    // private let resourceRepository: ResourceRepository  // TODO: Implement ResourceRepository
-    // private let journalRepository: JournalRepository  // TODO: Implement JournalRepository
+    private let resourceRepository: ResourceRepository
+    private let journalRepository: JournalRepository
     private let embeddingsService: EmbeddingsService
     
     // MARK: - Advanced AI Services Integration
@@ -36,8 +30,8 @@ class LLMBrainDumpProcessor {
         self.blobRepository = BlobRepository()
         self.taskRepository = TaskRepository()
         self.paraRepository = PARARepository()
-        // self.resourceRepository = ResourceRepository()  // TODO: Implement ResourceRepository
-        // self.journalRepository = JournalRepository()    // TODO: Implement JournalRepository
+        self.resourceRepository = ResourceRepository()
+        self.journalRepository = JournalRepository()
         self.embeddingsService = EmbeddingsService.shared
         
         // Initialize advanced AI services
@@ -328,14 +322,14 @@ class LLMBrainDumpProcessor {
         return summary
     }
     
-    /// Create database entry for an enhanced brain dump item - FIXED: Database persistence restored
+    /// FIXED: Create database entry for an enhanced brain dump item (DATABASE PERSISTENCE RESTORED)
     private func createDatabaseEntry(for item: EnhancedBrainDumpItem) async throws {
         switch item.contentType {
         case .task:
             // Create blob first for task content
             let blob = try await blobRepository.createBlob(
                 content: item.content,
-                sourceType: .note,
+                sourceType: .brainDump,
                 workPersonal: item.workPersonal
             )
             
@@ -348,7 +342,7 @@ class LLMBrainDumpProcessor {
                 status: .inbox,
                 dueDate: item.dueDate != nil ? ISO8601DateFormatter().date(from: item.dueDate!) : nil,
                 workPersonal: item.workPersonal,
-                projectId: item.suggestedProject != nil ? UUID(uuidString: item.suggestedProject!) : nil
+                projectId: item.suggestedProject
             )
             
             Logger.shared.success("✅ Created task: \(item.title) [ID: \(task.id)]")
@@ -357,54 +351,65 @@ class LLMBrainDumpProcessor {
             // Create blob for note/knowledge content
             let blob = try await blobRepository.createBlob(
                 content: item.content,
-                sourceType: .note,
+                sourceType: .brainDump,
                 workPersonal: item.workPersonal
             )
             
             Logger.shared.success("✅ Created \(item.contentType.rawValue): \(item.title) [ID: \(blob.id)]")
             
         case .journal:
-            // TODO: Implement journal creation when JournalRepository is available
-            Logger.shared.warning("⚠️ Journal creation not yet implemented: \(item.title)")
+            // Create journal entry
+            let journal = try await journalRepository.createJournalEntry(
+                title: item.title,
+                content: item.content,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created journal entry: \(item.title) [ID: \(journal.id)]")
             
         case .resource:
-            // TODO: Implement resource creation when ResourceRepository is available
-            Logger.shared.warning("⚠️ Resource creation not yet implemented: \(item.title)")
+            // Create resource entry
+            let resource = try await resourceRepository.createResource(
+                title: item.title,
+                content: item.content,
+                resourceType: .knowledge,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created resource: \(item.title) [ID: \(resource.id)]")
             
         case .project:
             // Create project via PARA repository
-            let project = Project(
-                name: item.title,
+            let project = try await paraRepository.createProject(
+                title: item.title,
                 description: item.content,
                 workPersonal: item.workPersonal
             )
-            let createdProject = try await paraRepository.createProject(project)
             
-            Logger.shared.success("✅ Created project: \(item.title) [ID: \(createdProject.id)]")
+            Logger.shared.success("✅ Created project: \(item.title) [ID: \(project.id)]")
             
         case .area:
             // Create area via PARA repository
-            let area = Area(
-                name: item.title,
+            let area = try await paraRepository.createArea(
+                title: item.title,
                 description: item.content,
                 workPersonal: item.workPersonal
             )
-            let createdArea = try await paraRepository.createArea(area)
             
-            Logger.shared.success("✅ Created area: \(item.title) [ID: \(createdArea.id)]")
+            Logger.shared.success("✅ Created area: \(item.title) [ID: \(area.id)]")
             
         default:
             // For other content types, create as blob
             let blob = try await blobRepository.createBlob(
                 content: item.content,
-                sourceType: .note,
+                sourceType: .brainDump,
                 workPersonal: item.workPersonal
             )
             
             Logger.shared.success("✅ Created \(item.contentType.rawValue): \(item.title) [ID: \(blob.id)]")
         }
         
-        // Send notification that data was created so UI refreshes
+        // FIXED: Send notification that data was created so UI refreshes
         NotificationCenter.default.post(name: .dataDidChange, object: nil)
     }
     

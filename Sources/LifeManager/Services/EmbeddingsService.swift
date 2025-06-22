@@ -90,7 +90,7 @@ class EmbeddingsService: ObservableObject {
         var results: [String: [Float]] = [:]
         
         // Process in batches to respect API limits
-        let batches = texts.chunked(into: EmbeddingsConfig.batchSize)
+        let batches = texts.embeddingsChunked(into: EmbeddingsConfig.batchSize)
         
         for batch in batches {
             let batchResults = await processBatch(batch)
@@ -922,7 +922,7 @@ private extension EmbeddingsService {
 }
 
 extension Array {
-    func chunked(into size: Int) -> [[Element]] {
+    func embeddingsChunked(into size: Int) -> [[Element]] {
         return stride(from: 0, to: count, by: size).map {
             Array(self[$0..<Swift.min($0 + size, count)])
         }

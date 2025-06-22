@@ -818,7 +818,7 @@ class MainViewModel: ObservableObject {
     
     /// Process a blob immediately without delays
     private func processImmediately(_ blob: Blob) async {
-        Logger.shared.info("Starting immediate processing for blob: \(blob.id)", category: "IMMEDIATE_PROCESS")
+        Logger.shared.info("IMMEDIATE_PROCESS: Starting immediate processing for blob: \(blob.id)")
         
         await MainActor.run {
             self.blobProcessingStates[blob.id] = .processing
@@ -826,16 +826,16 @@ class MainViewModel: ObservableObject {
         }
         
         do {
-            Logger.shared.info("Calling LLM service for comprehensive processing", category: "IMMEDIATE_PROCESS")
+            Logger.shared.info("IMMEDIATE_PROCESS: Calling LLM service for comprehensive processing")
             let result = try await llmService.processComprehensively(
                 blob: blob,
-                availableAreas: areas,
-                availableProjects: projects,
+                availableAreas: areas.map { $0.name },
+                availableProjects: projects.map { $0.name },
                 confidenceThreshold: 0.3  // Lowered from 0.5 to 0.3 for more aggressive task creation
             )
             
-            Logger.shared.success("LLM processing completed successfully", category: "IMMEDIATE_PROCESS")
-            Logger.shared.info("Result category: \(result.paraCategory.displayName), confidence: \(result.confidence)", category: "IMMEDIATE_PROCESS")
+            Logger.shared.success("IMMEDIATE_PROCESS: LLM processing completed successfully")
+            Logger.shared.info("IMMEDIATE_PROCESS: Result category: \(result.paraCategory.displayName), confidence: \(result.confidence)")
             
             // Store result immediately
             await MainActor.run {
@@ -851,12 +851,12 @@ class MainViewModel: ObservableObject {
             
             // Execute actions if high confidence
             if !result.requiresConfirmation {
-                Logger.shared.info("Executing processing actions for high-confidence result", category: "IMMEDIATE_PROCESS")
+                Logger.shared.info("IMMEDIATE_PROCESS: Executing processing actions for high-confidence result")
                 do {
                     try await executeProcessingActions(for: blob, with: result)
-                    Logger.shared.success("Processing actions executed successfully", category: "IMMEDIATE_PROCESS")
+                    Logger.shared.success("IMMEDIATE_PROCESS: Processing actions executed successfully")
                 } catch {
-                    Logger.shared.error("Action execution failed: \(error.localizedDescription)", category: "IMMEDIATE_PROCESS")
+                    Logger.shared.error("IMMEDIATE_PROCESS: Action execution failed: \(error.localizedDescription)")
                     await MainActor.run {
                         self.blobProcessingStates[blob.id] = .error("Action execution failed: \(error.localizedDescription)")
                     }
@@ -864,7 +864,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            Logger.shared.error("LLM processing failed: \(error.localizedDescription)", category: "IMMEDIATE_PROCESS")
+            Logger.shared.error("IMMEDIATE_PROCESS: LLM processing failed: \(error.localizedDescription)")
             
             await MainActor.run {
                 self.blobProcessingStates[blob.id] = .error(error.localizedDescription)
@@ -888,8 +888,8 @@ class MainViewModel: ObservableObject {
             Logger.shared.info("INDIVIDUAL_PROCESS: Calling LLM service...")
             let result = try await llmService.processComprehensively(
                 blob: blob,
-                availableAreas: areas,
-                availableProjects: projects,
+                availableAreas: areas.map { $0.name },
+                availableProjects: projects.map { $0.name },
                 confidenceThreshold: 0.7
             )
             
@@ -1125,7 +1125,7 @@ class MainViewModel: ObservableObject {
             // Build context for PARA categorization
             let categorization = try await llmService.categorizePARA(input: blob.content)
             Logger.shared.success("PROCESS_BLOB: LLM categorization completed")
-            Logger.shared.debug("PROCESS_BLOB: Category: \(categorization.category), Confidence: \(categorization.confidenceScore)")
+            Logger.shared.debug("PROCESS_BLOB: Category: \(categorization.category), Confidence: \(categorization.confidence)")
             
             Logger.shared.debug("PROCESS_BLOB: Calling LLM task extraction...")
             let tasks = try await llmService.extractTasks(content: blob.content)
@@ -1613,8 +1613,8 @@ class MainViewModel: ObservableObject {
                     // Step 1: AI Analysis
                     let processingResult = try await llmService.processComprehensively(
                         blob: blob,
-                        availableAreas: areas,
-                        availableProjects: projects,
+                        availableAreas: areas.map { $0.name },
+                        availableProjects: projects.map { $0.name },
                         confidenceThreshold: 0.7
                     )
                     
@@ -2433,9 +2433,9 @@ class MainViewModel: ObservableObject {
                 self.objectWillChange.send()
                 
                 // Log the refresh for debugging
-                Logger.shared.success("Refreshed PARA categories after brain dump completion", category: "BRAIN_DUMP")
-                Logger.shared.info("Updated counts - Areas: \(self.areas.count), Projects: \(self.projects.count), Resources: \(self.resources.count)", category: "BRAIN_DUMP")
-                Logger.shared.debug("Task counts - Area tasks: \(self.areaTasks.values.flatMap { $0 }.count), Project tasks: \(self.projectTasks.values.flatMap { $0 }.count)", category: "BRAIN_DUMP")
+                Logger.shared.success("BRAIN_DUMP: Refreshed PARA categories after brain dump completion")
+                Logger.shared.info("BRAIN_DUMP: Updated counts - Areas: \(self.areas.count), Projects: \(self.projects.count), Resources: \(self.resources.count)")
+                Logger.shared.debug("BRAIN_DUMP: Task counts - Area tasks: \(self.areaTasks.values.flatMap { $0 }.count), Project tasks: \(self.projectTasks.values.flatMap { $0 }.count)")
             }
         }
     }

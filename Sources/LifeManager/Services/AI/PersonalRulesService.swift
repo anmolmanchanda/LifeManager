@@ -679,7 +679,7 @@ class PersonalRulesService: ObservableObject {
         await MainActor.run {
             // Clean up old rules (LRU based on last used)
             if personalRules.count > maxRulesInMemory {
-                personalRules.sort { $0.lastUsed > $1.lastUsed }
+                personalRules.sort { ($0.lastUsed ?? Date.distantPast) > ($1.lastUsed ?? Date.distantPast) }
                 personalRules = Array(personalRules.prefix(maxRulesInMemory / 2)) // Keep half for safety
             }
             
@@ -691,7 +691,7 @@ class PersonalRulesService: ObservableObject {
             
             // Remove expired rules based on configuration
             let cutoffDate = Calendar.current.date(byAdding: .day, value: -RulesConfig.ruleExpirationDays, to: Date()) ?? Date()
-            personalRules = personalRules.filter { $0.lastUsed >= cutoffDate || $0.confidence > 0.8 }
+            personalRules = personalRules.filter { ($0.lastUsed ?? Date.distantPast) >= cutoffDate || $0.confidence > 0.8 }
             
             // Remove old corrections based on retention policy
             let correctionCutoffDate = Calendar.current.date(byAdding: .day, value: -RulesConfig.correctionRetentionDays, to: Date()) ?? Date()
@@ -717,14 +717,14 @@ class PersonalRulesService: ObservableObject {
             // Estimate rules memory
             for rule in personalRules {
                 totalUsage += rule.pattern.count * 2
-                totalUsage += rule.conditions.map { $0.count }.reduce(0, +) * 2
+                totalUsage += rule.description.count * 2
                 totalUsage += 300 // Overhead per rule
             }
             
             // Estimate corrections memory
             for correction in userCorrections {
-                totalUsage += correction.originalItem.content.count * 2
-                totalUsage += correction.correctedCategory.rawValue.count * 2
+                totalUsage += correction.originalItem.originalItem.content.count * 2
+                totalUsage += correction.correctedClassification.category.rawValue.count * 2
                 totalUsage += 200 // Overhead per correction
             }
             

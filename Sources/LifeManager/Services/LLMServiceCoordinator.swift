@@ -9,6 +9,27 @@
 
 import Foundation
 
+/// LLM-specific errors
+enum LLMError: Error, LocalizedError {
+    case missingAPIKey
+    case invalidResponse
+    case networkError(Error)
+    case processingFailed(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .missingAPIKey:
+            return "LLM API key is not configured"
+        case .invalidResponse:
+            return "Invalid response from LLM service"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .processingFailed(let message):
+            return "Processing failed: \(message)"
+        }
+    }
+}
+
 /// Coordinates all LLM services to provide unified AI functionality
 /// Maintains backward compatibility while using modular architecture
 /// Serves as the main entry point for all LLM operations

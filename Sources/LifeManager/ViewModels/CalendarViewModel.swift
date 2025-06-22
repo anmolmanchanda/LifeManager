@@ -539,7 +539,7 @@ class CalendarViewModel: ObservableObject {
                 updateEventsWithTogglDataForDate(calendarEvents, date: date)
             }
         } catch {
-            LifeLogger.toggl(.error, "Failed to sync specific date \(date): \(error.localizedDescription)")
+            Logger.shared.error("CALENDAR: Failed to sync specific date \(date): \(error.localizedDescription)")
         }
     }
     
@@ -556,7 +556,7 @@ class CalendarViewModel: ObservableObject {
         events.append(contentsOf: togglEvents)
         applyFilters()
         
-        LifeLogger.toggl(.info, "Updated \(togglEvents.count) events for date \(date)")
+        Logger.shared.info("CALENDAR: Updated \(togglEvents.count) events for date \(date)")
     }
     
     /// Sync with Toggl for all visible dates in month view (optimized for rate limiting)
@@ -596,7 +596,7 @@ class CalendarViewModel: ObservableObject {
                 // Update events with optimized Toggl data
                 updateEventsWithTogglData(optimizedEntries)
                 togglSyncStatus = .success
-                LifeLogger.toggl(.info, "Ultra-optimized sync - \(optimizedEntries.count) entries from \(togglEntries.count) total")
+                Logger.shared.info("CALENDAR: Ultra-optimized sync - \(optimizedEntries.count) entries from \(togglEntries.count) total")
             }
         } catch {
             await MainActor.run {
