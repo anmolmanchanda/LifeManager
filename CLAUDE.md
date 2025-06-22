@@ -90,6 +90,11 @@ python3 test_comprehensive_features.py
 - **PersonalRulesService**: User preference and rule management
 - **NotificationService**: Smart notifications and decision modals
 
+#### Intelligent Automation Services (`v2.0`)
+- **IntelligentReschedulingService**: AI-powered automatic overdue task rescheduling (724 lines)
+- **PriorityIntelligenceEngine**: ML-based task priority assessment with multi-factor analysis (642 lines)
+- **ProactiveNotificationEngine**: Context-aware notification system with personalized timing (901 lines)
+
 #### ViewModels (`Sources/LifeManager/ViewModels/`)
 - **MainViewModel**: Central app state and navigation coordinator (3,125 lines)
 - **CalendarViewModel**: Calendar-specific state management
@@ -101,6 +106,7 @@ python3 test_comprehensive_features.py
 - **ContentModels**: Blob and content type definitions
 - **ContextualPARAModels**: AI-enhanced PARA categorization models
 - **CalendarModels**: Event, scheduling, and calendar-related models
+- **IntelligentSchedulingModels**: Task dependencies, scheduling patterns, priority intelligence (591 lines)
 
 ### Database Architecture
 - **PostgreSQL + Supabase**: 18+ core tables with real-time subscriptions

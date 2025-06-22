@@ -18,8 +18,8 @@
 |-------------|-------------|
 | **📦 Project Name** | LifeManager |
 | **🏷️ Current Version** | v2.0-dev (Development) |
-| **📅 Last Updated** | June 20, 2025 |
-| **📊 Total Lines of Code** | 42,397+ lines |
+| **📅 Last Updated** | June 22, 2025 |
+| **📊 Total Lines of Code** | 43,000+ lines |
 | **📁 Swift Source Files** | 78 files |
 | **🔧 Core Services** | 19 specialized services |
 | **🤖 AI Services** | 3 advanced AI services |
@@ -138,6 +138,13 @@ also remember to buy milk, and I learned that React 18 has new concurrent featur
 - **Smart Parking Lot**: AI-powered task importance analysis
 - **Auto-Bumping**: Cascade rescheduling when conflicts arise
 - **Multi-View Support**: Day, Week, Month views with visual project bars
+
+### 🤖 **Intelligent Task Automation** *(v2.0)* 🆕
+- **Smart Auto-Rescheduling**: AI automatically reschedules overdue tasks to optimal time slots
+- **Priority Intelligence Engine**: ML-powered priority assessment beyond simple keyword matching
+- **Proactive Notifications**: Context-aware gentle nudges and achievement celebrations
+- **Pattern Learning**: System learns from your scheduling patterns and preferences
+- **Zero-Effort Management**: Automatic task optimization with full transparency and user control
 
 ### 🗂️ **PARA Framework Implementation**
 - **Projects**: Time-bound efforts with clear outcomes and AI-suggested milestones

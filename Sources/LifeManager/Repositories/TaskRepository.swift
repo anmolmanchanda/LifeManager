@@ -483,4 +483,20 @@ class TaskRepository: ObservableObject {
         
         return Array(sortedTasks.prefix(limit))
     }
+    
+    // MARK: - Intelligent Scheduling Methods
+    
+    /// Fetch recently completed tasks for analysis
+    func fetchRecentlyCompletedTasks(days: Int = 7) async throws -> [LifeTask] {
+        let calendar = Calendar.current
+        let endDate = Date()
+        let startDate = calendar.date(byAdding: .day, value: -days, to: endDate) ?? Date()
+        
+        return try await getCompletedTasks(from: startDate, to: endDate)
+    }
+    
+    /// Fetch tasks completed between specific dates
+    func fetchTasksCompletedBetween(start: Date, end: Date) async throws -> [LifeTask] {
+        return try await getCompletedTasks(from: start, to: end)
+    }
 } 
