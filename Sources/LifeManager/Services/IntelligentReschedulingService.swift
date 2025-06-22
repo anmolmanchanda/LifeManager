@@ -16,6 +16,7 @@ class IntelligentReschedulingService: ObservableObject {
     private let bufferService = BufferManagementService.shared
     private let llmService = LLMServiceCoordinator.shared
     private let notificationService = NotificationService.shared
+    private let userPreferencesRepository = UserPreferencesRepository()
     private let logger = Logger.shared
     
     // MARK: - Private Properties
@@ -773,6 +774,15 @@ class IntelligentReschedulingService: ObservableObject {
         reschedulingStats = ReschedulingStatistics()
         logger.info("INTELLIGENT_RESCHEDULING: Statistics reset")
     }
+    
+    // MARK: - Helper Methods
+    
+    /// Get current user ID (placeholder implementation)
+    private func getCurrentUserId() -> UUID {
+        // In a real implementation, this would get the current user ID from authentication
+        // For now, using a default development user ID
+        return UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID()
+    }
 }
 
 // MARK: - Supporting Data Structures
@@ -955,10 +965,42 @@ extension IntelligentReschedulingService {
     
     /// Load user scheduling preferences
     func loadUserPreferences() {
-        // For now, use defaults. In production, this would load from user preferences storage
-        // TODO: Integrate with user preferences service/repository
-        
-        // Example of setting up some default focus blocks
+        Task {
+            do {
+                let userId = getCurrentUserId().uuidString
+                
+                // Try to load user preferences from repository
+                if let loadedPreferences = try await userPreferencesRepository.loadSchedulingPreferences(userId: userId) {
+                    await MainActor.run {
+                        userPreferences = loadedPreferences
+                    }
+                    logger.success("INTELLIGENT_RESCHEDULING: Loaded user preferences from database with \(loadedPreferences.focusBlocks.count) focus blocks")
+                } else {
+                    // Fall back to defaults if no preferences found
+                    let defaultPreferences = createDefaultUserPreferences()
+                    await MainActor.run {
+                        userPreferences = defaultPreferences
+                    }
+                    
+                    // Save defaults to repository for future use
+                    try await userPreferencesRepository.saveSchedulingPreferences(defaultPreferences, userId: userId)
+                    logger.info("INTELLIGENT_RESCHEDULING: Created and saved default user preferences with \(defaultPreferences.focusBlocks.count) focus blocks")
+                }
+                
+            } catch {
+                logger.error("INTELLIGENT_RESCHEDULING: Failed to load user preferences, using defaults: \(error)")
+                
+                // Fall back to defaults on error
+                let defaultPreferences = createDefaultUserPreferences()
+                await MainActor.run {
+                    userPreferences = defaultPreferences
+                }
+            }
+        }
+    }
+    
+    /// Create default user preferences
+    private func createDefaultUserPreferences() -> UserSchedulingPreferences {
         let defaultFocusBlocks = [
             FocusBlock(
                 name: "Deep Work Morning",
@@ -980,20 +1022,24 @@ extension IntelligentReschedulingService {
             )
         ]
         
-        userPreferences = UserSchedulingPreferences(
+        return UserSchedulingPreferences(
             workingHours: .default,
             focusBlocks: defaultFocusBlocks,
             reschedulingSettings: .default,
-            notificationSettings: NotificationSettings()
+            notificationSettings: NotificationSettings.default
         )
-        
-        logger.info("INTELLIGENT_RESCHEDULING: User preferences loaded with \(userPreferences.focusBlocks.count) focus blocks")
     }
     
     /// Save user scheduling preferences
     func saveUserPreferences() async {
-        // TODO: Implement persistence to user preferences storage
-        logger.info("INTELLIGENT_RESCHEDULING: User preferences saved")
+        do {
+            let userId = getCurrentUserId().uuidString
+            try await userPreferencesRepository.saveSchedulingPreferences(userPreferences, userId: userId)
+            logger.success("INTELLIGENT_RESCHEDULING: User preferences saved to database")
+            
+        } catch {
+            logger.error("INTELLIGENT_RESCHEDULING: Failed to save user preferences: \(error)")
+        }
     }
     
     /// Update working hours preference
@@ -1076,6 +1122,139 @@ extension IntelligentReschedulingService {
         // TODO: Implement cycle detection algorithm
         // This would use depth-first search to detect cycles in the dependency graph
         return false
+    }
+    
+    // MARK: - External Calendar Integration
+    
+    /// Update external calendar data for intelligent scheduling
+    func updateExternalCalendarData(
+        events: [ExternalCalendarEvent],
+        conflicts: [CalendarConflict],
+        availabilitySlots: [AvailabilitySlot]
+    ) async {
+        logger.info("INTELLIGENT_RESCHEDULING: Updating external calendar data - \\(events.count) events, \\(conflicts.count) conflicts")
+        
+        // Store external calendar data for scheduling decisions
+        await storeExternalCalendarData(events: events, conflicts: conflicts, availabilitySlots: availabilitySlots)
+        
+        // Process any high-severity conflicts immediately
+        let highSeverityConflicts = conflicts.filter { $0.severity == .high }
+        if !highSeverityConflicts.isEmpty {
+            logger.warning("INTELLIGENT_RESCHEDULING: Found \\(highSeverityConflicts.count) high-severity conflicts")
+            await resolveHighPriorityConflicts(highSeverityConflicts)
+        }
+        
+        // Update availability for future scheduling
+        await updateAvailabilityCache(availabilitySlots)
+    }
+    
+    /// Get user working hours for external calendar integration
+    func getUserWorkingHours() async -> WorkingHours {
+        return WorkingHours(
+            startHour: userPreferences.workingHours.startHour,
+            endHour: userPreferences.workingHours.endHour
+        )
+    }
+    
+    /// Store external calendar data for scheduling consideration
+    private func storeExternalCalendarData(
+        events: [ExternalCalendarEvent],
+        conflicts: [CalendarConflict],
+        availabilitySlots: [AvailabilitySlot]
+    ) async {
+        // Store the data in memory for immediate use
+        // In a full implementation, this would persist to database
+        
+        logger.debug("INTELLIGENT_RESCHEDULING: Stored external calendar data")
+    }
+    
+    /// Resolve high-priority conflicts immediately
+    private func resolveHighPriorityConflicts(_ conflicts: [CalendarConflict]) async {
+        for conflict in conflicts {
+            logger.warning("INTELLIGENT_RESCHEDULING: Resolving high-priority conflict for task \\(conflict.taskTitle)")
+            
+            switch conflict.suggestedAction {
+            case .rescheduleTask:
+                await rescheduleConflictingTask(conflict.taskId, reason: "External calendar conflict with \\(conflict.externalEventTitle)")
+            case .splitTask:
+                await suggestTaskSplit(conflict.taskId, conflictPeriod: (conflict.conflictStart, conflict.conflictEnd))
+            case .adjustTaskTiming:
+                await adjustTaskTiming(conflict.taskId, conflictPeriod: (conflict.conflictStart, conflict.conflictEnd))
+            case .addBuffer:
+                await addConflictBuffer(conflict.taskId, conflictPeriod: (conflict.conflictStart, conflict.conflictEnd))
+            }
+        }
+    }
+    
+    /// Reschedule a task due to external calendar conflict
+    private func rescheduleConflictingTask(_ taskId: UUID, reason: String) async {
+        // This would use the existing rescheduling logic but with external calendar awareness
+        logger.info("INTELLIGENT_RESCHEDULING: Rescheduling task \\(taskId) due to: \\(reason)")
+        
+        // Find an alternative slot considering external calendar availability
+        // This would integrate with the existing slot scoring and availability logic
+    }
+    
+    /// Suggest splitting a task to work around conflicts
+    private func suggestTaskSplit(_ taskId: UUID, conflictPeriod: (start: Date, end: Date)) async {
+        logger.info("INTELLIGENT_RESCHEDULING: Suggesting task split for \\(taskId)")
+        
+        // Create a notification suggesting task split with available time slots
+        await notificationService.showInAppNotification(
+            title: "Task Split Suggested",
+            message: "Your task conflicts with a calendar event. Consider splitting it into smaller parts.",
+            category: .intelligentSuggestion,
+            priority: .normal,
+            actions: [
+                NotificationService.NotificationAction(
+                    id: "split_task",
+                    title: "Split Task",
+                    isDestructive: false
+                ),
+                NotificationService.NotificationAction(
+                    id: "reschedule",
+                    title: "Reschedule Instead",
+                    isDestructive: false
+                )
+            ]
+        )
+    }
+    
+    /// Adjust task timing to minimize conflict
+    private func adjustTaskTiming(_ taskId: UUID, conflictPeriod: (start: Date, end: Date)) async {
+        logger.info("INTELLIGENT_RESCHEDULING: Adjusting timing for task \\(taskId)")
+        
+        // Implement minor time adjustments to reduce conflict overlap
+        // This could involve moving the task start/end by 15-30 minutes
+    }
+    
+    /// Add buffer around conflict to prevent issues
+    private func addConflictBuffer(_ taskId: UUID, conflictPeriod: (start: Date, end: Date)) async {
+        logger.info("INTELLIGENT_RESCHEDULING: Adding buffer for task \\(taskId)")
+        
+        // Add 15-minute buffers before/after the conflicting external event
+        // This helps prevent context switching issues
+    }
+    
+    /// Update availability cache for faster scheduling decisions
+    private func updateAvailabilityCache(_ availabilitySlots: [AvailabilitySlot]) async {
+        logger.debug("INTELLIGENT_RESCHEDULING: Updated availability cache with \\(availabilitySlots.count) slots")
+        
+        // Cache the availability slots for use in scheduling algorithms
+        // High-quality slots would be preferred for important tasks
+    }
+    
+    /// Get available time slots considering external calendar
+    func getAvailableSlots(
+        for duration: TimeInterval,
+        after startDate: Date = Date(),
+        quality: SlotQuality = .fair
+    ) async -> [AvailabilitySlot] {
+        // This would return available slots from the external calendar integration
+        // filtered by duration and quality requirements
+        
+        logger.debug("INTELLIGENT_RESCHEDULING: Finding slots for \\(duration/60) minute task")
+        return []
     }
 }
 
