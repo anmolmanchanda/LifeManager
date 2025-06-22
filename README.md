@@ -4,7 +4,7 @@
 
 *Transform chaos into clarity. Never lose a thought again. Your intelligent productivity companion that thinks with you.*
 
-[![Version](https://img.shields.io/badge/version-v2.0--dev-blue.svg)](https://github.com/anmolmanchanda/LifeManager)
+[![Version](https://img.shields.io/badge/version-v2.0-blue.svg)](https://github.com/anmolmanchanda/LifeManager)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/anmolmanchanda/LifeManager)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey.svg)](https://www.apple.com/macos/)
@@ -17,7 +17,7 @@
 | **Category** | **Details** |
 |-------------|-------------|
 | **📦 Project Name** | LifeManager |
-| **🏷️ Current Version** | v2.0-dev (Development) |
+| **🏷️ Current Version** | v2.0 (Production) |
 | **📅 Last Updated** | June 22, 2025 |
 | **📊 Total Lines of Code** | 43,000+ lines |
 | **📁 Swift Source Files** | 78 files |
@@ -184,10 +184,10 @@ also remember to buy milk, and I learned that React 18 has new concurrent featur
 
 ## 🚀 Current Status & Roadmap
 
-> **Current Version**: v2.0-dev-rc (Release Candidate) - **PRODUCTION READY** ✅  
+> **Current Version**: v2.0 (Production Ready) ✅  
 > **Implementation Status**: 98.7% complete (Enhanced architecture overhaul)  
 > **Production Commit**: `8b4893e` - [Release Notes](./RELEASE_NOTES.md) | [Technical Docs](./CLAUDE.md)  
-> **Next Milestone**: v2.0 Full Release - Planned June 21-23, 2025
+> **Next Milestone**: v2.1 Timeline View - Planned June 25-30, 2025
 
 ### 🚀 **Production Deployment Information**
 
@@ -659,5 +659,5 @@ LifeManager is released under the **MIT License**. See [LICENSE](LICENSE) file f
 
 ---
 
-**Current Status**: v1.9 (Navigation Views) | **Next Release**: v2.0 (Intelligence Expansion)  
+**Current Status**: v2.0 (Intelligent Automation) | **Next Release**: v2.1 (Timeline View)  
 **Last Updated**: June 20, 2025 | **Active Development** | **Production Ready** | **Enterprise Security**
