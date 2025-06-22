@@ -1191,12 +1191,12 @@ class ContextualPARAEngine: ObservableObject {
     
     private func persistContextMemory() async {
         // Placeholder implementation - would persist to database
-        print("📝 CONTEXTUAL: Persisting context memory")
+        logger.info("CONTEXTUAL_PARA: Persisting context memory")
     }
     
     private func persistDailySummaries() async {
         // Placeholder implementation - would persist to database
-        print("📝 CONTEXTUAL: Persisting daily summaries")
+        logger.info("CONTEXTUAL_PARA: Persisting daily summaries")
     }
     
     private func suggestCrossProjectLinks(_ items: [ContextualPARAItem], context: ProcessingContext) -> [MetaSuggestion] {
@@ -1279,37 +1279,37 @@ class ContextualPARAEngine: ObservableObject {
     
     private func loadRecentItems(limit: Int) async -> [ContextItem] {
         // Placeholder implementation - would load from database
-        print("📝 CONTEXTUAL: Loading \(limit) recent items")
+        logger.info("CONTEXTUAL_PARA: Loading \(limit) recent items")
         return []
     }
     
     private func loadDailySummaries(days: Int) async -> [DailySummary] {
         // Placeholder implementation - would load from database
-        print("📝 CONTEXTUAL: Loading daily summaries for \(days) days")
+        logger.info("CONTEXTUAL_PARA: Loading daily summaries for \(days) days")
         return []
     }
     
     private func loadWeeklySummaries(weeks: Int) async -> [WeeklySummary] {
         // Placeholder implementation - would load from database
-        print("📝 CONTEXTUAL: Loading weekly summaries for \(weeks) weeks")
+        logger.info("CONTEXTUAL_PARA: Loading weekly summaries for \(weeks) weeks")
         return []
     }
     
     private func loadAllPARAItems() async -> [PARAItem] {
         // Placeholder implementation - would load from database
-        print("📝 CONTEXTUAL: Loading all PARA items for embeddings")
+        logger.info("CONTEXTUAL_PARA: Loading all PARA items for embeddings")
         return []
     }
     
     private func loadPersonalRulesForContext() async -> [PersonalPARARule] {
         // Placeholder implementation - would load from PersonalRulesService
-        print("📝 CONTEXTUAL: Loading personal rules for context")
+        logger.info("CONTEXTUAL_PARA: Loading personal rules for context")
         return []
     }
     
     private func loadRecentCorrections(days: Int) async -> [ContextualUserCorrection] {
         // Placeholder implementation - would load from database
-        print("📝 CONTEXTUAL: Loading recent corrections for \(days) days")
+        logger.info("CONTEXTUAL_PARA: Loading recent corrections for \(days) days")
         return []
     }
     

@@ -11,9 +11,9 @@ class Logger {
     private let logQueue = DispatchQueue(label: "com.lifemanager.logging", qos: .utility)
     
     private init() {
-        // Create logs directory in user's Documents
-        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let logsDirectory = documentsPath.appendingPathComponent("LifeManager/Logs")
+        // FIXED: Create logs directory in Application Support (avoids Documents folder permission prompt)
+        let applicationSupportPath = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let logsDirectory = applicationSupportPath.appendingPathComponent("LifeManager/Logs")
         
         // Create directory if it doesn't exist
         try? fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true)

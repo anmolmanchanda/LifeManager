@@ -41,15 +41,17 @@ class TaskRepository: ObservableObject {
         return try await supabaseService.insert(task, into: SupabaseService.TableName.tasks.rawValue)
     }
     
-    /// Fetch all tasks
+    /// Fetch all tasks (excludes soft deleted)
     func fetchAllTasks() async throws -> [LifeTask] {
         let response: [LifeTask] = try await supabaseService.client
             .from(SupabaseService.TableName.tasks.rawValue)
             .select()
+            .is("deleted_at", value: nil)  // FIXED: Only non-deleted tasks
             .order("created_at", ascending: false)
             .execute()
             .value
         
+        Logger.shared.debug("TASK_REPOSITORY: Fetched \(response.count) active tasks")
         return response
     }
     
@@ -251,34 +253,25 @@ class TaskRepository: ObservableObject {
             .execute()
     }
     
-    /// Delete task (temporarily using hard delete until migration is applied)
+    /// Delete task (now uses soft delete - ENABLED)
     func deleteTask(id: UUID) async throws {
-        // TODO: Switch back to soft delete after migration is applied
-        // try await softDeleteTask(id: id)
-        
-        // Temporarily use hard delete until database migration is applied
-        try await supabaseService.client
-            .from(SupabaseService.TableName.tasks.rawValue)
-            .delete()
-            .eq("id", value: id.uuidString)
-            .execute()
+        // FIXED: Use soft delete instead of hard delete
+        try await softDeleteTask(id: id)
+        Logger.shared.info("TASK_REPOSITORY: Soft deleted task: \(id)")
     }
     
-    /// Fetch recently deleted tasks
+    /// Fetch recently deleted tasks (ENABLED)
     func fetchRecentlyDeletedTasks() async throws -> [LifeTask] {
-        // TODO: Implement after migration is applied
-        // let response: [LifeTask] = try await supabaseService.client
-        //     .from(SupabaseService.TableName.tasks.rawValue)
-        //     .select()
-        //     .not("deleted_at", operator: .is, value: "null")
-        //     .order("deleted_at", ascending: false)
-        //     .execute()
-        //     .value
-        // 
-        // return response
+        let response: [LifeTask] = try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .not("deleted_at", operator: .is, value: "null")  // Only deleted tasks
+            .order("deleted_at", ascending: false)
+            .execute()
+            .value
         
-        // Temporarily return empty array until database migration is applied
-        return []
+        Logger.shared.debug("TASK_REPOSITORY: Fetched \(response.count) recently deleted tasks")
+        return response
     }
     
     /// Clean up permanently deleted tasks (called manually or via scheduled job)
@@ -286,6 +279,25 @@ class TaskRepository: ObservableObject {
         try await supabaseService.client
             .rpc("cleanup_permanently_deleted_tasks")
             .execute()
+    }
+    
+    /// Cleanup tasks that are eligible for permanent deletion (24+ hours old)
+    func cleanupExpiredDeletedTasks() async throws -> Int {
+        let recentlyDeleted = try await fetchRecentlyDeletedTasks()
+        
+        // Filter tasks that can be permanently deleted (24+ hours old)
+        let eligibleForDeletion = recentlyDeleted.filter { task in
+            task.canBePermanentlyDeleted
+        }
+        
+        // Permanently delete eligible tasks
+        for task in eligibleForDeletion {
+            try await permanentlyDeleteTask(id: task.id)
+            Logger.shared.info("TASK_REPOSITORY: Permanently deleted expired task: \(task.title)")
+        }
+        
+        Logger.shared.info("TASK_REPOSITORY: Cleaned up \(eligibleForDeletion.count) expired tasks")
+        return eligibleForDeletion.count
     }
     
     // MARK: - Tag Operations

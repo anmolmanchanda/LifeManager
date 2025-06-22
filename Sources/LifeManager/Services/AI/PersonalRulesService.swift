@@ -66,11 +66,19 @@ class PersonalRulesService: ObservableObject {
     
     private let supabaseService = SupabaseService.shared
     private let llmService = LLMServiceCoordinator.shared
+    private let logger = Logger.shared
     
     // MARK: - Internal State
     
     private let rulesQueue = DispatchQueue(label: "personal.rules", qos: .utility)
     private var ruleUpdateTimer: Timer?
+    
+    // MARK: - Memory Management
+    
+    private let maxRulesInMemory = 1000 // Maximum rules cached in memory
+    private let maxCorrectionsInMemory = 5000 // Maximum corrections cached in memory
+    private var lastMemoryCleanup = Date()
+    private let memoryCleanupInterval: TimeInterval = 3600 // 1 hour
     
     // MARK: - Initialization
     
@@ -119,7 +127,7 @@ class PersonalRulesService: ObservableObject {
         // Update existing rules if applicable
         await updateExistingRules(with: correction)
         
-        print("📝 RULES: ✅ Recorded user correction - \(originalItem.originalItem.content.prefix(50))...")
+        logger.success("PERSONAL_RULES: Recorded user correction - \(originalItem.originalItem.content.prefix(50))...")
     }
     
     /// Apply personal rules to a contextual PARA item
@@ -202,7 +210,7 @@ class PersonalRulesService: ObservableObject {
         
         await persistPersonalRule(newRule)
         
-        print("📝 RULES: ✅ Accepted suggested rule - \(newRule.description)")
+        logger.success("PERSONAL_RULES: Accepted suggested rule - \(newRule.description)")
     }
     
     /// Reject a suggested rule
@@ -259,7 +267,7 @@ class PersonalRulesService: ObservableObject {
         }
         
         if !rulesToRemove.isEmpty {
-            print("📝 RULES: 🧹 Cleaned up \(rulesToRemove.count) ineffective rules")
+            logger.info("PERSONAL_RULES: Cleaned up \(rulesToRemove.count) ineffective rules")
         }
     }
     
@@ -365,7 +373,7 @@ class PersonalRulesService: ObservableObject {
         
         await persistPersonalRule(newRule)
         
-        print("📝 RULES: ✅ Created new rule from pattern - \(newRule.description)")
+        logger.success("PERSONAL_RULES: Created new rule from pattern - \(newRule.description)")
     }
     
     private func generateRuleDescription(pattern: CorrectionPattern, corrections: [UserCorrection]) -> String {
@@ -441,7 +449,7 @@ class PersonalRulesService: ObservableObject {
         
         await persistRuleUpdate(rule, isActive: false)
         
-        print("📝 RULES: ⚠️ Disabled rule due to low confidence - \(rule.description)")
+        logger.warning("PERSONAL_RULES: Disabled rule due to low confidence - \(rule.description)")
     }
     
     private func updateRuleUsage(_ rule: PersonalPARARule) async {
@@ -563,7 +571,7 @@ class PersonalRulesService: ObservableObject {
             self.personalRules = rules
         }
         
-        print("📝 RULES: ✅ Loaded \(rules.count) personal rules from database (placeholder)")
+        logger.success("PERSONAL_RULES: Loaded \(rules.count) personal rules from database (placeholder)")
     }
     
     private func loadUserCorrections() async {
@@ -575,7 +583,7 @@ class PersonalRulesService: ObservableObject {
             self.userCorrections = corrections
         }
         
-        print("📝 RULES: ✅ Loaded \(corrections.count) user corrections from database (placeholder)")
+        logger.success("PERSONAL_RULES: Loaded \(corrections.count) user corrections from database (placeholder)")
     }
     
     private func persistPersonalRule(_ rule: PersonalPARARule) async {
@@ -590,7 +598,7 @@ class PersonalRulesService: ObservableObject {
             }
         }
         
-        print("📝 RULES: ✅ Persisted personal rule: \(rule.pattern) (placeholder)")
+        logger.success("PERSONAL_RULES: Persisted personal rule: \(rule.pattern) (placeholder)")
     }
     
     private func persistUserCorrection(_ correction: UserCorrection) async {
@@ -602,22 +610,22 @@ class PersonalRulesService: ObservableObject {
             }
         }
         
-        print("📝 RULES: ✅ Persisted user correction (placeholder)")
+        logger.success("PERSONAL_RULES: Persisted user correction (placeholder)")
     }
     
     private func persistRuleUpdate(_ rule: PersonalPARARule, confidence: Float? = nil, isActive: Bool? = nil) async {
         // TODO: Implement proper Supabase update with Codable types
-        print("📝 RULES: ✅ Updated rule: \(rule.pattern) (placeholder)")
+        logger.success("PERSONAL_RULES: Updated rule: \(rule.pattern) (placeholder)")
     }
     
     private func persistRuleUsage(_ rule: PersonalPARARule) async {
         // TODO: Implement proper Supabase update with Codable types
-        print("📝 RULES: ✅ Updated rule usage: \(rule.pattern) (placeholder)")
+        logger.success("PERSONAL_RULES: Updated rule usage: \(rule.pattern) (placeholder)")
     }
     
     private func removePersonalRule(_ rule: PersonalPARARule) async {
         // TODO: Implement proper Supabase delete with Codable types
-        print("📝 RULES: ✅ Removed rule: \(rule.pattern) (placeholder)")
+        logger.success("PERSONAL_RULES: Removed rule: \(rule.pattern) (placeholder)")
     }
     
     // MARK: - Timer Management
@@ -633,6 +641,7 @@ class PersonalRulesService: ObservableObject {
     private func performPeriodicRuleUpdate() async {
         let _ = await generateRuleSuggestions()
         await cleanupIneffectiveRules()
+        performMemoryCleanupIfNeeded() // Add memory cleanup to periodic updates
         await MainActor.run {
             updateRuleStats()
         }
@@ -644,6 +653,83 @@ class PersonalRulesService: ObservableObject {
         // In a real implementation, this would get the current user ID from authentication
         // For now, using a default development user ID
         return UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID()
+    }
+    
+    // MARK: - Memory Management Implementation
+    
+    /// Check and perform memory cleanup if needed
+    private func performMemoryCleanupIfNeeded() {
+        let now = Date()
+        guard now.timeIntervalSince(lastMemoryCleanup) >= memoryCleanupInterval else { return }
+        
+        Task { [weak self] in
+            await self?.performMemoryCleanup()
+        }
+        
+        lastMemoryCleanup = now
+    }
+    
+    /// Perform memory cleanup using LRU strategy
+    private func performMemoryCleanup() async {
+        let beforeRules = await MainActor.run { personalRules.count }
+        let beforeCorrections = await MainActor.run { userCorrections.count }
+        
+        logger.info("PERSONAL_RULES: Performing memory cleanup - Rules: \(beforeRules), Corrections: \(beforeCorrections)")
+        
+        await MainActor.run {
+            // Clean up old rules (LRU based on last used)
+            if personalRules.count > maxRulesInMemory {
+                personalRules.sort { $0.lastUsed > $1.lastUsed }
+                personalRules = Array(personalRules.prefix(maxRulesInMemory / 2)) // Keep half for safety
+            }
+            
+            // Clean up old corrections (keep most recent and most effective)
+            if userCorrections.count > maxCorrectionsInMemory {
+                userCorrections.sort { $0.timestamp > $1.timestamp }
+                userCorrections = Array(userCorrections.prefix(maxCorrectionsInMemory / 2))
+            }
+            
+            // Remove expired rules based on configuration
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -RulesConfig.ruleExpirationDays, to: Date()) ?? Date()
+            personalRules = personalRules.filter { $0.lastUsed >= cutoffDate || $0.confidence > 0.8 }
+            
+            // Remove old corrections based on retention policy
+            let correctionCutoffDate = Calendar.current.date(byAdding: .day, value: -RulesConfig.correctionRetentionDays, to: Date()) ?? Date()
+            userCorrections = userCorrections.filter { $0.timestamp >= correctionCutoffDate }
+        }
+        
+        let afterRules = await MainActor.run { personalRules.count }
+        let afterCorrections = await MainActor.run { userCorrections.count }
+        
+        logger.success("PERSONAL_RULES: Memory cleanup complete - Rules: \(beforeRules)→\(afterRules), Corrections: \(beforeCorrections)→\(afterCorrections)")
+        
+        // Update statistics after cleanup
+        await MainActor.run {
+            updateRuleStats()
+        }
+    }
+    
+    /// Estimate current memory usage
+    private func estimateMemoryUsage() async -> Int {
+        return await MainActor.run {
+            var totalUsage = 0
+            
+            // Estimate rules memory
+            for rule in personalRules {
+                totalUsage += rule.pattern.count * 2
+                totalUsage += rule.conditions.map { $0.count }.reduce(0, +) * 2
+                totalUsage += 300 // Overhead per rule
+            }
+            
+            // Estimate corrections memory
+            for correction in userCorrections {
+                totalUsage += correction.originalItem.content.count * 2
+                totalUsage += correction.correctedCategory.rawValue.count * 2
+                totalUsage += 200 // Overhead per correction
+            }
+            
+            return totalUsage
+        }
     }
 }
 

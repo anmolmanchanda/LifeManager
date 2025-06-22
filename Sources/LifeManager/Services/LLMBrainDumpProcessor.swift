@@ -32,7 +32,7 @@ class LLMBrainDumpProcessor {
     private let personalRulesService: PersonalRulesService
     
     init() {
-        self.llmService = LLMService()
+        self.llmService = LLMServiceCoordinator.shared
         self.blobRepository = BlobRepository()
         self.taskRepository = TaskRepository()
         self.paraRepository = PARARepository()
@@ -328,26 +328,95 @@ class LLMBrainDumpProcessor {
         return summary
     }
     
-    /// Create database entry for an enhanced brain dump item
+    /// Create database entry for an enhanced brain dump item - FIXED: Database persistence restored
     private func createDatabaseEntry(for item: EnhancedBrainDumpItem) async throws {
         switch item.contentType {
         case .task:
-            // Create task using repository method - implementation will vary
-            Logger.shared.success("✅ Would create task: \(item.title)")
+            // Create blob first for task content
+            let blob = try await blobRepository.createBlob(
+                content: item.content,
+                sourceType: .brainDump,
+                workPersonal: item.workPersonal
+            )
+            
+            // Create task with blob reference
+            let task = try await taskRepository.createTask(
+                blobId: blob.id,
+                title: item.title,
+                description: item.content,
+                priority: item.priority,
+                status: .inbox,
+                dueDate: item.dueDate != nil ? ISO8601DateFormatter().date(from: item.dueDate!) : nil,
+                workPersonal: item.workPersonal,
+                projectId: item.suggestedProject
+            )
+            
+            Logger.shared.success("✅ Created task: \(item.title) [ID: \(task.id)]")
             
         case .note, .knowledge:
-            // Create blob using repository method - implementation will vary
-            // For now, use a simplified approach
-            Logger.shared.success("✅ Would create \(item.contentType.rawValue): \(item.title)")
+            // Create blob for note/knowledge content
+            let blob = try await blobRepository.createBlob(
+                content: item.content,
+                sourceType: .brainDump,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created \(item.contentType.rawValue): \(item.title) [ID: \(blob.id)]")
             
         case .journal:
-            // Create journal using repository method - implementation will vary
-            Logger.shared.success("✅ Would create journal entry: \(item.title)")
+            // Create journal entry
+            let journal = try await journalRepository.createJournalEntry(
+                title: item.title,
+                content: item.content,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created journal entry: \(item.title) [ID: \(journal.id)]")
+            
+        case .resource:
+            // Create resource entry
+            let resource = try await resourceRepository.createResource(
+                title: item.title,
+                content: item.content,
+                resourceType: .knowledge,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created resource: \(item.title) [ID: \(resource.id)]")
+            
+        case .project:
+            // Create project via PARA repository
+            let project = try await paraRepository.createProject(
+                title: item.title,
+                description: item.content,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created project: \(item.title) [ID: \(project.id)]")
+            
+        case .area:
+            // Create area via PARA repository
+            let area = try await paraRepository.createArea(
+                title: item.title,
+                description: item.content,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created area: \(item.title) [ID: \(area.id)]")
             
         default:
             // For other content types, create as blob
-            Logger.shared.success("✅ Would create \(item.contentType.rawValue): \(item.title)")
+            let blob = try await blobRepository.createBlob(
+                content: item.content,
+                sourceType: .brainDump,
+                workPersonal: item.workPersonal
+            )
+            
+            Logger.shared.success("✅ Created \(item.contentType.rawValue): \(item.title) [ID: \(blob.id)]")
         }
+        
+        // Send notification that data was created so UI refreshes
+        NotificationCenter.default.post(name: .dataDidChange, object: nil)
     }
     
     // MARK: - Fallback Processing
@@ -478,4 +547,9 @@ class LLMBrainDumpProcessor {
             )
         )
     }
+}
+
+// MARK: - Notification Extension for Data Changes
+extension Notification.Name {
+    static let dataDidChange = Notification.Name("dataDidChange")
 }

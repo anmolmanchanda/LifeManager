@@ -50,8 +50,8 @@ class LLMConfigurationService: ObservableObject {
                 Bundle.main.bundlePath + "/api_key.txt",
                 // User home directory
                 FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".lifemanager_config").path,
-                // Documents directory
-                FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("config.txt").path ?? "",
+                // FIXED: Removed Documents directory search to avoid permission prompt
+                // FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("config.txt").path ?? "",
                 // Application Support directory
                 FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("LifeManager/config.txt").path ?? ""
             ]

@@ -185,22 +185,26 @@ The LLM service has been decomposed into focused, coordinated services:
 - **Context Memory**: Active sliding window with summarized history
 
 #### Memory Management for AI Services
-Production-ready memory management patterns implemented:
+Production-ready memory management patterns implemented across all AI services:
+
+**EmbeddingsService**: Complete LRU caching with 100MB limits and automatic cleanup
+**ContextMemoryService**: 50MB memory bounds with LRU context window management  
+**PersonalRulesService**: Rule and correction caching with configurable retention policies
 
 ```swift
-// Memory bounds with automatic cleanup
+// Memory bounds with automatic cleanup (example from ContextMemoryService)
 private var maxMemoryUsage: Int = 50_000_000 // 50MB limit
 private var lastMemoryCleanup: Date = Date()
 private let memoryCleanupInterval: TimeInterval = 3600 // 1 hour
 
-// LRU cache management
-private func performCacheCleanup() {
-    let sortedKeys = cache.keys.sorted { key1, key2 in
-        let date1 = cache[key1]?.createdAt ?? Date.distantPast
-        let date2 = cache[key2]?.createdAt ?? Date.distantPast
-        return date1 < date2
+// LRU cache management with MainActor safety
+private func performMemoryCleanup() async {
+    await MainActor.run {
+        // Sort by last accessed time (most recent first)
+        activeContextWindow.sort { $0.lastAccessed > $1.lastAccessed }
+        // Keep only the most recent items
+        activeContextWindow = Array(activeContextWindow.prefix(currentWindowSize))
     }
-    // Remove oldest entries until under limits
 }
 ```
 
@@ -218,10 +222,11 @@ Production-ready structured logging system with comprehensive coverage:
 4. **File-based Logging**: Persistent logs in `~/Documents/LifeManager/Logs/`
 
 #### Logging Standards (Phase 3 Implementation)
-All debug prints have been systematically replaced with proper Logger calls:
-- **Context-aware logging**: Each service uses appropriate categories (e.g., "EMBEDDINGS:", "CONTEXT_MEMORY:")
-- **Proper log levels**: Categorized by severity and purpose rather than generic info
+Debug prints have been systematically replaced with proper Logger calls across the codebase:
+- **Context-aware logging**: Each service uses appropriate categories (e.g., "EMBEDDINGS:", "CONTEXT_MEMORY:", "PERSONAL_RULES:")
+- **Proper log levels**: Categorized by severity and purpose rather than generic info  
 - **Consistent formatting**: Structured messages for easy parsing and monitoring
+- **Production-ready**: All major services and ViewModels use Logger.shared with proper dependencies
 
 Log levels and usage:
 - **DEBUG**: Development information, API responses, detailed flow tracking
@@ -247,10 +252,28 @@ Logger.shared.debug("SERVICE_NAME: Processing \(count) items took \(duration)ms"
 ```
 
 ### Development Standards
-- **Production Quality**: No TODOs or placeholders in shipped code
-- **Comprehensive Logging**: Detailed logging for debugging and monitoring
+- **Production Quality**: Minimal technical debt (8 non-critical TODOs, all feature enhancements)
+- **Comprehensive Logging**: Structured logging with Logger.shared across all services
 - **Test Coverage**: Unit tests for all core functionality
 - **Documentation**: Inline documentation with roadmap traceability
+- **Memory Management**: Production-ready bounds and cleanup in all AI services
+- **Service Architecture**: Modular design with backward compatibility maintained
+- **Code Quality Linting**: Automated checks prevent debug prints and enforce standards
+
+#### Code Quality Enforcement
+```bash
+# Run lint checks manually
+./lint_check.sh
+
+# Install pre-commit hook (optional)
+cp pre-commit-hook.template .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+```
+
+The linting system automatically checks for:
+- Debug print statements (prevents regression)
+- NSLog statements (enforces Logger usage)
+- Missing Logger dependencies in services
+- TODO count monitoring
 
 ## Testing Strategy
 - **Unit Tests**: Core services and business logic (see `Tests/LifeManagerTests/`)
@@ -276,6 +299,8 @@ With the new modular LLM architecture:
 5. Test integration through `LLMServiceCoordinator.swift`
 6. Add comprehensive error handling and logging
 7. Create tests for new provider integration
+
+**Note**: Legacy code can continue using `LLMService` type alias, but new development should use `LLMServiceCoordinator.shared` directly.
 
 ### Adding New Services
 When creating new services, follow the established patterns:
@@ -345,10 +370,62 @@ When adding new API integrations:
 - **Multi-path Loading**: API keys loaded from multiple potential locations
 - **Security**: Config files automatically ignored by git
 
+## Authentication & User Experience (v2.0)
+
+### **🎯 Seamless Authentication Experience**
+LifeManager v2.0 delivers a production-ready authentication experience with zero friction:
+
+#### **System Integration Improvements**
+- **✅ No System Password Prompts**: Eliminated permission dialogs on app launch
+  - **Implementation**: Conditionally compiled `startLogMonitoring()` with `#if DEBUG`
+  - **File**: `Sources/LifeManager/ViewModels/MainViewModel.swift:57`
+  - **Impact**: App launches silently without macOS authentication dialogs
+
+- **✅ No Documents Folder Access**: All data stored in secure app container
+  - **Implementation**: Changed from `documentDirectory` to `applicationSupportDirectory`
+  - **File**: `Sources/LifeManager/Services/Logger.swift:applicationSupportPath`
+  - **Impact**: No permission requests for user Documents folder
+
+#### **Production UI Cleanup**
+- **✅ Clean Production Interface**: Development artifacts conditionally compiled
+  - **Implementation**: `#if DEBUG` guards around development controls
+  - **File**: `Sources/LifeManager/Views/AuthenticationView.swift:82-186`
+  - **Impact**: Professional UI experience for production users
+
+- **✅ Persistent Sessions**: Users stay logged in across app restarts
+  - **Implementation**: Proper Supabase session management with keychain storage
+  - **Impact**: Seamless user experience without repeated authentication
+
+#### **Development vs Production Modes**
+- **✅ Conditional Development Features**: Debug tools only in development builds
+  - **Production Mode**: `isDevelopmentMode = false` for clean experience
+  - **Development Mode**: Full debugging tools and bypass options available
+  - **Build-time Compilation**: Production builds automatically exclude debug features
+
+### **Authentication Architecture**
+```swift
+// Production: Clean, no system prompts
+#if DEBUG
+startLogMonitoring() // Only in development builds
+#endif
+
+// Secure app container storage (no Documents folder access)
+let applicationSupportPath = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+
+// Conditional UI: Development controls only in debug builds
+#if DEBUG
+VStack {
+    // Development authentication bypass
+    // Testing controls and debugging tools
+}
+#endif
+```
+
 ## Debugging and Monitoring
 - **Real-time Monitoring**: `./monitor_logs.sh -f` for live log following
 - **Filtered Logging**: Use level and search filters for targeted debugging
 - **Performance Tracking**: Built-in timing for database and API operations
 - **Error Tracking**: Comprehensive error logging with context information
+- **Production Logging**: Logs stored in secure Application Support directory (no Documents access)
 
-This architecture provides a solid foundation for building and extending LifeManager's functionality while maintaining code quality, testability, and user experience.
+This architecture provides a solid foundation for building and extending LifeManager's functionality while maintaining code quality, testability, and user experience. The v2.0 authentication improvements deliver enterprise-grade user experience with zero friction and professional polish.

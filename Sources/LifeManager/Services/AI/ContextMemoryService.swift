@@ -70,6 +70,7 @@ class ContextMemoryService: ObservableObject {
     private let llmService = LLMServiceCoordinator.shared
     private var calendarService: CalendarOrchestrationService?
     private let embeddingsService = EmbeddingsService.shared
+    private let logger = Logger.shared
     
     // MARK: - Internal State
     
@@ -135,7 +136,7 @@ class ContextMemoryService: ObservableObject {
         await updateDailySummary(with: contextItems)
         await persistContextWindow()
         
-        print("🧠 CONTEXT: Added \(contextItems.count) items, window size: \(currentWindowSize)")
+        logger.info("CONTEXT_MEMORY: Added \(contextItems.count) items, window size: \(currentWindowSize)")
     }
     
     /// Get current context for PARA processing with calendar integration
@@ -586,7 +587,7 @@ class ContextMemoryService: ObservableObject {
         // Update window size if changed
         if newWindowSize != currentWindowSize {
             currentWindowSize = newWindowSize
-            print("🧠 CONTEXT: Adjusted window size to \(currentWindowSize) (avg daily: \(String(format: "%.1f", averageDailyActivity)), trend: \(String(format: "%.2f", recentTrend)))")
+            logger.info("CONTEXT_MEMORY: Adjusted window size to \(currentWindowSize) (avg daily: \(String(format: "%.1f", averageDailyActivity)), trend: \(String(format: "%.2f", recentTrend)))")
         }
     }
     
@@ -607,10 +608,10 @@ class ContextMemoryService: ObservableObject {
                 updateContextStats()
             }
             
-            print("🧠 CONTEXT: ✅ Loaded context memory - \(activeContextWindow.count) items in window")
+            logger.success("CONTEXT_MEMORY: Loaded context memory - \(activeContextWindow.count) items in window")
             
         } catch {
-            print("🧠 CONTEXT: ❌ Failed to load context memory: \(error)")
+            logger.error("CONTEXT_MEMORY: Failed to load context memory: \(error)")
         }
     }
     
@@ -656,10 +657,10 @@ class ContextMemoryService: ObservableObject {
             //         .execute()
             // }
             
-            print("🧠 CONTEXT: ✅ Persisted \(activeContextWindow.count) context items")
+            logger.success("CONTEXT_MEMORY: Persisted \(activeContextWindow.count) context items")
             
         } catch {
-            print("🧠 CONTEXT: ❌ Failed to persist context window: \(error)")
+            logger.error("CONTEXT_MEMORY: Failed to persist context window: \(error)")
         }
     }
     
@@ -695,10 +696,10 @@ class ContextMemoryService: ObservableObject {
             //         .execute()
             // }
             
-            print("🧠 CONTEXT: ✅ Persisted \(dailySummaries.count) daily summaries")
+            logger.success("CONTEXT_MEMORY: Persisted \(dailySummaries.count) daily summaries")
             
         } catch {
-            print("🧠 CONTEXT: ❌ Failed to persist daily summaries: \(error)")
+            logger.error("CONTEXT_MEMORY: Failed to persist daily summaries: \(error)")
         }
     }
     
@@ -1061,6 +1062,79 @@ class ContextMemoryService: ObservableObject {
         // In a real implementation, this would get the current user ID from authentication
         // For now, using a default development user ID
         return UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID()
+    }
+    
+    // MARK: - Memory Management Implementation
+    
+    /// Check and perform memory cleanup if needed
+    private func performMemoryCleanupIfNeeded() {
+        let now = Date()
+        guard now.timeIntervalSince(lastMemoryCleanup) >= memoryCleanupInterval else { return }
+        
+        Task { [weak self] in
+            await self?.performMemoryCleanup()
+        }
+        
+        lastMemoryCleanup = now
+    }
+    
+    /// Perform memory cleanup using LRU strategy
+    private func performMemoryCleanup() async {
+        let beforeCount = await MainActor.run { activeContextWindow.count }
+        let beforeSummaries = await MainActor.run { dailySummaries.count }
+        
+        logger.info("CONTEXT_MEMORY: Performing memory cleanup - Window: \(beforeCount) items, Summaries: \(beforeSummaries)")
+        
+        await MainActor.run {
+            // Trim context window to essential items only (LRU cleanup)
+            if activeContextWindow.count > currentWindowSize {
+                // Sort by last accessed time (most recent first)
+                activeContextWindow.sort { $0.lastAccessed > $1.lastAccessed }
+                // Keep only the most recent items
+                activeContextWindow = Array(activeContextWindow.prefix(currentWindowSize))
+            }
+            
+            // Clean up old daily summaries (keep last 30 days)
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+            dailySummaries = dailySummaries.filter { $0.date >= cutoffDate }
+            
+            // Clean up old weekly summaries (keep last 12 weeks)
+            let weekCutoffDate = Calendar.current.date(byAdding: .weekOfYear, value: -12, to: Date()) ?? Date()
+            weeklySummaries = weeklySummaries.filter { $0.weekStartDate >= weekCutoffDate }
+            
+            // Clean up old monthly summaries (keep last 6 months)
+            let monthCutoffDate = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+            monthlySummaries = monthlySummaries.filter { $0.monthStartDate >= monthCutoffDate }
+        }
+        
+        let afterCount = await MainActor.run { activeContextWindow.count }
+        let afterSummaries = await MainActor.run { dailySummaries.count }
+        
+        logger.success("CONTEXT_MEMORY: Memory cleanup complete - Window: \(beforeCount)→\(afterCount) items, Summaries: \(beforeSummaries)→\(afterSummaries)")
+    }
+    
+    /// Estimate current memory usage
+    private func estimateMemoryUsage() async -> Int {
+        return await MainActor.run {
+            var totalUsage = 0
+            
+            // Estimate context window memory
+            for item in activeContextWindow {
+                totalUsage += item.content.count * 2 // Rough estimate for string
+                totalUsage += item.tags.joined().count * 2
+                totalUsage += 200 // Overhead per item
+            }
+            
+            // Estimate summaries memory
+            for summary in dailySummaries {
+                totalUsage += summary.projectsActive.joined().count * 2
+                totalUsage += summary.areasActive.joined().count * 2
+                totalUsage += summary.topTags.joined().count * 2
+                totalUsage += 150 // Overhead per summary
+            }
+            
+            return totalUsage
+        }
     }
 }
 

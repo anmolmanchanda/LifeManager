@@ -32,7 +32,7 @@ class CoreMainViewModel: ObservableObject {
     
     // MARK: - Development Mode
     
-    private var isDevelopmentMode = true // Set to true when using bypass - ENABLED FOR DEVELOPMENT
+    private var isDevelopmentMode = false // FIXED: Set to false for production deployment
     
     // MARK: - Dependencies
     

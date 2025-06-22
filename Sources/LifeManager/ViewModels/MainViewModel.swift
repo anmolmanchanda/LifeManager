@@ -34,7 +34,7 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Development Mode
     
-    private var isDevelopmentMode = true // Set to true when using bypass - ENABLED FOR DEVELOPMENT
+    private var isDevelopmentMode = false // FIXED: Set to false for production deployment
     
     // MARK: - Authentication State
     
@@ -128,8 +128,10 @@ class MainViewModel: ObservableObject {
         Logger.shared.debug("MAIN_VM: Setting up authentication listener")
         setupAuthListener()
         
-        // Start log monitoring automatically
+        // FIXED: Only start log monitoring in debug builds to avoid system password prompts
+        #if DEBUG
         startLogMonitoring()
+        #endif
         
         Task {
             Logger.shared.info("MAIN_VM: Loading initial data")
@@ -1301,6 +1303,7 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Development Mode
     
+    #if DEBUG
     func enableDevelopmentBypass() {
         isDevelopmentMode = true
         isAuthenticated = true
@@ -1310,6 +1313,7 @@ class MainViewModel: ObservableObject {
             await createDevelopmentSession()
         }
     }
+    #endif
     
     private func createDevelopmentSession() async {
         // First try to create a real account for development

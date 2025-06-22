@@ -17,4 +17,6 @@ import Foundation
 
 /// Legacy compatibility alias for LLMServiceCoordinator
 /// @deprecated Use LLMServiceCoordinator.shared instead
+/// This typealias ensures existing code continues to work during the transition
+@available(*, deprecated, message: "Use LLMServiceCoordinator.shared instead")
 typealias LLMService = LLMServiceCoordinator

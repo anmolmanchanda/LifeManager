@@ -7,7 +7,9 @@ struct AuthenticationView: View {
     @State private var password = ""
     @State private var isSignUp = false
     @State private var callbackUrl = ""
+    #if DEBUG
     @State private var isProductionTesting = false // Toggle for real auth testing
+    #endif
     @FocusState private var focusedField: Field?
     
     enum Field: CustomStringConvertible {
@@ -76,7 +78,8 @@ struct AuthenticationView: View {
                         .multilineTextAlignment(.center)
                 }
                 
-                // Development bypass section - always visible
+                // FIXED: Only show development controls in debug builds
+                #if DEBUG
                 VStack(spacing: 8) {
                     Divider()
                     
@@ -180,6 +183,7 @@ struct AuthenticationView: View {
                     }
                 }
                 .padding(.top, 8)
+                #endif
                 
                 // Sign in/up buttons
                 VStack(spacing: 12) {

@@ -116,7 +116,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         return deletedAt != nil
     }
     
-    var canBePermalentlyDeleted: Bool {
+    var canBePermanentlyDeleted: Bool {
         guard let deletedAtString = deletedAt,
               let deletedDate = ISO8601DateFormatter().date(from: deletedAtString) else {
             return false

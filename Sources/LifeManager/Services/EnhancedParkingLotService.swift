@@ -19,7 +19,7 @@ class EnhancedParkingLotService: ObservableObject {
     
     // MARK: - Initialization
     
-    init(llmService: LLMService = LLMService()) {
+    init(llmService: LLMService = LLMServiceCoordinator.shared) {
         self.llmService = llmService
     }
     
