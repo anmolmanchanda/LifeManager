@@ -54,4 +54,3 @@ echo "claude --mcp-config $CONFIG_FILE"
 echo ""
 echo "🔧 To configure API keys:"
 echo "./setup-env-mcp.sh"
-EOF < /dev/null

@@ -34,8 +34,18 @@ if [ "$FIRECRAWL_API_KEY" = "your_firecrawl_api_key_here" ] || [ -z "$FIRECRAWL_
     missing_vars+=("FIRECRAWL_API_KEY")
 fi
 
+# Check Apidog configuration
+apidog_status="⚠️ Not configured (optional)"
+if [ -n "$APIDOG_PROJECT_ID" ] && [ "$APIDOG_PROJECT_ID" != "your_project_id_here" ]; then
+    if [ -n "$APIDOG_ACCESS_TOKEN" ] && [ "$APIDOG_ACCESS_TOKEN" != "your_access_token_here" ]; then
+        apidog_status="✅ Ready (API configured)"
+    else
+        apidog_status="🔧 Project ID set, needs access token"
+    fi
+fi
+
 if [ ${#missing_vars[@]} -eq 0 ]; then
-    echo "✅ All required MCP environment variables are configured\!"
+    echo "✅ All required MCP environment variables are configured!"
     echo ""
     echo "🚀 MCP Status:"
     echo "• Sequential Thinking: ✅ Ready"
@@ -44,7 +54,7 @@ if [ ${#missing_vars[@]} -eq 0 ]; then
     echo "• Filesystem: ✅ Ready"
     echo "• Task Master AI: ✅ Ready"
     echo "• Context7: ✅ Ready"
-    echo "• Apidog: ⚠️ Needs project ID (optional)"
+    echo "• Apidog: $apidog_status"
     echo "• Firecrawl: ✅ Ready (API key configured)"
     echo "• Memory Cache: ✅ Ready"
     echo "• Browser MCP: ✅ Ready"
@@ -60,4 +70,3 @@ else
     echo "Please edit the .env file and add your API keys."
     echo "Run 'open .env' to edit the file."
 fi
-EOF < /dev/null
