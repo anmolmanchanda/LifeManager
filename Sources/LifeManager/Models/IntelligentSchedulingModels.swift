@@ -693,6 +693,36 @@ struct ReschedulingSettings: Codable {
     )
 }
 
+struct NotificationSettings: Codable {
+    let enableProactiveNotifications: Bool
+    let enableDailySummary: Bool
+    let enableWeeklySummary: Bool
+    let enableMonthlyReport: Bool
+    let enableAchievementCelebrations: Bool
+    let enableGentleNudges: Bool
+    let enableOverdueReminders: Bool
+    let enableContextualSuggestions: Bool
+    let quietHoursStart: Int // 24-hour format
+    let quietHoursEnd: Int   // 24-hour format
+    let maxNotificationsPerDay: Int
+    let emergencyNotificationsOnly: Bool
+    
+    static let `default` = NotificationSettings(
+        enableProactiveNotifications: true,
+        enableDailySummary: true,
+        enableWeeklySummary: true,
+        enableMonthlyReport: false,
+        enableAchievementCelebrations: true,
+        enableGentleNudges: true,
+        enableOverdueReminders: true,
+        enableContextualSuggestions: true,
+        quietHoursStart: 22, // 10 PM
+        quietHoursEnd: 8,    // 8 AM
+        maxNotificationsPerDay: 10,
+        emergencyNotificationsOnly: false
+    )
+}
+
 // MARK: - Task Dependencies
 
 /// Task dependency information

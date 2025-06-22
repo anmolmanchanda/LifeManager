@@ -14,6 +14,7 @@ class ProactiveNotificationEngine: ObservableObject {
     private let personalRules = PersonalRulesService.shared
     private let llmService = LLMServiceCoordinator.shared
     private let notificationService = NotificationService.shared
+    private let advancedNotificationService = AdvancedNotificationService.shared
     private let intelligentRescheduling = IntelligentReschedulingService.shared
     private let logger = Logger.shared
     
@@ -889,6 +890,269 @@ class NotificationOptimizer {
         // This would implement sophisticated timing optimization
         
         return optimized
+    }
+    
+    // MARK: - Advanced Notification Integration
+    
+    /// Send proactive notification using advanced notification system
+    private func sendAdvancedProactiveNotification(_ notification: ProactiveNotification) async {
+        logger.info("PROACTIVE_NOTIFICATIONS: Sending advanced proactive notification: \\(notification.title)")
+        
+        // Map to advanced notification context
+        let context = NotificationContext(
+            category: notification.type.rawValue,
+            source: "proactive_engine",
+            metadata: [
+                "confidence": notification.confidence,
+                "priority": notification.priority.rawValue,
+                "reasoning": notification.reasoning
+            ]
+        )
+        
+        // Create proactive suggestions if applicable
+        let suggestions = createProactiveSuggestions(for: notification)
+        
+        // Determine escalation rules based on notification type and priority
+        let escalationRules = getEscalationRules(for: notification)
+        
+        await advancedNotificationService.sendAdvancedNotification(
+            title: notification.title,
+            message: notification.message,
+            priority: mapToAdvancedPriority(notification.priority),
+            category: mapToAdvancedCategory(notification.type),
+            context: context,
+            escalationRules: escalationRules
+        )
+        
+        // Update statistics
+        updateNotificationStatistics(notification)
+    }
+    
+    /// Send critical proactive alert with immediate multi-channel delivery
+    func sendCriticalProactiveAlert(
+        title: String,
+        message: String,
+        type: NotificationType,
+        reasoning: String
+    ) async {
+        logger.warning("PROACTIVE_NOTIFICATIONS: Sending critical proactive alert: \\(title)")
+        
+        let context = NotificationContext(
+            category: type.rawValue,
+            source: "proactive_engine_critical",
+            metadata: [
+                "reasoning": reasoning,
+                "timestamp": ISO8601DateFormatter().string(from: Date())
+            ]
+        )
+        
+        await advancedNotificationService.sendCriticalNotification(
+            title: title,
+            message: message,
+            category: mapToAdvancedCategory(type),
+            immediateChannels: [.inApp, .push, .email]
+        )
+    }
+    
+    /// Send intelligent suggestion with advanced features
+    func sendIntelligentSuggestion(
+        title: String,
+        message: String,
+        suggestions: [String],
+        confidence: Double,
+        taskId: UUID? = nil,
+        projectId: UUID? = nil
+    ) async {
+        logger.info("PROACTIVE_NOTIFICATIONS: Sending intelligent suggestion: \\(title)")
+        
+        let context = NotificationContext(
+            category: "intelligent_suggestion",
+            source: "proactive_engine",
+            metadata: [
+                "taskId": taskId?.uuidString ?? "",
+                "projectId": projectId?.uuidString ?? "",
+                "suggestionCount": suggestions.count
+            ]
+        )
+        
+        let proactiveSuggestions = suggestions.enumerated().map { index, suggestion in
+            ProactiveSuggestion(
+                id: UUID(),
+                title: "Option \\(index + 1)",
+                description: suggestion,
+                action: "apply_suggestion_\\(index)",
+                confidence: confidence
+            )
+        }
+        
+        await advancedNotificationService.sendProactiveSuggestion(
+            title: title,
+            message: message,
+            suggestions: proactiveSuggestions,
+            confidence: confidence,
+            context: context
+        )
+    }
+    
+    /// Create proactive suggestions for a notification
+    private func createProactiveSuggestions(for notification: ProactiveNotification) -> [ProactiveSuggestion] {
+        var suggestions: [ProactiveSuggestion] = []
+        
+        switch notification.type {
+        case .overdueReminder:
+            suggestions.append(ProactiveSuggestion(
+                id: UUID(),
+                title: "Reschedule Task",
+                description: "Move this task to a better time slot",
+                action: "reschedule_task",
+                confidence: 0.9
+            ))
+            
+            suggestions.append(ProactiveSuggestion(
+                id: UUID(),
+                title: "Break Down Task",
+                description: "Split this task into smaller, manageable parts",
+                action: "break_down_task",
+                confidence: 0.8
+            ))
+            
+        case .stagnantTask:
+            suggestions.append(ProactiveSuggestion(
+                id: UUID(),
+                title: "Add Context",
+                description: "Add more details or context to make progress easier",
+                action: "add_context",
+                confidence: 0.85
+            ))
+            
+            suggestions.append(ProactiveSuggestion(
+                id: UUID(),
+                title: "Change Priority",
+                description: "Adjust task priority based on current importance",
+                action: "change_priority",
+                confidence: 0.7
+            ))
+            
+        case .achievementCelebration:
+            suggestions.append(ProactiveSuggestion(
+                id: UUID(),
+                title: "Share Achievement",
+                description: "Share your progress with team or friends",
+                action: "share_achievement",
+                confidence: 0.6
+            ))
+            
+        case .workLifeBalance:
+            suggestions.append(ProactiveSuggestion(
+                id: UUID(),
+                title: "Schedule Break",
+                description: "Add a short break to your schedule",
+                action: "schedule_break",
+                confidence: 0.8
+            ))
+            
+            suggestions.append(ProactiveSuggestion(
+                id: UUID(),
+                title: "Adjust Schedule",
+                description: "Rebalance work and personal tasks",
+                action: "adjust_schedule",
+                confidence: 0.75
+            ))
+            
+        default:
+            break
+        }
+        
+        return suggestions
+    }
+    
+    /// Get escalation rules for different notification types
+    private func getEscalationRules(for notification: ProactiveNotification) -> EscalationRules? {
+        switch notification.type {
+        case .overdueReminder:
+            return EscalationRules(
+                channels: [.inApp, .push, .email],
+                delays: [0, 1800, 3600] // Immediate, 30min, 1hr
+            )
+            
+        case .criticalDeadline:
+            return EscalationRules(
+                channels: [.inApp, .push, .email, .sms],
+                delays: [0, 300, 900] // Immediate, 5min, 15min
+            )
+            
+        case .stagnantTask:
+            return EscalationRules(
+                channels: [.inApp, .push],
+                delays: [0, 7200] // Immediate, 2hrs
+            )
+            
+        case .workLifeBalance:
+            return nil // No escalation for balance suggestions
+            
+        case .achievementCelebration:
+            return nil // No escalation for celebrations
+            
+        default:
+            return EscalationRules(
+                channels: [.inApp, .push],
+                delays: [0, 3600] // Immediate, 1hr
+            )
+        }
+    }
+    
+    /// Map proactive notification priority to advanced notification priority
+    private func mapToAdvancedPriority(_ priority: NotificationPriority) -> AdvancedNotificationService.NotificationPriority {
+        switch priority {
+        case .low: return .low
+        case .medium: return .normal
+        case .high: return .high
+        case .critical: return .critical
+        }
+    }
+    
+    /// Map notification type to advanced notification category
+    private func mapToAdvancedCategory(_ type: NotificationType) -> AdvancedNotificationCategory {
+        switch type {
+        case .overdueReminder, .gentleNudge:
+            return .taskReminder
+        case .scheduleOptimization, .workLifeBalance:
+            return .scheduleChange
+        case .conflictResolution:
+            return .conflictDetection
+        case .achievementCelebration:
+            return .achievement
+        case .stagnantTask, .procrastinationPattern:
+            return .proactiveSuggestion
+        default:
+            return .systemAlert
+        }
+    }
+    
+    /// Update notification statistics with advanced metrics
+    private func updateNotificationStatistics(_ notification: ProactiveNotification) {
+        notificationStats.totalSent += 1
+        notificationStats.lastSentAt = Date()
+        
+        switch notification.priority {
+        case .low:
+            notificationStats.lowPrioritySent += 1
+        case .medium:
+            notificationStats.mediumPrioritySent += 1
+        case .high:
+            notificationStats.highPrioritySent += 1
+        case .critical:
+            notificationStats.criticalSent += 1
+        }
+        
+        // Track confidence distribution
+        if notification.confidence >= 0.8 {
+            notificationStats.highConfidenceSent += 1
+        } else if notification.confidence >= 0.6 {
+            notificationStats.mediumConfidenceSent += 1
+        } else {
+            notificationStats.lowConfidenceSent += 1
+        }
     }
 }
 

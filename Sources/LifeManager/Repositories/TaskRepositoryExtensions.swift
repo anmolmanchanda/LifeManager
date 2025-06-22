@@ -262,4 +262,115 @@ extension TaskRepository {
         let projectRepository = ProjectRepository()
         return try await projectRepository.fetchAllProjects()
     }
+    
+    // MARK: - Intelligent Automation Support Methods
+    
+    /// Fetch stagnant tasks (tasks in inbox for more than specified hours without due date)
+    func fetchStagnantTasks(hours: Int = 72) async throws -> [LifeTask] {
+        let calendar = Calendar.current
+        let cutoffDate = calendar.date(byAdding: .hour, value: -hours, to: Date()) ?? Date()
+        let isoFormatter = ISO8601DateFormatter()
+        let cutoffString = isoFormatter.string(from: cutoffDate)
+        
+        let response: [LifeTask] = try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .eq("status", value: TaskStatus.inbox.rawValue)
+            .is("due_date", value: nil)
+            .lt("created_at", value: cutoffString)
+            .is("deleted_at", value: nil)
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+        
+        Logger.shared.debug("TASK_REPOSITORY: Fetched \(response.count) stagnant tasks older than \(hours) hours")
+        return response
+    }
+    
+    /// Fetch tasks by multiple tags
+    func fetchTasksByTags(_ tags: [String]) async throws -> [LifeTask] {
+        // Note: This assumes tags are stored as a JSON array in the tags column
+        // Implementation may need adjustment based on actual schema
+        let response: [LifeTask] = try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .is("deleted_at", value: nil)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        
+        // Filter by tags in memory (could be optimized with PostgreSQL JSON queries)
+        let filteredTasks = response.filter { task in
+            return tags.allSatisfy { tag in
+                task.tags?.contains(tag) ?? false
+            }
+        }
+        
+        Logger.shared.debug("TASK_REPOSITORY: Fetched \(filteredTasks.count) tasks matching tags: \(tags)")
+        return filteredTasks
+    }
+    
+    /// Fetch tasks with specific estimated durations
+    func fetchTasksByDurationRange(min: Int? = nil, max: Int? = nil) async throws -> [LifeTask] {
+        var query = supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .is("deleted_at", value: nil)
+        
+        if let min = min {
+            query = query.gte("estimated_duration", value: min)
+        }
+        
+        if let max = max {
+            query = query.lte("estimated_duration", value: max)
+        }
+        
+        let response: [LifeTask] = try await query
+            .order("estimated_duration", ascending: true)
+            .execute()
+            .value
+        
+        Logger.shared.debug("TASK_REPOSITORY: Fetched \(response.count) tasks with duration range \(min ?? 0)-\(max ?? Int.max)")
+        return response
+    }
+    
+    /// Fetch tasks that haven't been updated in specified days (for staleness detection)
+    func fetchStaleTasksOlderThan(days: Int) async throws -> [LifeTask] {
+        let calendar = Calendar.current
+        let cutoffDate = calendar.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let isoFormatter = ISO8601DateFormatter()
+        let cutoffString = isoFormatter.string(from: cutoffDate)
+        
+        let response: [LifeTask] = try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .in("status", values: [TaskStatus.todo.rawValue, TaskStatus.inProgress.rawValue])
+            .lt("updated_at", value: cutoffString)
+            .is("deleted_at", value: nil)
+            .order("updated_at", ascending: true)
+            .execute()
+            .value
+        
+        Logger.shared.debug("TASK_REPOSITORY: Fetched \(response.count) stale tasks older than \(days) days")
+        return response
+    }
+    
+    /// Fetch tasks by priority and work/personal filter (for intelligence scoring)
+    func fetchTasksWithPriorityAndType(
+        priority: TaskPriority,
+        workPersonal: WorkPersonalType
+    ) async throws -> [LifeTask] {
+        let response: [LifeTask] = try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .eq("priority", value: priority.rawValue)
+            .eq("work_personal", value: workPersonal.rawValue)
+            .is("deleted_at", value: nil)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        
+        Logger.shared.debug("TASK_REPOSITORY: Fetched \(response.count) tasks with priority \(priority) and type \(workPersonal)")
+        return response
+    }
 }

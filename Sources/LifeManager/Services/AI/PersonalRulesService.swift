@@ -66,6 +66,7 @@ class PersonalRulesService: ObservableObject {
     
     private let supabaseService = SupabaseService.shared
     private let llmService = LLMServiceCoordinator.shared
+    private let personalRulesRepository = PersonalRulesRepository()
     private let logger = Logger.shared
     
     // MARK: - Internal State
@@ -159,6 +160,22 @@ class PersonalRulesService: ObservableObject {
         return personalRules.filter { rule in
             rule.pattern.localizedCaseInsensitiveContains(pattern) ||
             pattern.localizedCaseInsensitiveContains(rule.pattern)
+        }
+    }
+    
+    /// Get applicable rules for a specific task
+    func getApplicableRules(for task: LifeTask) async -> [PersonalPARARule] {
+        do {
+            let userId = getCurrentUserId().uuidString
+            return try await personalRulesRepository.fetchApplicableRules(for: task, userId: userId)
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to get applicable rules: \(error)")
+            
+            // Fallback to local rules
+            return personalRules.filter { rule in
+                rule.isActive && rule.appliesTo(task)
+            }
         }
     }
     
@@ -563,69 +580,111 @@ class PersonalRulesService: ObservableObject {
     // MARK: - Persistence
     
     private func loadPersonalRules() async {
-        // TODO: Implement proper Supabase query with correct types
-        // Currently using placeholder implementation to avoid compilation errors
-        let rules: [PersonalPARARule] = []
-        
-        await MainActor.run {
-            self.personalRules = rules
+        do {
+            let userId = getCurrentUserId().uuidString
+            let rules = try await personalRulesRepository.fetchPersonalRules(userId: userId)
+            
+            await MainActor.run {
+                self.personalRules = rules
+                self.updateRuleStats()
+            }
+            
+            logger.success("PERSONAL_RULES: Loaded \(rules.count) personal rules from database")
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to load personal rules: \(error)")
+            
+            await MainActor.run {
+                self.personalRules = []
+            }
         }
-        
-        logger.success("PERSONAL_RULES: Loaded \(rules.count) personal rules from database (placeholder)")
     }
     
     private func loadUserCorrections() async {
-        // TODO: Implement proper Supabase query with correct types
-        // Currently using placeholder implementation to avoid compilation errors
-        let corrections: [UserCorrection] = []
-        
-        await MainActor.run {
-            self.userCorrections = corrections
+        do {
+            let userId = getCurrentUserId().uuidString
+            let corrections = try await personalRulesRepository.fetchUserCorrections(userId: userId, limit: 200)
+            
+            await MainActor.run {
+                self.userCorrections = corrections
+                self.updateRuleStats()
+            }
+            
+            logger.success("PERSONAL_RULES: Loaded \(corrections.count) user corrections from database")
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to load user corrections: \(error)")
+            
+            await MainActor.run {
+                self.userCorrections = []
+            }
         }
-        
-        logger.success("PERSONAL_RULES: Loaded \(corrections.count) user corrections from database (placeholder)")
     }
     
     private func persistPersonalRule(_ rule: PersonalPARARule) async {
-        // TODO: Implement proper Supabase insert with Codable types
-        // Currently using placeholder to avoid compilation warnings
-        
-        await MainActor.run {
-            // Update local rules if not already present
-            if !self.personalRules.contains(where: { $0.id == rule.id }) {
-                self.personalRules.append(rule)
-                self.updateRuleStats()
+        do {
+            let _ = try await personalRulesRepository.createPersonalRule(rule)
+            
+            await MainActor.run {
+                // Update local rules if not already present
+                if !self.personalRules.contains(where: { $0.id == rule.id }) {
+                    self.personalRules.append(rule)
+                    self.updateRuleStats()
+                }
             }
+            
+            logger.success("PERSONAL_RULES: Persisted personal rule: \(rule.pattern)")
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to persist personal rule: \(error)")
         }
-        
-        logger.success("PERSONAL_RULES: Persisted personal rule: \(rule.pattern) (placeholder)")
     }
     
     private func persistUserCorrection(_ correction: UserCorrection) async {
-        // TODO: Implement proper Supabase insert with Codable types
-        
-        await MainActor.run {
-            if !self.userCorrections.contains(where: { $0.id == correction.id }) {
-                self.userCorrections.append(correction)
+        do {
+            let _ = try await personalRulesRepository.createUserCorrection(correction)
+            
+            await MainActor.run {
+                if !self.userCorrections.contains(where: { $0.id == correction.id }) {
+                    self.userCorrections.append(correction)
+                }
             }
+            
+            logger.success("PERSONAL_RULES: Persisted user correction")
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to persist user correction: \(error)")
         }
-        
-        logger.success("PERSONAL_RULES: Persisted user correction (placeholder)")
     }
     
     private func persistRuleUpdate(_ rule: PersonalPARARule, confidence: Float? = nil, isActive: Bool? = nil) async {
-        // TODO: Implement proper Supabase update with Codable types
-        logger.success("PERSONAL_RULES: Updated rule: \(rule.pattern) (placeholder)")
+        do {
+            let _ = try await personalRulesRepository.updatePersonalRule(rule)
+            logger.success("PERSONAL_RULES: Updated rule: \(rule.pattern)")
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to update rule: \(error)")
+        }
     }
     
     private func persistRuleUsage(_ rule: PersonalPARARule) async {
-        // TODO: Implement proper Supabase update with Codable types
-        logger.success("PERSONAL_RULES: Updated rule usage: \(rule.pattern) (placeholder)")
+        do {
+            let _ = try await personalRulesRepository.updatePersonalRule(rule)
+            logger.success("PERSONAL_RULES: Updated rule usage: \(rule.pattern)")
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to update rule usage: \(error)")
+        }
     }
     
     private func removePersonalRule(_ rule: PersonalPARARule) async {
-        // TODO: Implement proper Supabase delete with Codable types
-        logger.success("PERSONAL_RULES: Removed rule: \(rule.pattern) (placeholder)")
+        do {
+            try await personalRulesRepository.deletePersonalRule(id: rule.id)
+            logger.success("PERSONAL_RULES: Removed rule: \(rule.pattern)")
+            
+        } catch {
+            logger.error("PERSONAL_RULES: Failed to remove rule: \(error)")
+        }
     }
     
     // MARK: - Timer Management
