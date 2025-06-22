@@ -646,7 +646,7 @@ class ProactiveNotificationEngine: ObservableObject {
         // Check if this is a duplicate notification
         let isDuplicate = pendingNotifications.contains { pending in
             pending.notificationType == notification.notificationType &&
-            pending.contextData["task_id"] == notification.contextData["task_id"]
+            String(describing: pending.contextData["task_id"]) == String(describing: notification.contextData["task_id"])
         }
         
         if isDuplicate {

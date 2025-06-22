@@ -589,3 +589,174 @@ extension LifeTask {
         return hoursOld > 72 && status == .inbox && dueDate == nil // 3 days without scheduling
     }
 }
+
+// MARK: - Undo/Override Support
+
+/// Represents a rescheduling action that can be undone
+struct UndoableReschedulingAction: Identifiable, Codable {
+    let id = UUID()
+    let taskId: UUID
+    let taskTitle: String
+    let originalDueDate: String?
+    let newDueDate: String
+    let reschedulingReason: String
+    let confidence: Double
+    let timestamp: Date
+    let expiresAt: Date // Undo window (e.g., 24 hours)
+    
+    var canUndo: Bool {
+        Date() < expiresAt
+    }
+}
+
+/// Historical record of rescheduling decisions
+struct ReschedulingHistoryEntry: Identifiable, Codable {
+    let id = UUID()
+    let taskId: UUID
+    let taskTitle: String
+    let action: ReschedulingAction
+    let originalDueDate: String?
+    let newDueDate: String?
+    let reasoning: String
+    let confidence: Double
+    let timestamp: Date
+    let undoAction: ReschedulingUndoAction?
+}
+
+enum ReschedulingAction: String, Codable, CaseIterable {
+    case autoRescheduled = "auto_rescheduled"
+    case parkedIntelligently = "parked_intelligently" 
+    case userOverride = "user_override"
+    case undone = "undone"
+}
+
+enum ReschedulingUndoAction: String, Codable, CaseIterable {
+    case undoToOriginal = "undo_to_original"
+    case undoToParkingLot = "undo_to_parking_lot"
+    case userRescheduled = "user_rescheduled"
+}
+
+// MARK: - User Preferences
+
+/// User preferences for intelligent scheduling
+struct UserSchedulingPreferences: Codable {
+    let workingHours: WorkingHoursPreference
+    let focusBlocks: [FocusBlock]
+    let reschedulingSettings: ReschedulingSettings
+    let notificationSettings: NotificationSettings
+}
+
+struct WorkingHoursPreference: Codable {
+    let startHour: Int // 24-hour format
+    let endHour: Int   // 24-hour format
+    let workDays: [Int] // 1=Sunday, 2=Monday, etc.
+    let timeZone: String
+    
+    static let `default` = WorkingHoursPreference(
+        startHour: 9,
+        endHour: 17,
+        workDays: [2, 3, 4, 5, 6], // Monday-Friday
+        timeZone: TimeZone.current.identifier
+    )
+}
+
+struct FocusBlock: Identifiable, Codable {
+    let id = UUID()
+    let name: String
+    let startHour: Int
+    let startMinute: Int
+    let endHour: Int
+    let endMinute: Int
+    let priority: FocusBlockPriority
+    let applicableDays: [Int] // 1=Sunday, 2=Monday, etc.
+}
+
+enum FocusBlockPriority: String, Codable, CaseIterable {
+    case high = "high"       // Best time for high-priority tasks
+    case medium = "medium"   // Good for medium-priority tasks
+    case low = "low"         // Suitable for low-priority tasks
+}
+
+struct ReschedulingSettings: Codable {
+    let enableAutoRescheduling: Bool
+    let confidenceThreshold: Double // 0.0 - 1.0
+    let maxReschedulesPerTask: Int
+    let undoWindowHours: Int
+    let respectFocusBlocks: Bool
+    
+    static let `default` = ReschedulingSettings(
+        enableAutoRescheduling: true,
+        confidenceThreshold: 0.7,
+        maxReschedulesPerTask: 3,
+        undoWindowHours: 24,
+        respectFocusBlocks: true
+    )
+}
+
+// MARK: - Task Dependencies
+
+/// Task dependency information
+struct TaskDependency: Identifiable, Codable {
+    let id = UUID()
+    let taskId: UUID
+    let dependsOnTaskId: UUID
+    let dependencyType: DependencyType
+    let createdAt: Date
+}
+
+enum DependencyType: String, Codable, CaseIterable {
+    case finishToStart = "finish_to_start"     // Prerequisite must finish before this can start
+    case startToStart = "start_to_start"       // Both can start at same time, but prerequisite must start first
+    case finishToFinish = "finish_to_finish"   // Both must finish at same time
+    case startToFinish = "start_to_finish"     // This must finish when prerequisite starts (rare)
+}
+
+/// Extended task information with dependency data
+struct TaskWithDependencies {
+    let task: LifeTask
+    let prerequisites: [LifeTask]      // Tasks that must be completed before this one
+    let dependents: [LifeTask]         // Tasks that depend on this one
+    let dependencies: [TaskDependency] // Raw dependency relationships
+    
+    /// Check if all prerequisites are completed
+    var canStart: Bool {
+        return prerequisites.allSatisfy { prerequisite in
+            prerequisite.status == .done || prerequisite.status == .completed
+        }
+    }
+    
+    /// Check if task can be safely rescheduled without breaking dependencies
+    func canBeRescheduled(to newDate: Date) -> (canReschedule: Bool, reason: String?) {
+        let newDateString = ISO8601DateFormatter().string(from: newDate)
+        
+        // Check prerequisites - we can't start before they finish
+        for prerequisite in prerequisites {
+            guard let prereqDueDateString = prerequisite.dueDate,
+                  let prereqDueDate = ISO8601DateFormatter().date(from: prereqDueDateString) else {
+                return (false, "Prerequisite '\(prerequisite.title)' has no due date")
+            }
+            
+            if newDate < prereqDueDate {
+                return (false, "Cannot schedule before prerequisite '\(prerequisite.title)' completes")
+            }
+        }
+        
+        // Check dependents - they can't start before we finish
+        for dependent in dependents {
+            guard let depDueDateString = dependent.dueDate,
+                  let depDueDate = ISO8601DateFormatter().date(from: depDueDateString) else {
+                continue // If dependent has no due date, no conflict
+            }
+            
+            // Assume this task takes its estimated duration
+            let taskDuration = TimeInterval((task.estimatedDuration ?? 60) * 60) // Convert minutes to seconds
+            let taskEndDate = newDate.addingTimeInterval(taskDuration)
+            
+            if taskEndDate > depDueDate {
+                return (false, "Would conflict with dependent task '\(dependent.title)'")
+            }
+        }
+        
+        return (true, nil)
+    }
+}

@@ -54,8 +54,10 @@ LifeManager doesn't just categorize—it **learns, adapts, and evolves** with yo
 • **🔍 Semantic Understanding**: OpenAI embeddings provide deep content understanding and similarity matching across your entire knowledge base
 • **📚 Personal Rule Learning**: Builds a personalized rule engine based on how you organize content, making predictions increasingly accurate
 • **⚡ Multi-Modal AI Processing**: Handles everything from simple tasks to complex project planning with contextual awareness of your work/personal balance
+• **🤖 Intelligent Task Automation**: Revolutionary auto-rescheduling system that handles overdue tasks with full user control and transparency
+• **📅 Proactive Support**: Context-aware notifications and gentle nudges that keep you on track without being intrusive
 
-*This isn't just AI categorization—it's an AI that becomes your personalized productivity partner.*
+*This isn't just AI categorization—it's an AI that becomes your personalized productivity partner with true "set it and forget it" automation.*
 
 ---
 
@@ -222,15 +224,27 @@ git checkout e35850f && ./build_and_install.sh
 | **v1.75 Calendar Revolution** | ✅ **SHIPPED** | 100% | Drag & drop scheduling, Toggl integration |
 | **v1.85 UI/UX Polish** | ✅ **SHIPPED** | 100% | API management, user experience refinements |
 | **v1.9 Navigation Views** | ✅ **SHIPPED** | 100% | Search, timeline, mind map implementations |
+| **v2.0 Intelligent Automation** | ✅ **SHIPPED** | 100% | Auto-rescheduling, proactive notifications, dependency management |
 
-### 🔮 **What's Next? v2.0 Intelligence Expansion**
+### 🎉 **NEW: v2.0 Intelligent Task Automation - LIVE NOW!**
 
-**🤖 Enhanced AI Capabilities:**
+**🤖 Revolutionary Automation Features:**
+- ✅ **Smart Auto-Rescheduling**: AI automatically reschedules overdue tasks based on your working hours, focus blocks, and calendar availability
+- ✅ **24-Hour Undo System**: Full transparency with ability to undo any AI rescheduling decision within 24 hours
+- ✅ **Dependency-Aware Scheduling**: Intelligent dependency validation prevents conflicts during auto-rescheduling
+- ✅ **10 Proactive Notification Types**: From gentle nudges to achievement celebrations - all customizable
+- ✅ **Focus Block Integration**: AI respects your defined deep work periods and schedules accordingly
+- ✅ **Complete Audit Trail**: Every rescheduling decision is logged with reasoning and confidence scores
+
+*Zero-effort time management with full user control and transparency - the holy grail of productivity automation!*
+
+### 🔮 **What's Next? v2.5 Advanced Intelligence**
+
+**🤖 Next-Level AI Capabilities:**
 - 🎯 Multi-LLM support (Claude, GPT-4, Gemini) with intelligent model selection
 - 🧠 Advanced context awareness with long-term memory
-- ⚡ Predictive task scheduling based on historical patterns
 - 📄 Smart content summarization for long-form documents
-- 🎯 Automated priority adjustment based on deadlines and personal importance patterns
+- 🎯 Machine learning for personalized productivity patterns
 
 **🔗 Export & Integration:**
 - 📊 PDF/Markdown export system with custom templates

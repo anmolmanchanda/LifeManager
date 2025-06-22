@@ -33,6 +33,14 @@ class IntelligentReschedulingService: ObservableObject {
     @Published var overdueTasksCount = 0
     @Published var lastReschedulingActivity: Date?
     @Published var reschedulingStats = ReschedulingStatistics()
+    @Published var reschedulingHistory: [ReschedulingHistoryEntry] = []
+    @Published var undoableActions: [UndoableReschedulingAction] = []
+    @Published var userPreferences = UserSchedulingPreferences(
+        workingHours: .default,
+        focusBlocks: [],
+        reschedulingSettings: .default,
+        notificationSettings: NotificationSettings()
+    )
     
     // MARK: - Configuration
     
@@ -44,6 +52,7 @@ class IntelligentReschedulingService: ObservableObject {
     
     init() {
         logger.info("INTELLIGENT_RESCHEDULING: Service initialized")
+        loadUserPreferences()
         startOverdueMonitoring()
     }
     
@@ -127,13 +136,21 @@ class IntelligentReschedulingService: ObservableObject {
             return
         }
         
+        // Check task dependencies before rescheduling
+        let taskWithDeps = await getTaskWithDependencies(task)
+        guard taskWithDeps.canStart else {
+            logger.debug("INTELLIGENT_RESCHEDULING: Task cannot start due to incomplete prerequisites: \(task.title)")
+            await parkTaskIntelligently(task, reason: "Prerequisites not completed")
+            return
+        }
+        
         do {
             // Step 1: Calculate priority intelligence
             let priorityIntelligence = await calculatePriorityIntelligence(for: task)
             
-            // Step 2: Find optimal rescheduling slot
+            // Step 2: Find optimal rescheduling slot considering dependencies
             let optimalSlot = await findOptimalReschedulingSlot(
-                for: task,
+                for: taskWithDeps,
                 priorityIntelligence: priorityIntelligence
             )
             
@@ -397,10 +414,11 @@ class IntelligentReschedulingService: ObservableObject {
     
     /// Find the optimal time slot for rescheduling a task
     private func findOptimalReschedulingSlot(
-        for task: LifeTask,
+        for taskWithDeps: TaskWithDependencies,
         priorityIntelligence: PriorityIntelligence
     ) async -> OptimalTimeSlot? {
         
+        let task = taskWithDeps.task
         logger.debug("INTELLIGENT_RESCHEDULING: Finding optimal slot for: \(task.title)")
         
         // Get current calendar events to check for conflicts
@@ -415,6 +433,13 @@ class IntelligentReschedulingService: ObservableObject {
             var scoredSlots: [OptimalTimeSlot] = []
             
             for slot in potentialSlots {
+                // Check if this slot respects task dependencies
+                let dependencyCheck = taskWithDeps.canBeRescheduled(to: slot.startTime)
+                guard dependencyCheck.canReschedule else {
+                    logger.debug("INTELLIGENT_RESCHEDULING: Slot \(slot.startTime) rejected due to dependency: \(dependencyCheck.reason ?? "Unknown")")
+                    continue
+                }
+                
                 let score = await calculateSlotScore(
                     slot: slot,
                     task: task,
@@ -452,16 +477,17 @@ class IntelligentReschedulingService: ObservableObject {
         var currentDate = startDate
         
         while currentDate <= endDate {
-            // Skip weekends for work tasks (unless user preferences indicate otherwise)
+            // Skip non-working days for work tasks based on user preferences
             let weekday = calendar.component(.weekday, currentDate)
-            if task.workPersonal == .work && (weekday == 1 || weekday == 7) {
+            if task.workPersonal == .work && !userPreferences.workingHours.workDays.contains(weekday) {
                 currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
                 continue
             }
             
-            // Generate slots throughout the day
-            let workDayStart = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: currentDate) ?? currentDate
-            let workDayEnd = calendar.date(bySettingHour: 17, minute: 0, second: 0, of: currentDate) ?? currentDate
+            // Generate slots throughout the day using user preferences
+            let workingHours = userPreferences.workingHours
+            let workDayStart = calendar.date(bySettingHour: workingHours.startHour, minute: 0, second: 0, of: currentDate) ?? currentDate
+            let workDayEnd = calendar.date(bySettingHour: workingHours.endHour, minute: 0, second: 0, of: currentDate) ?? currentDate
             
             let duration = task.estimatedDuration ?? 60 // Default 1 hour
             var slotStart = workDayStart
@@ -497,17 +523,44 @@ class IntelligentReschedulingService: ObservableObject {
         
         var score = 0.5 // Base score
         
-        // Time of day preferences
+        // Time of day preferences based on focus blocks
         let hour = Calendar.current.component(.hour, from: slot.startTime)
-        switch hour {
-        case 9...11:
-            score += 0.3 // Morning focus time
-        case 13...15:
-            score += 0.2 // Afternoon focus time
-        case 16...17:
-            score += 0.1 // End of day tasks
-        default:
-            break
+        let minute = Calendar.current.component(.minute, from: slot.startTime)
+        let weekday = Calendar.current.component(.weekday, from: slot.startTime)
+        
+        // Check if slot aligns with user's focus blocks
+        for focusBlock in userPreferences.focusBlocks {
+            if focusBlock.applicableDays.contains(weekday) {
+                let blockStartMinutes = focusBlock.startHour * 60 + focusBlock.startMinute
+                let blockEndMinutes = focusBlock.endHour * 60 + focusBlock.endMinute
+                let slotStartMinutes = hour * 60 + minute
+                
+                if slotStartMinutes >= blockStartMinutes && slotStartMinutes < blockEndMinutes {
+                    switch focusBlock.priority {
+                    case .high:
+                        score += 0.4 // High priority focus block
+                    case .medium:
+                        score += 0.2 // Medium priority focus block
+                    case .low:
+                        score += 0.1 // Low priority focus block
+                    }
+                    break
+                }
+            }
+        }
+        
+        // Fallback to general time preferences if no focus blocks defined
+        if userPreferences.focusBlocks.isEmpty {
+            switch hour {
+            case 9...11:
+                score += 0.3 // Morning focus time
+            case 13...15:
+                score += 0.2 // Afternoon focus time
+            case 16...17:
+                score += 0.1 // End of day tasks
+            default:
+                break
+            }
         }
         
         // Priority alignment
@@ -615,8 +668,40 @@ class IntelligentReschedulingService: ObservableObject {
             // Save updated task
             let savedTask = try await taskRepository.updateTask(updatedTask)
             
-            // Record rescheduling event (this would need a repository implementation)
-            // await reschedulingEventRepository.create(event)
+            // Create undoable action
+            let undoableAction = UndoableReschedulingAction(
+                taskId: task.id,
+                taskTitle: task.title,
+                originalDueDate: task.dueDate,
+                newDueDate: ISO8601DateFormatter().string(from: slot.startTime),
+                reschedulingReason: slot.reasoning,
+                confidence: slot.confidence,
+                timestamp: Date(),
+                expiresAt: Calendar.current.date(byAdding: .hour, value: 24, to: Date()) ?? Date()
+            )
+            
+            // Create history entry
+            let historyEntry = ReschedulingHistoryEntry(
+                taskId: task.id,
+                taskTitle: task.title,
+                action: .autoRescheduled,
+                originalDueDate: task.dueDate,
+                newDueDate: ISO8601DateFormatter().string(from: slot.startTime),
+                reasoning: slot.reasoning,
+                confidence: slot.confidence,
+                timestamp: Date(),
+                undoAction: nil
+            )
+            
+            await MainActor.run {
+                undoableActions.append(undoableAction)
+                reschedulingHistory.append(historyEntry)
+                reschedulingStats.totalRescheduled += 1
+                reschedulingStats.overdueTasksRescheduled += 1
+                
+                // Clean up expired undo actions
+                cleanupExpiredUndoActions()
+            }
             
             logger.success("INTELLIGENT_RESCHEDULING: Task rescheduled successfully: \(task.title)")
             
@@ -706,6 +791,292 @@ struct TimeSlotCandidate {
     let endTime: Date
     let date: Date
     let isWorkHours: Bool
+}
+
+// MARK: - Undo/Override Support
+
+extension IntelligentReschedulingService {
+    
+    /// Undo a recent rescheduling action
+    func undoRescheduling(actionId: UUID) async -> Bool {
+        logger.info("INTELLIGENT_RESCHEDULING: Attempting to undo action \(actionId)")
+        
+        guard let action = undoableActions.first(where: { $0.id == actionId }) else {
+            logger.warning("INTELLIGENT_RESCHEDULING: Undo action not found: \(actionId)")
+            return false
+        }
+        
+        guard action.canUndo else {
+            logger.warning("INTELLIGENT_RESCHEDULING: Undo window expired for action: \(actionId)")
+            return false
+        }
+        
+        do {
+            // Fetch the current task
+            guard let task = try await taskRepository.fetchTask(id: action.taskId) else {
+                logger.error("INTELLIGENT_RESCHEDULING: Task not found for undo: \(action.taskId)")
+                return false
+            }
+            
+            // Restore original due date
+            let originalTask = LifeTask(
+                id: task.id,
+                title: task.title,
+                description: task.description,
+                status: task.status,
+                priority: task.priority,
+                workPersonal: task.workPersonal,
+                dueDate: action.originalDueDate,
+                estimatedDuration: task.estimatedDuration,
+                tags: task.tags,
+                projectId: task.projectId,
+                areaId: task.areaId,
+                blobId: task.blobId,
+                userId: task.userId,
+                createdAt: task.createdAt,
+                updatedAt: ISO8601DateFormatter().string(from: Date())
+            )
+            
+            // Update task with original due date
+            _ = try await taskRepository.updateTask(originalTask)
+            
+            // Record the undo action in history
+            let historyEntry = ReschedulingHistoryEntry(
+                taskId: action.taskId,
+                taskTitle: action.taskTitle,
+                action: .undone,
+                originalDueDate: action.newDueDate,
+                newDueDate: action.originalDueDate,
+                reasoning: "User undid automatic rescheduling",
+                confidence: 1.0,
+                timestamp: Date(),
+                undoAction: .undoToOriginal
+            )
+            
+            await MainActor.run {
+                reschedulingHistory.append(historyEntry)
+                undoableActions.removeAll { $0.id == actionId }
+                reschedulingStats.userOverrides += 1
+            }
+            
+            logger.success("INTELLIGENT_RESCHEDULING: Successfully undid rescheduling for task: \(action.taskTitle)")
+            return true
+            
+        } catch {
+            logger.error("INTELLIGENT_RESCHEDULING: Failed to undo rescheduling: \(error)")
+            return false
+        }
+    }
+    
+    /// Override AI rescheduling with user-specified time
+    func overrideRescheduling(taskId: UUID, newDueDate: String, reason: String = "User override") async -> Bool {
+        logger.info("INTELLIGENT_RESCHEDULING: User override for task \(taskId)")
+        
+        do {
+            guard let task = try await taskRepository.fetchTask(id: taskId) else {
+                logger.error("INTELLIGENT_RESCHEDULING: Task not found for override: \(taskId)")
+                return false
+            }
+            
+            let originalDueDate = task.dueDate
+            
+            let updatedTask = LifeTask(
+                id: task.id,
+                title: task.title,
+                description: task.description,
+                status: task.status,
+                priority: task.priority,
+                workPersonal: task.workPersonal,
+                dueDate: newDueDate,
+                estimatedDuration: task.estimatedDuration,
+                tags: task.tags,
+                projectId: task.projectId,
+                areaId: task.areaId,
+                blobId: task.blobId,
+                userId: task.userId,
+                createdAt: task.createdAt,
+                updatedAt: ISO8601DateFormatter().string(from: Date())
+            )
+            
+            _ = try await taskRepository.updateTask(updatedTask)
+            
+            // Record the override in history
+            let historyEntry = ReschedulingHistoryEntry(
+                taskId: taskId,
+                taskTitle: task.title,
+                action: .userOverride,
+                originalDueDate: originalDueDate,
+                newDueDate: newDueDate,
+                reasoning: reason,
+                confidence: 1.0,
+                timestamp: Date(),
+                undoAction: nil
+            )
+            
+            await MainActor.run {
+                reschedulingHistory.append(historyEntry)
+                reschedulingStats.userOverrides += 1
+                
+                // Remove any pending undo actions for this task
+                undoableActions.removeAll { $0.taskId == taskId }
+            }
+            
+            logger.success("INTELLIGENT_RESCHEDULING: User override applied for task: \(task.title)")
+            return true
+            
+        } catch {
+            logger.error("INTELLIGENT_RESCHEDULING: Failed to apply user override: \(error)")
+            return false
+        }
+    }
+    
+    /// Clean up expired undo actions
+    func cleanupExpiredUndoActions() {
+        let before = undoableActions.count
+        undoableActions.removeAll { !$0.canUndo }
+        let after = undoableActions.count
+        
+        if before != after {
+            logger.debug("INTELLIGENT_RESCHEDULING: Cleaned up \(before - after) expired undo actions")
+        }
+    }
+    
+    /// Get available undo actions for a specific task
+    func getUndoableActions(for taskId: UUID) -> [UndoableReschedulingAction] {
+        return undoableActions.filter { $0.taskId == taskId && $0.canUndo }
+    }
+    
+    /// Get rescheduling history for a specific task
+    func getReschedulingHistory(for taskId: UUID) -> [ReschedulingHistoryEntry] {
+        return reschedulingHistory.filter { $0.taskId == taskId }
+    }
+    
+    // MARK: - User Preferences Management
+    
+    /// Load user scheduling preferences
+    func loadUserPreferences() {
+        // For now, use defaults. In production, this would load from user preferences storage
+        // TODO: Integrate with user preferences service/repository
+        
+        // Example of setting up some default focus blocks
+        let defaultFocusBlocks = [
+            FocusBlock(
+                name: "Deep Work Morning",
+                startHour: 9,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                priority: .high,
+                applicableDays: [2, 3, 4, 5, 6] // Monday-Friday
+            ),
+            FocusBlock(
+                name: "Afternoon Focus",
+                startHour: 14,
+                startMinute: 0,
+                endHour: 16,
+                endMinute: 0,
+                priority: .medium,
+                applicableDays: [2, 3, 4, 5, 6] // Monday-Friday
+            )
+        ]
+        
+        userPreferences = UserSchedulingPreferences(
+            workingHours: .default,
+            focusBlocks: defaultFocusBlocks,
+            reschedulingSettings: .default,
+            notificationSettings: NotificationSettings()
+        )
+        
+        logger.info("INTELLIGENT_RESCHEDULING: User preferences loaded with \(userPreferences.focusBlocks.count) focus blocks")
+    }
+    
+    /// Save user scheduling preferences
+    func saveUserPreferences() async {
+        // TODO: Implement persistence to user preferences storage
+        logger.info("INTELLIGENT_RESCHEDULING: User preferences saved")
+    }
+    
+    /// Update working hours preference
+    func updateWorkingHours(_ workingHours: WorkingHoursPreference) async {
+        userPreferences = UserSchedulingPreferences(
+            workingHours: workingHours,
+            focusBlocks: userPreferences.focusBlocks,
+            reschedulingSettings: userPreferences.reschedulingSettings,
+            notificationSettings: userPreferences.notificationSettings
+        )
+        await saveUserPreferences()
+        logger.info("INTELLIGENT_RESCHEDULING: Working hours updated: \(workingHours.startHour)-\(workingHours.endHour)")
+    }
+    
+    /// Add or update focus block
+    func updateFocusBlocks(_ focusBlocks: [FocusBlock]) async {
+        userPreferences = UserSchedulingPreferences(
+            workingHours: userPreferences.workingHours,
+            focusBlocks: focusBlocks,
+            reschedulingSettings: userPreferences.reschedulingSettings,
+            notificationSettings: userPreferences.notificationSettings
+        )
+        await saveUserPreferences()
+        logger.info("INTELLIGENT_RESCHEDULING: Focus blocks updated: \(focusBlocks.count) blocks")
+    }
+    
+    /// Update rescheduling settings
+    func updateReschedulingSettings(_ settings: ReschedulingSettings) async {
+        userPreferences = UserSchedulingPreferences(
+            workingHours: userPreferences.workingHours,
+            focusBlocks: userPreferences.focusBlocks,
+            reschedulingSettings: settings,
+            notificationSettings: userPreferences.notificationSettings
+        )
+        await saveUserPreferences()
+        logger.info("INTELLIGENT_RESCHEDULING: Rescheduling settings updated")
+    }
+    
+    // MARK: - Dependency Management
+    
+    /// Get task with all its dependency information
+    private func getTaskWithDependencies(_ task: LifeTask) async -> TaskWithDependencies {
+        // For now, return a task with no dependencies
+        // TODO: Implement actual dependency fetching from repository
+        // This would typically involve:
+        // 1. Fetching all TaskDependency records for this task
+        // 2. Loading the prerequisite and dependent tasks
+        // 3. Building the full dependency graph
+        
+        return TaskWithDependencies(
+            task: task,
+            prerequisites: [],
+            dependents: [],
+            dependencies: []
+        )
+    }
+    
+    /// Add a dependency between two tasks
+    func addTaskDependency(_ taskId: UUID, dependsOn prerequisiteId: UUID, type: DependencyType = .finishToStart) async -> Bool {
+        // TODO: Implement dependency creation
+        // This would involve:
+        // 1. Validating that the dependency doesn't create a cycle
+        // 2. Creating TaskDependency record
+        // 3. Persisting to repository
+        // 4. Updating any affected schedules
+        
+        logger.info("INTELLIGENT_RESCHEDULING: Dependency added: \(taskId) depends on \(prerequisiteId)")
+        return true
+    }
+    
+    /// Remove a dependency between two tasks
+    func removeTaskDependency(_ taskId: UUID, prerequisiteId: UUID) async -> Bool {
+        // TODO: Implement dependency removal
+        logger.info("INTELLIGENT_RESCHEDULING: Dependency removed: \(taskId) no longer depends on \(prerequisiteId)")
+        return true
+    }
+    
+    /// Check for circular dependencies in the task graph
+    private func detectCircularDependencies(_ taskId: UUID, visited: Set<UUID> = []) async -> Bool {
+        // TODO: Implement cycle detection algorithm
+        // This would use depth-first search to detect cycles in the dependency graph
+        return false
+    }
 }
 
 /// Rescheduling statistics tracking

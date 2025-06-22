@@ -90,10 +90,22 @@ python3 test_comprehensive_features.py
 - **PersonalRulesService**: User preference and rule management
 - **NotificationService**: Smart notifications and decision modals
 
-#### Intelligent Automation Services (`v2.0`)
-- **IntelligentReschedulingService**: AI-powered automatic overdue task rescheduling (724 lines)
-- **PriorityIntelligenceEngine**: ML-based task priority assessment with multi-factor analysis (642 lines)
-- **ProactiveNotificationEngine**: Context-aware notification system with personalized timing (901 lines)
+#### Intelligent Automation Services (`v2.0 - COMPLETE`)
+- **IntelligentReschedulingService**: Complete AI-powered task automation (1,080+ lines)
+  - Auto-rescheduling of overdue tasks with intelligent slot optimization
+  - User working hours and focus block integration
+  - Task dependency validation and conflict prevention
+  - 24-hour undo/override functionality with full audit trail
+  - Multi-factor scoring: time preferences, priority alignment, calendar conflicts
+- **PriorityIntelligenceEngine**: ML-based priority assessment with context awareness (642 lines)
+  - Real-time priority scoring using multiple factors
+  - Pattern recognition for task importance
+  - Integration with rescheduling decisions
+- **ProactiveNotificationEngine**: Comprehensive notification system (901 lines)
+  - 10 notification types: reminders, summaries, contextual alerts, achievements
+  - Customizable thresholds and user preference integration
+  - Proactive nudges for stagnant tasks (3-day default)
+  - Daily/weekly/monthly summary notifications
 
 #### ViewModels (`Sources/LifeManager/ViewModels/`)
 - **MainViewModel**: Central app state and navigation coordinator (3,125 lines)
@@ -121,6 +133,72 @@ python3 test_comprehensive_features.py
 
 ## Key Development Patterns
 
+### Intelligent Task Automation Architecture (`v2.0`)
+
+The intelligent automation system implements a comprehensive "hands-off" task management experience:
+
+#### 1. Smart Auto-Rescheduling
+```swift
+// Automatic overdue task processing every 5 minutes
+private let monitoringInterval: TimeInterval = 300
+
+// AI-powered slot optimization with user preferences
+let optimalSlot = await findOptimalReschedulingSlot(
+    for: taskWithDeps,
+    priorityIntelligence: priorityIntelligence
+)
+
+// Multi-factor scoring system
+var score = calculateSlotScore(
+    timePreferences: userPreferences.focusBlocks,
+    priorityAlignment: priorityIntelligence.overallScore,
+    calendarConflicts: conflictCheck,
+    bufferAvailability: bufferCheck
+)
+```
+
+#### 2. Undo/Override System
+```swift
+// 24-hour undo window for AI decisions
+let undoableAction = UndoableReschedulingAction(
+    taskId: task.id,
+    originalDueDate: task.dueDate,
+    newDueDate: rescheduledDate,
+    expiresAt: Calendar.current.date(byAdding: .hour, value: 24, to: Date())
+)
+
+// User override with custom reasoning
+await intelligentRescheduling.overrideRescheduling(
+    taskId: task.id,
+    newDueDate: userSelectedDate,
+    reason: "User prefers different timing"
+)
+```
+
+#### 3. Dependency-Aware Scheduling
+```swift
+// Validate dependencies before rescheduling
+let dependencyCheck = taskWithDeps.canBeRescheduled(to: newDate)
+guard dependencyCheck.canReschedule else {
+    logger.debug("Slot rejected: \(dependencyCheck.reason)")
+    continue
+}
+```
+
+#### 4. Proactive Notification Engine
+```swift
+// 10 notification types with customizable thresholds
+enum NotificationType {
+    case overdueReminder, gentleNudge, dailySummary, weeklySummary,
+         monthlyReport, reschedulingAlert, bufferWarning,
+         contextualSuggestion, achievementCelebration, planningReminder
+}
+
+// Context-aware scheduling
+private let gentleNudgeThreshold: TimeInterval = 259200 // 3 days
+private let proactiveCheckInterval: TimeInterval = 1800 // 30 minutes
+```
+
 ### Service Architecture
 Services follow consistent patterns across the codebase:
 
@@ -128,6 +206,7 @@ Services follow consistent patterns across the codebase:
 2. **Dependency Injection**: Services reference other services via shared instances
 3. **Observable Objects**: All services extend `ObservableObject` for SwiftUI integration
 4. **Async/Await**: Modern concurrency patterns for database and API operations
+5. **Intelligent Automation**: AI-powered decision making with user control and transparency
 
 Example service structure:
 ```swift

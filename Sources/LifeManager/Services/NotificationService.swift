@@ -387,6 +387,7 @@ enum NotificationCategory: String, CaseIterable {
     case decisionRequired = "DECISION_REQUIRED"
     case eventBumped = "EVENT_BUMPED"
     case cascadeBump = "CASCADE_BUMP"
+    case proactiveNotification = "PROACTIVE_NOTIFICATION"
     case staleEvents = "STALE_EVENTS"
     
     var sound: UNNotificationSound {
