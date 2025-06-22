@@ -2,318 +2,357 @@
 // TimelineView.swift
 // LifeManager
 //
-// Implements: v1.5 "Timeline & Mind Map", v2.0 "Modular Architecture"
-// Roadmap Reference: v1.5 Advanced Features → v2.0 Intelligence Expansion
-// Status: ✅ IMPLEMENTED June 19, 2025 (chronological timeline with timeframe filtering)
-// Future: v2.5 Interactive Timeline, Gantt Integration
+// Enhanced Timeline View: Strategic Goal Management with AI Insights
+// Implements: v2.0 Timeline View with goal-centric visualization and AI recommendations
+// Status: ✅ ENHANCED June 22, 2025 (strategic goal timeline with AI insights)
 //
 
 import SwiftUI
 
-/// Timeline view for chronological display of tasks and events
-/// Clean navigation component extracted from monolithic ContentView
+/// Enhanced Timeline View for strategic goal management and long-term planning
+/// Leverages sophisticated TimelineViewService backend for AI-powered insights
 struct TimelineView: View {
     @EnvironmentObject var viewModel: MainViewModel
-    @State private var selectedTimeframe: TimeFrame = .today
-    @State private var timelineItems: [TimelineItem] = []
+    @StateObject private var timelineService = TimelineViewService.shared
+    @State private var selectedTimeRange: TimeRange = .sixMonths
+    @State private var selectedViewMode: ViewMode = .timeline
+    @State private var selectedFilters: Set<GoalFilter> = []
+    @State private var showingCreateGoal = false
+    @State private var showingGoalDetail: Goal? = nil
     
-    enum TimeFrame: String, CaseIterable {
-        case today = "Today"
-        case week = "This Week"
-        case month = "This Month"
+    enum TimeRange: String, CaseIterable {
+        case oneMonth = "1 Month"
+        case threeMonths = "3 Months"
+        case sixMonths = "6 Months"
+        case oneYear = "1 Year"
         case all = "All Time"
         
         var icon: String {
             switch self {
-            case .today: return "calendar"
-            case .week: return "calendar.badge.clock"
-            case .month: return "calendar.circle"
+            case .oneMonth: return "calendar"
+            case .threeMonths: return "calendar.badge.clock"
+            case .sixMonths: return "calendar.circle"
+            case .oneYear: return "calendar.circle.fill"
             case .all: return "timeline.selection"
+            }
+        }
+        
+        var dateRange: DateInterval? {
+            let now = Date()
+            let calendar = Calendar.current
+            
+            switch self {
+            case .oneMonth:
+                return DateInterval(start: calendar.date(byAdding: .month, value: -1, to: now) ?? now, end: now)
+            case .threeMonths:
+                return DateInterval(start: calendar.date(byAdding: .month, value: -3, to: now) ?? now, end: now)
+            case .sixMonths:
+                return DateInterval(start: calendar.date(byAdding: .month, value: -6, to: now) ?? now, end: now)
+            case .oneYear:
+                return DateInterval(start: calendar.date(byAdding: .year, value: -1, to: now) ?? now, end: now)
+            case .all:
+                return nil
             }
         }
     }
     
-    struct TimelineItem: Identifiable {
-        let id = UUID()
-        let title: String
-        let content: String
-        let type: String
-        let category: String
-        let timestamp: Date
-        let isCompleted: Bool
-        let priority: TaskPriority
+    enum ViewMode: String, CaseIterable {
+        case timeline = "Timeline"
+        case gantt = "Gantt"
+        case list = "List"
+        case calendar = "Calendar"
         
-        var displayTime: String {
-            let formatter = DateFormatter()
-            if Calendar.current.isDateInToday(timestamp) {
-                formatter.timeStyle = .short
-                return formatter.string(from: timestamp)
-            } else if Calendar.current.isDate(timestamp, equalTo: Date(), toGranularity: .weekOfYear) {
-                formatter.dateFormat = "EEEE, h:mm a"
-                return formatter.string(from: timestamp)
-            } else {
-                formatter.dateFormat = "MMM d, h:mm a"
-                return formatter.string(from: timestamp)
+        var icon: String {
+            switch self {
+            case .timeline: return "timeline.selection"
+            case .gantt: return "chart.bar.horizontal"
+            case .list: return "list.bullet"
+            case .calendar: return "calendar"
             }
         }
+    }
+    
+    enum GoalFilter: String, CaseIterable {
+        case active = "Active"
+        case completed = "Completed"
+        case atRisk = "At Risk"
+        case highPriority = "High Priority"
+        case work = "Work"
+        case personal = "Personal"
         
-        var timelineColor: Color {
-            switch priority {
-            case .high, .urgent: return .red
-            case .medium: return .orange
-            case .low: return .blue
+        var icon: String {
+            switch self {
+            case .active: return "play.circle"
+            case .completed: return "checkmark.circle"
+            case .atRisk: return "exclamationmark.triangle"
+            case .highPriority: return "flame"
+            case .work: return "briefcase"
+            case .personal: return "house"
             }
         }
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 12) {
-                Text("Timeline")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Chronological view of tasks and events")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                // Timeframe Filter
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(TimeFrame.allCases, id: \.self) { timeframe in
-                            Button(action: { selectedTimeframe = timeframe }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: timeframe.icon)
-                                        .font(.caption)
-                                    Text(timeframe.rawValue)
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(selectedTimeframe == timeframe ? Color.accentColor : Color(NSColor.controlBackgroundColor))
-                                .foregroundColor(selectedTimeframe == timeframe ? .white : .primary)
-                                .cornerRadius(16)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
-            }
-            .padding(20)
-            .background(Color(NSColor.windowBackgroundColor))
+            // Enhanced Header with Navigation and Stats
+            TimelineHeader(
+                selectedTimeRange: $selectedTimeRange,
+                selectedViewMode: $selectedViewMode,
+                selectedFilters: $selectedFilters,
+                onCreateGoal: { showingCreateGoal = true },
+                progressSummary: timelineService.progressSummary
+            )
             
             Divider()
             
-            // Timeline Content
-            if timelineItems.isEmpty {
+            // Main Timeline Content
+            if timelineService.isLoading && timelineService.goals.isEmpty {
+                LoadingStateView()
+            } else if filteredGoals.isEmpty {
                 EmptyStateView(
-                    title: "No items in timeline",
-                    systemImage: "timeline.selection",
-                    description: "Tasks and events will appear here based on your selected timeframe"
+                    title: "No goals in timeline",
+                    systemImage: "target",
+                    description: "Create your first goal to start tracking long-term progress",
+                    actionTitle: "Create Goal",
+                    action: { showingCreateGoal = true }
                 )
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(timelineItems) { item in
-                            TimelineItemRow(item: item)
-                                .padding(.horizontal, 20)
-                        }
-                    }
-                    .padding(.vertical, 20)
-                }
+                timelineContentView
             }
+        }
+        .sheet(isPresented: $showingCreateGoal) {
+            CreateGoalView()
+                .environmentObject(timelineService)
+        }
+        .sheet(item: $showingGoalDetail) { goal in
+            GoalDetailView(goal: goal)
+                .environmentObject(timelineService)
         }
         .onAppear {
-            loadTimelineItems()
-        }
-        .onChange(of: selectedTimeframe) { _ in
-            loadTimelineItems()
+            Task {
+                await timelineService.loadInitialData()
+            }
         }
     }
     
-    private func loadTimelineItems() {
-        var items: [TimelineItem] = []
-        let now = Date()
-        let calendar = Calendar.current
-        
-        // Collect tasks from all categories
-        let allTasks = viewModel.projectTasks.values.flatMap { $0 } + 
-                      viewModel.areaTasks.values.flatMap { $0 } +
-                      viewModel.focusTasks
-        
-        for task in allTasks {
-            let shouldInclude: Bool
-            
-            let taskUpdatedDate = ISO8601DateFormatter().date(from: task.updatedAt) ?? now
-            let taskDueDate = task.dueDate != nil ? ISO8601DateFormatter().date(from: task.dueDate!) : nil
-            
-            switch selectedTimeframe {
-            case .today:
-                shouldInclude = calendar.isDateInToday(taskUpdatedDate) || 
-                               (taskDueDate != nil && calendar.isDateInToday(taskDueDate!))
-            case .week:
-                shouldInclude = calendar.isDate(taskUpdatedDate, equalTo: now, toGranularity: .weekOfYear) ||
-                               (taskDueDate != nil && calendar.isDate(taskDueDate!, equalTo: now, toGranularity: .weekOfYear))
-            case .month:
-                shouldInclude = calendar.isDate(taskUpdatedDate, equalTo: now, toGranularity: .month) ||
-                               (taskDueDate != nil && calendar.isDate(taskDueDate!, equalTo: now, toGranularity: .month))
-            case .all:
-                shouldInclude = true
-            }
-            
-            if shouldInclude {
-                let category = determineTaskCategory(task)
-                let timestamp = taskDueDate ?? taskUpdatedDate
+    // MARK: - Timeline Content Views
+    
+    @ViewBuilder
+    private var timelineContentView: some View {
+        switch selectedViewMode {
+        case .timeline:
+            timelineView
+        case .gantt:
+            ganttView
+        case .list:
+            listView
+        case .calendar:
+            calendarView
+        }
+    }
+    
+    private var timelineView: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                // AI Insights Panel (if available)
+                if !timelineService.timelineInsights.isEmpty {
+                    AIInsightsPanel(insights: timelineService.timelineInsights)
+                        .padding(.horizontal, 20)
+                }
                 
-                items.append(TimelineItem(
-                    title: task.title,
-                    content: task.description ?? "No description",
-                    type: "Task",
-                    category: category,
-                    timestamp: timestamp,
-                    isCompleted: task.status == .completed,
-                    priority: task.priority
-                ))
+                // Goals Timeline
+                ForEach(filteredGoals, id: \.id) { goal in
+                    GoalTimelineCard(
+                        goal: goal,
+                        milestones: timelineService.milestones.filter { $0.goalId == goal.id },
+                        onTap: { showingGoalDetail = goal },
+                        onMilestoneToggle: { milestone in
+                            Task {
+                                await timelineService.toggleMilestone(milestone)
+                            }
+                        }
+                    )
+                    .padding(.horizontal, 20)
+                }
             }
+            .padding(.vertical, 20)
         }
-        
-        // Add recent projects
-        for project in viewModel.projects {
-            let shouldInclude: Bool
-            let projectDate = ISO8601DateFormatter().date(from: project.updatedAt) ?? now
-            
-            switch selectedTimeframe {
-            case .today:
-                shouldInclude = calendar.isDateInToday(projectDate)
-            case .week:
-                shouldInclude = calendar.isDate(projectDate, equalTo: now, toGranularity: .weekOfYear)
-            case .month:
-                shouldInclude = calendar.isDate(projectDate, equalTo: now, toGranularity: .month)
-            case .all:
-                shouldInclude = true
-            }
-            
-            if shouldInclude {
-                items.append(TimelineItem(
-                    title: project.name,
-                    content: project.description ?? "No description",
-                    type: "Project",
-                    category: "Projects",
-                    timestamp: projectDate,
-                    isCompleted: project.status == .completed,
-                    priority: .medium
-                ))
-            }
-        }
-        
-        // Sort by timestamp (most recent first)
-        timelineItems = items.sorted { $0.timestamp > $1.timestamp }
     }
     
-    private func determineTaskCategory(_ task: LifeTask) -> String {
-        // Try to find which category this task belongs to
-        for (projectId, tasks) in viewModel.projectTasks {
-            if tasks.contains(where: { $0.id == task.id }) {
-                if let project = viewModel.projects.first(where: { $0.id == projectId }) {
-                    return project.name
+    private var ganttView: some View {
+        // Placeholder for Gantt chart implementation
+        VStack {
+            Text("Gantt View")
+                .font(.title2)
+                .padding()
+            
+            Text("Coming in v2.1 - Interactive Gantt chart with drag & drop timeline management")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding()
+        }
+    }
+    
+    private var listView: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(filteredGoals, id: \.id) { goal in
+                    GoalListRow(
+                        goal: goal,
+                        onTap: { showingGoalDetail = goal }
+                    )
+                    .padding(.horizontal, 20)
                 }
-                return "Projects"
             }
+            .padding(.vertical, 20)
         }
+    }
+    
+    private var calendarView: some View {
+        // Placeholder for calendar integration
+        VStack {
+            Text("Calendar View")
+                .font(.title2)
+                .padding()
+            
+            Text("Coming in v2.1 - Integrated calendar view with goal milestones")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding()
+        }
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var filteredGoals: [Goal] {
+        let goals = timelineService.goals
         
-        for (areaId, tasks) in viewModel.areaTasks {
-            if tasks.contains(where: { $0.id == task.id }) {
-                if let area = viewModel.areas.first(where: { $0.id == areaId }) {
-                    return area.name
+        return goals.filter { goal in
+            // Time range filter
+            if let dateRange = selectedTimeRange.dateRange {
+                let goalInRange = (goal.startDate != nil && dateRange.contains(goal.startDate!)) ||
+                                 (goal.targetDate != nil && dateRange.contains(goal.targetDate!)) ||
+                                 (goal.updatedAt >= dateRange.start && goal.updatedAt <= dateRange.end)
+                if !goalInRange { return false }
+            }
+            
+            // Status and priority filters
+            for filter in selectedFilters {
+                switch filter {
+                case .active:
+                    if goal.status != .active && goal.status != .inProgress { return false }
+                case .completed:
+                    if goal.status != .completed { return false }
+                case .atRisk:
+                    if goal.riskLevel != .high && goal.riskLevel != .critical { return false }
+                case .highPriority:
+                    if goal.priority != .high && goal.priority != .urgent { return false }
+                case .work:
+                    if goal.workPersonal != .work { return false }
+                case .personal:
+                    if goal.workPersonal != .personal { return false }
                 }
-                return "Areas"
             }
+            
+            return true
         }
-        
-        if viewModel.focusTasks.contains(where: { $0.id == task.id }) {
-            return "Focus"
+        .sorted { goal1, goal2 in
+            // Sort by priority, then by target date
+            if goal1.priority != goal2.priority {
+                return goal1.priority.sortOrder < goal2.priority.sortOrder
+            }
+            
+            if let date1 = goal1.targetDate, let date2 = goal2.targetDate {
+                return date1 < date2
+            }
+            
+            return goal1.updatedAt > goal2.updatedAt
         }
-        
-        return "Tasks"
     }
 }
 
-struct TimelineItemRow: View {
-    let item: TimelineView.TimelineItem
+// MARK: - Supporting Views
+
+struct LoadingStateView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            
+            Text("Loading timeline...")
+                .font(.body)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+struct EmptyStateView: View {
+    let title: String
+    let systemImage: String
+    let description: String
+    let actionTitle: String?
+    let action: (() -> Void)?
+    
+    init(title: String, systemImage: String, description: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+        self.title = title
+        self.systemImage = systemImage
+        self.description = description
+        self.actionTitle = actionTitle
+        self.action = action
+    }
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Timeline indicator
-            VStack {
-                Circle()
-                    .fill(item.timelineColor)
-                    .frame(width: 12, height: 12)
-                    .overlay(
-                        Circle()
-                            .stroke(Color(NSColor.windowBackgroundColor), lineWidth: 3)
-                    )
-                
-                if true { // Always show line for now
-                    Rectangle()
-                        .fill(Color.secondary.opacity(0.3))
-                        .frame(width: 2)
-                        .frame(maxHeight: .infinity)
-                }
-            }
-            .frame(width: 12)
+        VStack(spacing: 20) {
+            Image(systemName: systemImage)
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
             
-            // Content
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(item.displayTime)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Text(item.type)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.2))
-                        .foregroundColor(.accentColor)
-                        .cornerRadius(4)
-                }
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.semibold)
                 
-                HStack {
-                    Text(item.title)
-                        .font(.headline)
-                        .strikethrough(item.isCompleted)
-                        .foregroundColor(item.isCompleted ? .secondary : .primary)
-                    
-                    Spacer()
-                    
-                    if item.isCompleted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.caption)
-                    }
-                }
-                
-                Text(item.content)
+                Text(description)
                     .font(.body)
                     .foregroundColor(.secondary)
-                    .lineLimit(2)
-                
-                Text(item.category)
-                    .font(.caption)
-                    .foregroundColor(.accentColor)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.vertical, 8)
+            
+            if let actionTitle = actionTitle, let action = action {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.accentColor)
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding(.vertical, 4)
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Priority Extension
+
+extension GoalPriority {
+    var sortOrder: Int {
+        switch self {
+        case .urgent: return 0
+        case .high: return 1
+        case .medium: return 2
+        case .low: return 3
+        }
     }
 }
 
 /* #Preview // DISABLED FOR STABILIZATION
-    TimelineView()
-        .environmentObject(MainViewModel())
+TimelineView()
+    .environmentObject(MainViewModel())
 }*/
