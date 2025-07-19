@@ -300,12 +300,22 @@ enum TaskStatus: String, CaseIterable, Codable {
 
 /// Project status types
 enum ProjectStatus: String, CaseIterable, Codable {
+    case planning = "planning"
     case active = "active"
+    case onHold = "on_hold"
     case completed = "completed"
+    case cancelled = "cancelled"
     case archived = "archived"
     
     var displayName: String {
-        return rawValue.capitalized
+        switch self {
+        case .planning: return "Planning"
+        case .active: return "Active"
+        case .onHold: return "On Hold"
+        case .completed: return "Completed"
+        case .cancelled: return "Cancelled"
+        case .archived: return "Archived"
+        }
     }
 }
 
@@ -970,6 +980,24 @@ enum UnifiedRiskLevel: String, CaseIterable, Codable {
     case medium = "medium" 
     case high = "high"
     case critical = "critical"
+    
+    var displayName: String {
+        switch self {
+        case .low: return "Low Risk"
+        case .medium: return "Medium Risk"
+        case .high: return "High Risk"
+        case .critical: return "Critical Risk"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .low: return .green
+        case .medium: return .yellow
+        case .high: return .orange
+        case .critical: return .red
+        }
+    }
 }
 
 // MARK: - Task Extraction Info 

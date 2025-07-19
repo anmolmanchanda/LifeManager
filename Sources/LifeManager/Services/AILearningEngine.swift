@@ -794,7 +794,7 @@ class AILearningEngine: ObservableObject {
     
     // MARK: - Helper Methods
     
-    private func mapActionToDecision(_ actionType: ActionType) -> DecisionType {
+    private func mapActionToDecision(_ actionType: AIActionType) -> DecisionType {
         switch actionType {
         case .automaticDecision: return .rescheduling
         case .notification: return .notification
@@ -996,7 +996,7 @@ struct UserInteraction: Identifiable {
     let id: UUID
     let timestamp: Date
     let serviceType: ServiceType
-    let actionType: ActionType
+    let actionType: AIActionType
     let userResponse: UserResponse
     let context: [String: Any]
 }
@@ -1010,7 +1010,7 @@ enum ServiceType: String {
 }
 
 /// Action types
-enum ActionType: String {
+enum AIActionType: String {
     case automaticDecision = "automatic_decision"
     case notification = "notification"
     case dependencyCreation = "dependency_creation"

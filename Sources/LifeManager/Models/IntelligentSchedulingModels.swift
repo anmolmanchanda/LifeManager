@@ -45,10 +45,14 @@ struct TaskDependency: Codable, Identifiable {
 
 /// Task dependency types
 enum DependencyType: String, CaseIterable, Codable {
-    case sequential = "sequential"      // Must complete first task before starting second
-    case resource = "resource"          // Shared resource or person requirement
-    case milestone = "milestone"        // Project milestone dependency
-    case preference = "preference"      // Preferred ordering (non-blocking)
+    case sequential = "sequential"            // Must complete first task before starting second
+    case resource = "resource"                // Shared resource or person requirement
+    case milestone = "milestone"              // Project milestone dependency
+    case preference = "preference"            // Preferred ordering (non-blocking)
+    case finishToStart = "finish_to_start"    // Prerequisite must finish before this can start
+    case startToStart = "start_to_start"      // Both can start at same time, but prerequisite must start first
+    case finishToFinish = "finish_to_finish"  // Both must finish at same time
+    case startToFinish = "start_to_finish"    // This must finish when prerequisite starts (rare)
     
     var displayName: String {
         switch self {
@@ -56,6 +60,10 @@ enum DependencyType: String, CaseIterable, Codable {
         case .resource: return "Resource"
         case .milestone: return "Milestone"
         case .preference: return "Preference"
+        case .finishToStart: return "Finish-to-Start"
+        case .startToStart: return "Start-to-Start"
+        case .finishToFinish: return "Finish-to-Finish"
+        case .startToFinish: return "Start-to-Finish"
         }
     }
 }
@@ -725,21 +733,6 @@ struct NotificationSettings: Codable {
 
 // MARK: - Task Dependencies
 
-/// Task dependency information
-struct TaskDependency: Identifiable, Codable {
-    let id = UUID()
-    let taskId: UUID
-    let dependsOnTaskId: UUID
-    let dependencyType: DependencyType
-    let createdAt: Date
-}
-
-enum DependencyType: String, Codable, CaseIterable {
-    case finishToStart = "finish_to_start"     // Prerequisite must finish before this can start
-    case startToStart = "start_to_start"       // Both can start at same time, but prerequisite must start first
-    case finishToFinish = "finish_to_finish"   // Both must finish at same time
-    case startToFinish = "start_to_finish"     // This must finish when prerequisite starts (rare)
-}
 
 /// Extended task information with dependency data
 struct TaskWithDependencies {

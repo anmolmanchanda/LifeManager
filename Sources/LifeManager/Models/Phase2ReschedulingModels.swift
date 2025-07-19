@@ -56,7 +56,7 @@ struct ScenarioAnalysisResult {
     let scenarioScores: [ReschedulingScenario: ScenarioScore]
     let overallAnalysis: String
     let recommendedScenario: ReschedulingScenario?
-    let complexityLevel: ComplexityLevel
+    let complexityLevel: ReschedulingComplexityLevel
 }
 
 /// Detailed score breakdown for a scenario
@@ -70,7 +70,7 @@ struct ScenarioScore {
 }
 
 /// Complexity level for decision making
-enum ComplexityLevel: String, CaseIterable {
+enum ReschedulingComplexityLevel: String, CaseIterable {
     case simple = "simple"
     case moderate = "moderate"
     case complex = "complex"
@@ -84,16 +84,10 @@ struct AIReschedulingDecision {
     let confidence: Double
     let reasoning: String
     let modifications: String?
-    let riskLevel: RiskLevel
+    let riskLevel: UnifiedRiskLevel
     let requiresUserInput: Bool
 }
 
-/// Risk level assessment for scenarios
-enum RiskLevel: String, CaseIterable {
-    case low = "low"
-    case medium = "medium"  
-    case high = "high"
-}
 
 // MARK: - Final Decision
 
@@ -207,34 +201,6 @@ struct TaskWithDependencies {
     }
 }
 
-/// Task dependency with scheduling constraints
-struct TaskDependency {
-    let id: UUID
-    let title: String
-    let taskId: UUID
-    let dependentTaskId: UUID
-    let dependencyType: DependencyType
-    let isCompleted: Bool
-    let scheduledDate: Date
-    let mustCompleteBy: Date
-}
-
-/// Types of task dependencies
-enum DependencyType: String, CaseIterable {
-    case finishToStart = "finish_to_start"
-    case startToStart = "start_to_start"
-    case finishToFinish = "finish_to_finish"
-    case startToFinish = "start_to_finish"
-    
-    var displayName: String {
-        switch self {
-        case .finishToStart: return "Finish-to-Start"
-        case .startToStart: return "Start-to-Start"
-        case .finishToFinish: return "Finish-to-Finish"
-        case .startToFinish: return "Start-to-Finish"
-        }
-    }
-}
 
 // MARK: - Rescheduling History
 

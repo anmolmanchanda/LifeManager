@@ -1158,8 +1158,7 @@ class NotificationOptimizer {
 
 // MARK: - Notification Categories Extension
 
-extension NotificationService.NotificationCategory {
-    static let proactiveNotification = NotificationService.NotificationCategory(rawValue: "proactive_notification")
-    static let dailySummary = NotificationService.NotificationCategory(rawValue: "daily_summary")
-    static let weeklySummary = NotificationService.NotificationCategory(rawValue: "weekly_summary")
+extension NotificationCategory {
+    static let dailySummary = NotificationCategory(rawValue: "DAILY_SUMMARY")!
+    static let weeklySummary = NotificationCategory(rawValue: "WEEKLY_SUMMARY")!
 }
