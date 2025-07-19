@@ -963,7 +963,9 @@ class TimelineViewService: ObservableObject {
             challenges.append("\(overdueGoals.count) goal(s) are overdue")
         }
         
-        let highRiskGoals = activeGoals.filter { $0.riskLevel == .high || $0.riskLevel == .critical }
+        let highRiskGoals = activeGoals.filter { goal in 
+            goal.riskLevel == .high || goal.riskLevel == .critical 
+        }
         if !highRiskGoals.isEmpty {
             challenges.append("\(highRiskGoals.count) goal(s) at high risk")
         }

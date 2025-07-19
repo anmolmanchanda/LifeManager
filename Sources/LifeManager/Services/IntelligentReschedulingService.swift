@@ -54,9 +54,13 @@ class IntelligentReschedulingService: ObservableObject {
     private let complexDecisionThreshold = 0.6 // Require user input below this
     private let learningDecayFactor = 0.95 // Learning weight decay over time
     
+    // MARK: - Singleton
+    
+    static let shared = IntelligentReschedulingService()
+    
     // MARK: - Initialization
     
-    init() {
+    private init() {
         logger.info("INTELLIGENT_RESCHEDULING: Service initialized")
         loadUserPreferences()
         startOverdueMonitoring()

@@ -5,7 +5,7 @@ class TaskRepository: ObservableObject {
     
     // MARK: - Properties
     
-    private let supabaseService = SupabaseService.shared
+    internal let supabaseService = SupabaseService.shared
     
     // MARK: - CRUD Operations
     

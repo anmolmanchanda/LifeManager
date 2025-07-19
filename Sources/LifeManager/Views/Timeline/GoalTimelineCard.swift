@@ -190,7 +190,7 @@ struct GoalTimelineCard: View {
             Spacer()
             
             HStack(spacing: 4) {
-                ForEach(milestones.prefix(5), id: \\.id) { milestone in
+                ForEach(milestones.prefix(5), id: \.id) { milestone in
                     Circle()
                         .fill(milestone.isCompleted ? .green : .secondary.opacity(0.3))
                         .frame(width: 8, height: 8)
@@ -321,7 +321,7 @@ struct GoalTimelineCard: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
             
-            ForEach(milestones.prefix(3), id: \\.id) { milestone in
+            ForEach(milestones.prefix(3), id: \.id) { milestone in
                 MilestoneRow(
                     milestone: milestone,
                     onToggle: { onMilestoneToggle(milestone) }
@@ -562,37 +562,4 @@ extension DateFormatter {
     }()
 }
 
-extension GoalStatus {
-    var displayName: String {
-        switch self {
-        case .planning: return "Planning"
-        case .active: return "Active"
-        case .inProgress: return "In Progress"
-        case .onHold: return "On Hold"
-        case .completed: return "Completed"
-        case .archived: return "Archived"
-        }
-    }
-}
 
-extension GoalPriority {
-    var displayName: String {
-        switch self {
-        case .urgent: return "Urgent"
-        case .high: return "High"
-        case .medium: return "Medium"
-        case .low: return "Low"
-        }
-    }
-}
-
-extension RiskLevel {
-    var displayName: String {
-        switch self {
-        case .low: return "Low"
-        case .medium: return "Medium"
-        case .high: return "High"
-        case .critical: return "Critical"
-        }
-    }
-}

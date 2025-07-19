@@ -33,7 +33,7 @@ struct Goal: Identifiable, Codable {
     let currentPhase: String?
     
     // AI insights
-    let riskLevel: RiskLevel
+    let riskLevel: UnifiedRiskLevel
     let onTrackScore: Double // 0.0 - 1.0
     let velocityTrend: VelocityTrend
     let predictedCompletionDate: Date?
@@ -625,30 +625,6 @@ enum MilestoneType: String, Codable, CaseIterable {
     }
 }
 
-enum RiskLevel: String, Codable, CaseIterable {
-    case low = "low"
-    case medium = "medium"
-    case high = "high"
-    case critical = "critical"
-    
-    var displayName: String {
-        switch self {
-        case .low: return "Low Risk"
-        case .medium: return "Medium Risk"
-        case .high: return "High Risk"
-        case .critical: return "Critical Risk"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .low: return .green
-        case .medium: return .yellow
-        case .high: return .orange
-        case .critical: return .red
-        }
-    }
-}
 
 enum VelocityTrend: String, Codable, CaseIterable {
     case accelerating = "accelerating"

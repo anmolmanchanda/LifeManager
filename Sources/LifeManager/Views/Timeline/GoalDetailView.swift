@@ -14,7 +14,7 @@ import SwiftUI
 struct GoalDetailView: View {
     let goal: Goal
     @EnvironmentObject var timelineService: TimelineViewService
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     
     @State private var selectedTab: DetailTab = .overview
     
@@ -103,7 +103,7 @@ struct GoalDetailView: View {
     
     private var tabSelector: some View {
         HStack(spacing: 0) {
-            ForEach(DetailTab.allCases, id: \\.self) { tab in
+            ForEach(DetailTab.allCases, id: \.self) { tab in
                 Button(action: { selectedTab = tab }) {
                     VStack(spacing: 4) {
                         Image(systemName: tab.icon)
@@ -577,25 +577,7 @@ extension DateFormatter {
     }()
 }
 
-extension WorkPersonalType {
-    var displayName: String {
-        switch self {
-        case .work: return "Work"
-        case .personal: return "Personal"
-        case .both: return "Both"
-        }
-    }
-}
 
-extension VelocityTrend {
-    var displayName: String {
-        switch self {
-        case .accelerating: return "Accelerating"
-        case .stable: return "Stable"
-        case .declining: return "Declining"
-        }
-    }
-}
 
 /* #Preview // DISABLED FOR STABILIZATION
 GoalDetailView(goal: Goal(

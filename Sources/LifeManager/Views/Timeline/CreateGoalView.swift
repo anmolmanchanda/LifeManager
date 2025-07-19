@@ -13,7 +13,7 @@ import SwiftUI
 /// Placeholder implementation for Timeline View integration
 struct CreateGoalView: View {
     @EnvironmentObject var timelineService: TimelineViewService
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     
     @State private var goalName = ""
     @State private var goalDescription = ""
@@ -72,7 +72,7 @@ struct CreateGoalView: View {
                                     .font(.headline)
                                 
                                 Picker("Priority", selection: $selectedPriority) {
-                                    ForEach(GoalPriority.allCases, id: \\.self) { priority in
+                                    ForEach(GoalPriority.allCases, id: \.self) { priority in
                                         Text(priority.displayName).tag(priority)
                                     }
                                 }
@@ -84,7 +84,7 @@ struct CreateGoalView: View {
                                     .font(.headline)
                                 
                                 Picker("Category", selection: $selectedCategory) {
-                                    ForEach(GoalCategory.allCases, id: \\.self) { category in
+                                    ForEach(GoalCategory.allCases, id: \.self) { category in
                                         Text(category.displayName).tag(category)
                                     }
                                 }
@@ -203,22 +203,6 @@ struct CreateGoalView: View {
 
 // MARK: - Extensions
 
-extension GoalCategory {
-    static var allCases: [GoalCategory] {
-        [.project, .habit, .learning, .health, .career, .relationship]
-    }
-    
-    var displayName: String {
-        switch self {
-        case .project: return "Project"
-        case .habit: return "Habit"
-        case .learning: return "Learning"
-        case .health: return "Health"
-        case .career: return "Career"
-        case .relationship: return "Relationship"
-        }
-    }
-}
 
 /* #Preview // DISABLED FOR STABILIZATION
 CreateGoalView()
