@@ -1091,26 +1091,7 @@ enum FocusFilter: String, CaseIterable {
     }
 }
 
-// Placeholder types that would be implemented in FocusViewService
-struct FocusItem: Identifiable {
-    let id: UUID
-    let title: String
-    let description: String?
-    let priority: TaskPriority
-    let aiConfidence: Double?
-    let aiRecommendation: String?
-    let canBeRescheduled: Bool
-    
-    init(id: UUID = UUID(), title: String, description: String? = nil, priority: TaskPriority = .medium, aiConfidence: Double? = nil, aiRecommendation: String? = nil, canBeRescheduled: Bool = true) {
-        self.id = id
-        self.title = title
-        self.description = description
-        self.priority = priority
-        self.aiConfidence = aiConfidence
-        self.aiRecommendation = aiRecommendation
-        self.canBeRescheduled = canBeRescheduled
-    }
-}
+// Note: FocusItem is defined in Models/FocusViewModels.swift
 
 // TaskPriority is defined in CoreModels.swift
 

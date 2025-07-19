@@ -240,7 +240,7 @@ struct PatternAnalysis {
 }
 
 struct Pattern {
-    let type: PatternType
+    let type: UnifiedPatternType
     let description: String
     let frequency: Int
     let confidence: Double

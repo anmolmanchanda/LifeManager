@@ -377,25 +377,6 @@ struct ReschedulingEvent: Identifiable {
 
 // MARK: - Default Extensions
 
-extension TaskPriority {
-    var displayName: String {
-        switch self {
-        case .low: return "Low"
-        case .medium: return "Medium"
-        case .high: return "High"
-        case .urgent: return "Urgent"
-        }
-    }
-}
-
-extension WorkPersonalType {
-    var displayName: String {
-        switch self {
-        case .work: return "Work"
-        case .personal: return "Personal"
-        }
-    }
-}
 
 // MARK: - Helper Extensions
 

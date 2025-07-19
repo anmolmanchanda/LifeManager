@@ -787,7 +787,7 @@ struct BatchAction: Identifiable {
 
 enum BatchActionType: String, CaseIterable {
     case complete = "complete"
-    case defer = "defer"
+    case `defer` = "defer"
     case increasePriority = "increase_priority"
     case decreasePriority = "decrease_priority"
     case delete = "delete"
