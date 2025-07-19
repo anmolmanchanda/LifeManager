@@ -42,12 +42,8 @@ struct LifeManagerApp: App {
                     }
                 }
                 .onAppear {
-                    // Set window to full screen on launch
-                    DispatchQueue.main.async {
-                        if let window = NSApp.windows.first {
-                            window.toggleFullScreen(nil)
-                        }
-                    }
+                    // DISABLED: Skip full screen toggle to prevent permission dialogs
+                    print("🔧 DEBUG: App appeared - skipping full screen toggle")
                 }
         }
         .windowStyle(DefaultWindowStyle())
@@ -230,12 +226,8 @@ class URLHandler: ObservableObject {
         // Check if this is a magic link callback
         if url.scheme == "lifemanager" && url.host == "auth" && url.path == "/callback" {
             print("🔗 URL HANDLER: Valid magic link callback detected")
-            do {
-                try await SupabaseService.shared.handleMagicLinkCallback(url: url)
-                print("🔗 URL HANDLER: Successfully handled magic link callback")
-            } catch {
-                print("🔗 URL HANDLER: Error handling magic link callback: \(error)")
-            }
+            // DISABLED: Skip Supabase callback to prevent keychain access
+            print("🔗 URL HANDLER: Supabase callback disabled to prevent keychain access")
         } else {
             print("🔗 URL HANDLER: Not a valid magic link callback")
             print("🔗 URL HANDLER: Expected scheme: lifemanager, host: auth, path: /callback")

@@ -271,7 +271,7 @@ enum ComplexityLevel: String, Codable, CaseIterable {
 // MARK: - Smart Filters
 
 /// Filter configuration for Focus View
-struct FocusFilter: Identifiable, Codable {
+struct FocusFilter: Identifiable, Codable, Hashable {
     let id = UUID()
     let name: String
     let icon: String
@@ -286,8 +286,8 @@ struct FocusFilter: Identifiable, Codable {
             icon: "flame",
             description: "Critical tasks that need immediate attention",
             criteria: FocusFilterCriteria(
-                urgency: [.urgent, .soonDue],
-                priority: [.critical, .high]
+                priority: [.critical, .high],
+                urgency: [.urgent, .soonDue]
             ),
             isDefault: true,
             sortOrder: 0
@@ -307,8 +307,8 @@ struct FocusFilter: Identifiable, Codable {
             icon: "bolt",
             description: "Tasks that can be completed quickly",
             criteria: FocusFilterCriteria(
-                maxDuration: 30,
-                complexity: [.simple]
+                complexity: [.simple],
+                maxDuration: 30
             ),
             isDefault: true,
             sortOrder: 2
@@ -318,8 +318,8 @@ struct FocusFilter: Identifiable, Codable {
             icon: "brain.head.profile",
             description: "Complex tasks requiring focused attention",
             criteria: FocusFilterCriteria(
-                complexity: [.complex],
-                energyLevel: [.high]
+                energyLevel: [.high],
+                complexity: [.complex]
             ),
             isDefault: true,
             sortOrder: 3
@@ -338,7 +338,7 @@ struct FocusFilter: Identifiable, Codable {
     ]
 }
 
-struct FocusFilterCriteria: Codable {
+struct FocusFilterCriteria: Codable, Hashable {
     let priority: [FocusPriority]?
     let urgency: [UrgencyLevel]?
     let energyLevel: [EnergyLevel]?
@@ -662,6 +662,11 @@ enum InsightCategory: String, Codable, CaseIterable {
     case wellbeing = "wellbeing"
     case patterns = "patterns"
     case recommendations = "recommendations"
+    case risks = "risks"
+    case opportunities = "opportunities"
+    case predictions = "predictions"
+    case progress = "progress"
+    case all = "all"
     
     var displayName: String {
         switch self {
@@ -669,6 +674,39 @@ enum InsightCategory: String, Codable, CaseIterable {
         case .wellbeing: return "Wellbeing"
         case .patterns: return "Patterns"
         case .recommendations: return "Recommendations"
+        case .risks: return "Risks"
+        case .opportunities: return "Opportunities"
+        case .predictions: return "Predictions"
+        case .progress: return "Progress"
+        case .all: return "All"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .productivity: return "chart.bar"
+        case .wellbeing: return "heart"
+        case .patterns: return "waveform.path.ecg"
+        case .recommendations: return "lightbulb"
+        case .risks: return "exclamationmark.triangle"
+        case .opportunities: return "lightbulb"
+        case .predictions: return "crystal.ball"
+        case .progress: return "chart.line.uptrend.xyaxis"
+        case .all: return "brain"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .productivity: return .blue
+        case .wellbeing: return .green
+        case .patterns: return .green
+        case .recommendations: return .orange
+        case .risks: return .red
+        case .opportunities: return .orange
+        case .predictions: return .purple
+        case .progress: return .blue
+        case .all: return .purple
         }
     }
 }
@@ -787,7 +825,7 @@ struct BatchAction: Identifiable {
 
 enum BatchActionType: String, CaseIterable {
     case complete = "complete"
-    case defer = "defer"
+    case `defer` = "defer"
     case increasePriority = "increase_priority"
     case decreasePriority = "decrease_priority"
     case delete = "delete"

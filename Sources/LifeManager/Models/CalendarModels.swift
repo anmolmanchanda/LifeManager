@@ -426,6 +426,8 @@ struct SmartScheduler {
     /// Generate color for task based on its properties
     private static func colorForTask(_ task: LifeTask) -> Color {
         switch task.priority {
+        case .critical:
+            return .purple
         case .urgent:
             return .red
         case .high:
@@ -468,6 +470,7 @@ extension LifeTask {
     
     private func colorForPriority(_ priority: TaskPriority) -> Color {
         switch priority {
+        case .critical: return .purple
         case .urgent: return .red
         case .high: return .orange
         case .medium: return workPersonal == .work ? .blue : .purple

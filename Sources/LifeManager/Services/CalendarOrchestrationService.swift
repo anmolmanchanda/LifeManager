@@ -18,7 +18,8 @@ class CalendarOrchestrationService: ObservableObject {
     
     private let bufferService = BufferManagementService()
     private let parkingService: EnhancedParkingLotService
-    private let togglService = TogglService()
+    // DISABLED: TogglService disabled to prevent keychain access
+    // private let togglService = TogglService()
     private let notificationService = NotificationService.shared
     private let llmService = LLMServiceCoordinator.shared
     
@@ -163,7 +164,8 @@ class CalendarOrchestrationService: ObservableObject {
         Logger.shared.info("CALENDAR ORCHESTRATION: Fetching Toggl actuals for \(formatDate(date))")
         
         do {
-            _ = try await togglService.fetchTodaysEntries()
+            // DISABLED: TogglService calls commented out to prevent keychain access
+            // _ = try await togglService.fetchTodaysEntries()
             lastTogglFetch = Date()
             
             // Convert Toggl entries to CalendarEvents
@@ -177,8 +179,9 @@ class CalendarOrchestrationService: ObservableObject {
     }
     
     private func convertTogglToCalendarEvents(for date: Date) async {
-        // Get today's Toggl entries from the service
-        let togglEntries = togglService.timeEntries
+        // DISABLED: TogglService access commented out to prevent keychain access
+        // let togglEntries = togglService.timeEntries
+        let togglEntries: [TogglTimeEntry] = [] // Empty array to maintain compatibility
         
         actualEvents = togglEntries.compactMap { entry -> CalendarEvent? in
             guard let endDate = entry.endDate else { return nil }
@@ -286,7 +289,7 @@ class CalendarOrchestrationService: ObservableObject {
                     await notificationService.scheduleAutoBumpNotification(
                         eventTitle: conflictEvent.title,
                         bumpedByMinutes: bumpMinutes,
-                        reason: "Conflict with actual: \(actualEvent.title)"
+                        originalTime: conflictEvent.startDate
                     )
                     
                     Logger.shared.success("CALENDAR ORCHESTRATION: Bumped '\(conflictEvent.title)' by \(bumpMinutes) minutes")

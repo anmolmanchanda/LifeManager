@@ -46,35 +46,21 @@ class TogglService: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        // Auto-configure if credentials are available
-        if !apiToken.isEmpty && !workspaceId.isEmpty && apiToken != "YOUR_TOGGL_API_TOKEN_HERE" {
-            configure(apiKey: apiToken, workspaceId: workspaceId)
-        }
+        // DISABLED: Complete service shutdown to prevent keychain access
+        Logger.shared.info("TOGGL: Service completely disabled to prevent keychain access")
+        self.isConnected = false
+        self.apiToken = "" // Clear any API token
+        self.workspaceId = "" // Clear workspace ID
     }
     
     // MARK: - Configuration
     
     /// Configure Toggl service with API key and workspace
     func configure(apiKey: String, workspaceId: String) {
-        self.apiToken = apiKey
-        self.workspaceId = workspaceId
-        self.isConnected = !apiKey.isEmpty && !workspaceId.isEmpty && apiKey != "YOUR_TOGGL_API_TOKEN_HERE"
-        
-        Logger.shared.info("TOGGL: Configured with workspace: \(workspaceId), connected: \(isConnected)")
-        
-        // Test connection and fetch projects
-        Task {
-            do {
-                _ = try await testConnection()
-                Logger.shared.info("TOGGL: ✅ Connection test successful")
-                await fetchProjects()
-            } catch {
-                Logger.shared.info("TOGGL: ❌ Connection test failed: \(error)")
-                await MainActor.run {
-                    self.isConnected = false
-                }
-            }
-        }
+        // DISABLED: Prevent any configuration to avoid keychain access
+        Logger.shared.info("TOGGL: Configuration disabled to prevent keychain access")
+        self.isConnected = false
+        // Do not set any tokens or make any network calls
     }
     
     // MARK: - Enhanced Rate Limiting with Queue Processing

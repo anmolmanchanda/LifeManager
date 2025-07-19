@@ -1,0 +1,302 @@
+//
+// Phase2ReschedulingModels.swift
+// LifeManager
+//
+// Phase 2: Smart Auto-Rescheduling Implementation Models
+// Supports advanced AI decision-making for complex rescheduling scenarios
+// Status: ✅ IMPLEMENTED June 22, 2025
+//
+
+import Foundation
+
+// MARK: - Rescheduling Scenarios
+
+/// Represents a potential rescheduling scenario with detailed analysis
+struct ReschedulingScenario: Hashable, Identifiable {
+    let id = UUID()
+    let description: String
+    let proposedTime: Date
+    let duration: Int // minutes
+    let likelihood: Double // 0.0-1.0
+    let feasibility: Double // 0.0-1.0
+    let requiredResources: [String]
+    let affectedDependencies: [UUID]
+    let complexityFactors: [String]
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: ReschedulingScenario, rhs: ReschedulingScenario) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
+
+/// Constraints for rescheduling decisions
+struct ReschedulingConstraints {
+    let hardDeadline: Date
+    let availableTimeSlots: [AvailabilitySlot]
+    let resourceLimitations: [String]
+    let dependencyRequirements: [DependencyRequirement]
+    let userPreferences: UserSchedulingPreferences
+}
+
+/// Dependency requirement for scheduling
+struct DependencyRequirement {
+    let taskId: UUID
+    let description: String
+    let mustCompleteBefore: Date?
+    let canStartAfter: Date?
+}
+
+// MARK: - Scenario Analysis
+
+/// Result of analyzing multiple rescheduling scenarios
+struct ScenarioAnalysisResult {
+    let scenarioScores: [ReschedulingScenario: ScenarioScore]
+    let overallAnalysis: String
+    let recommendedScenario: ReschedulingScenario?
+    let complexityLevel: ComplexityLevel
+}
+
+/// Detailed score breakdown for a scenario
+struct ScenarioScore {
+    let overallScore: Double
+    let timeCompatibility: Double
+    let resourceAvailability: Double
+    let projectImpact: Double
+    let riskFactor: Double
+    let aiConfidence: Double
+}
+
+// NOTE: ComplexityLevel is defined in FocusViewModels.swift
+
+// MARK: - AI Decision Making
+
+/// AI-generated rescheduling decision with confidence metrics
+struct AIReschedulingDecision {
+    let selectedScenario: ReschedulingScenario?
+    let confidence: Double
+    let reasoning: String
+    let modifications: String?
+    let riskLevel: RiskLevel
+    let requiresUserInput: Bool
+}
+
+/// Risk level assessment for scenarios
+enum RiskLevel: String, CaseIterable {
+    case low = "low"
+    case medium = "medium"  
+    case high = "high"
+}
+
+// MARK: - Final Decision
+
+/// Final rescheduling decision after AI analysis
+struct ReschedulingDecision {
+    let action: ReschedulingAction
+    let selectedScenario: ReschedulingScenario?
+    let confidence: Double
+    let reasoning: String
+    let automaticExecution: Bool
+    let userNotificationSent: Bool
+    let timestamp: Date
+}
+
+// NOTE: ReschedulingAction is defined in IntelligentSchedulingModels.swift
+
+// MARK: - Learning Data
+
+/// Data structure for learning from rescheduling decisions
+struct ReschedulingLearningData {
+    let taskCharacteristics: TaskCharacteristics
+    let scenarios: [ReschedulingScenario]
+    let decision: ReschedulingDecision
+    let timestamp: Date
+    let userContext: ProcessingContext
+}
+
+/// Task characteristics for learning patterns
+struct TaskCharacteristics {
+    let priority: TaskPriority
+    let workPersonal: WorkPersonalType
+    let estimatedDuration: Int
+    let hasProject: Bool
+    let isFocus: Bool
+    let overdueHours: Double
+}
+
+// MARK: - Enhanced Rescheduling Types
+
+// NOTE: ReschedulingReason is defined in IntelligentSchedulingModels.swift
+
+// NOTE: PriorityIntelligence is defined in IntelligentSchedulingModels.swift
+
+// MARK: - Task Dependencies
+
+/// Task with its dependency information for intelligent scheduling
+struct TaskWithDependencies {
+    let task: LifeTask
+    let dependencies: [TaskDependency]
+    let dependents: [TaskDependency]
+    
+    var canStart: Bool {
+        return dependencies.allSatisfy { $0.isCompleted }
+    }
+    
+    func canBeRescheduled(to date: Date) -> (canReschedule: Bool, reason: String?) {
+        // Check if rescheduling would violate any dependencies
+        for dependency in dependencies {
+            if !dependency.isCompleted && date < dependency.mustCompleteBy {
+                return (false, "Dependency '\(dependency.title)' must be completed first")
+            }
+        }
+        
+        for dependent in dependents {
+            if dependent.scheduledDate < date {
+                return (false, "Dependent task '\(dependent.title)' would be affected")
+            }
+        }
+        
+        return (true, nil)
+    }
+}
+
+// NOTE: TaskDependency and DependencyType are defined in IntelligentSchedulingModels.swift
+
+// MARK: - Rescheduling History
+
+/// Enhanced rescheduling history entry with Phase 2 data
+struct ReschedulingHistoryEntry: Identifiable {
+    let id = UUID()
+    let taskId: UUID
+    let taskTitle: String
+    let action: ReschedulingHistoryAction
+    let originalDueDate: String?
+    let newDueDate: String?
+    let reasoning: String
+    let confidence: Double
+    let timestamp: Date
+    let undoAction: UndoAction?
+}
+
+/// Rescheduling history actions
+enum ReschedulingHistoryAction: String, CaseIterable {
+    case autoRescheduled = "auto_rescheduled"
+    case userOverride = "user_override"
+    case undone = "undone"
+    case aiOptimized = "ai_optimized"
+    case conflictResolved = "conflict_resolved"
+    
+    var displayName: String {
+        switch self {
+        case .autoRescheduled: return "Auto-Rescheduled"
+        case .userOverride: return "User Override"
+        case .undone: return "Undone"
+        case .aiOptimized: return "AI Optimized"
+        case .conflictResolved: return "Conflict Resolved"
+        }
+    }
+}
+
+/// Undo action types
+enum UndoAction: String, CaseIterable {
+    case undoToOriginal = "undo_to_original"
+    case rescheduleAgain = "reschedule_again"
+    case parkTask = "park_task"
+}
+
+// MARK: - Undoable Actions
+// NOTE: UndoableReschedulingAction is defined in IntelligentSchedulingModels.swift
+
+// MARK: - User Scheduling Preferences
+
+/// Enhanced user scheduling preferences for Phase 2
+struct UserSchedulingPreferences {
+    let workingHours: WorkingHoursPreference
+    let focusBlocks: [FocusBlock]
+    let reschedulingSettings: ReschedulingSettings
+    let notificationSettings: NotificationSettings
+}
+
+/// Working hours preference
+struct WorkingHoursPreference {
+    let startHour: Int
+    let endHour: Int
+    let workDays: [Int] // 1 = Sunday, 2 = Monday, etc.
+    let timeZone: TimeZone
+    
+    static let `default` = WorkingHoursPreference(
+        startHour: 9,
+        endHour: 17,
+        workDays: [2, 3, 4, 5, 6], // Monday-Friday
+        timeZone: TimeZone.current
+    )
+}
+
+/// Focus block for concentrated work
+struct FocusBlock {
+    let name: String
+    let startHour: Int
+    let startMinute: Int
+    let endHour: Int
+    let endMinute: Int
+    let priority: FocusBlockPriority
+    let applicableDays: [Int] // 1 = Sunday, 2 = Monday, etc.
+}
+
+/// Focus block priority levels
+enum FocusBlockPriority: String, CaseIterable {
+    case low = "low"
+    case medium = "medium"
+    case high = "high"
+    
+    var displayName: String {
+        return rawValue.capitalized
+    }
+}
+
+/// Rescheduling behavior settings
+struct ReschedulingSettings {
+    let allowAutomaticRescheduling: Bool
+    let maxReschedulingAttempts: Int
+    let confidenceThreshold: Double
+    let requireConfirmationBelow: Double
+    let bufferPreference: Int // minutes
+    let cascadeLimit: Int
+    
+    static let `default` = ReschedulingSettings(
+        allowAutomaticRescheduling: true,
+        maxReschedulingAttempts: 3,
+        confidenceThreshold: 0.7,
+        requireConfirmationBelow: 0.6,
+        bufferPreference: 15,
+        cascadeLimit: 5
+    )
+}
+
+/// Notification settings for rescheduling
+struct NotificationSettings {
+    let notifyOnAutoReschedule: Bool
+    let notifyOnConflicts: Bool
+    let notifyOnLowConfidence: Bool
+    let dailySummary: Bool
+    let escalationEnabled: Bool
+    
+    static let `default` = NotificationSettings(
+        notifyOnAutoReschedule: true,
+        notifyOnConflicts: true,
+        notifyOnLowConfidence: true,
+        dailySummary: true,
+        escalationEnabled: false
+    )
+}
+
+// MARK: - Rescheduling Events
+// NOTE: ReschedulingEvent is defined in IntelligentSchedulingModels.swift
+
+// MARK: - Default Extensions
+// NOTE: displayName extensions for TaskPriority and WorkPersonalType are defined in CoreModels.swift
+
+// MARK: - Helper Extensions
+// NOTE: LifeTask extensions are defined in IntelligentSchedulingModels.swift

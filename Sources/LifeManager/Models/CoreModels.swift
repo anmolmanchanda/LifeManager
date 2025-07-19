@@ -241,6 +241,7 @@ enum WorkPersonalType: String, CaseIterable, Codable {
 
 /// Task priority levels
 enum TaskPriority: String, CaseIterable, Codable {
+    case critical = "critical"
     case urgent = "urgent"
     case high = "high"
     case medium = "medium"
@@ -252,15 +253,17 @@ enum TaskPriority: String, CaseIterable, Codable {
     
     var sortOrder: Int {
         switch self {
-        case .urgent: return 0
-        case .high: return 1
-        case .medium: return 2
-        case .low: return 3
+        case .critical: return 0
+        case .urgent: return 1
+        case .high: return 2
+        case .medium: return 3
+        case .low: return 4
         }
     }
     
     var priorityScore: Int {
         switch self {
+        case .critical: return 6
         case .urgent: return 5
         case .high: return 4
         case .medium: return 3
@@ -270,6 +273,7 @@ enum TaskPriority: String, CaseIterable, Codable {
     
     init(fromScore score: Int) {
         switch score {
+        case 6...: self = .critical
         case 5: self = .urgent
         case 4: self = .high
         case 3: self = .medium
@@ -285,6 +289,7 @@ enum TaskStatus: String, CaseIterable, Codable {
     case todo = "todo"
     case inProgress = "in_progress"
     case completed = "completed"
+    case done = "done"  // Alias for completed
     case cancelled = "cancelled"
     
     var displayName: String {
@@ -293,6 +298,7 @@ enum TaskStatus: String, CaseIterable, Codable {
         case .todo: return "To Do"
         case .inProgress: return "In Progress"
         case .completed: return "Completed"
+        case .done: return "Done"
         case .cancelled: return "Cancelled"
         }
     }
@@ -374,6 +380,7 @@ enum PARAView: String, CaseIterable {
     case mindmap = "mindmap"
     case calendar = "calendar"
     case timeline = "timeline"
+    case automationDashboard = "automation"
     
     var displayName: String {
         switch self {
@@ -389,6 +396,7 @@ enum PARAView: String, CaseIterable {
         case .mindmap: return "Mind Map"
         case .calendar: return "Calendar"
         case .timeline: return "Timeline"
+        case .automationDashboard: return "Automation Dashboard"
         }
     }
 }

@@ -161,17 +161,202 @@ class ContextualPARAEngine: ObservableObject {
     
     /// Parse LLM response into atomic items
     private func parseAtomicItemsResponse(_ response: String) throws -> [AtomicItem] {
-        // Simple parsing implementation - in production would use more robust JSON parsing
-        let lines = response.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        logger.debug("CONTEXTUAL: Parsing atomic items response: \(response)")
         
-        return lines.map { line in
-            AtomicItem(
-                content: line.trimmingCharacters(in: .whitespacesAndNewlines),
-                type: .note, // Default type
-                contextualHints: [],
-                confidence: 0.8
+        // Try to parse as JSON array first
+        if let jsonData = response.data(using: .utf8) {
+            if let jsonItems = try? parseJSONAtomicItems(jsonData) {
+                logger.success("CONTEXTUAL: Successfully parsed \(jsonItems.count) JSON atomic items")
+                return jsonItems
+            }
+        }
+        
+        // Fallback to intelligent line parsing
+        logger.warning("CONTEXTUAL: JSON parsing failed, using intelligent line parsing")
+        return parseIntelligentAtomicItems(response)
+    }
+    
+    /// Parse JSON structured atomic items response
+    private func parseJSONAtomicItems(_ data: Data) throws -> [AtomicItem] {
+        struct JSONAtomicItem: Codable {
+            let content: String
+            let type: String?
+            let reasoning: String?
+            let actionable: Bool?
+        }
+        
+        let decoder = JSONDecoder()
+        let jsonItems = try decoder.decode([JSONAtomicItem].self, from: data)
+        
+        return jsonItems.map { jsonItem in
+            let itemType: ContentType = parseAtomicItemType(from: jsonItem.type)
+            let confidence = calculateAtomicItemConfidence(
+                content: jsonItem.content,
+                reasoning: jsonItem.reasoning,
+                isActionable: jsonItem.actionable
+            )
+            
+            return AtomicItem(
+                content: jsonItem.content.trimmingCharacters(in: .whitespacesAndNewlines),
+                type: itemType,
+                contextualHints: jsonItem.reasoning?.components(separatedBy: ",") ?? [],
+                confidence: confidence
             )
         }
+    }
+    
+    /// Intelligent line parsing that avoids over-segmentation
+    private func parseIntelligentAtomicItems(_ response: String) -> [AtomicItem] {
+        let lines = response.components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        
+        var items: [AtomicItem] = []
+        var currentItem = ""
+        var inMultiLineItem = false
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Skip obvious list markers or formatting
+            if trimmedLine.hasPrefix("- ") || trimmedLine.hasPrefix("* ") || 
+               trimmedLine.range(of: "^\\d+\\. ", options: .regularExpression) != nil {
+                // This is a list item, might be start of new atomic item
+                if !currentItem.isEmpty {
+                    items.append(createAtomicItem(from: currentItem))
+                    currentItem = ""
+                }
+                currentItem = String(trimmedLine.dropFirst(2)).trimmingCharacters(in: .whitespacesAndNewlines)
+                inMultiLineItem = false
+            } else if trimmedLine.count < 10 && !inMultiLineItem {
+                // Very short lines might be headers or incomplete thoughts
+                // Continue with previous item if it exists
+                if !currentItem.isEmpty {
+                    currentItem += " " + trimmedLine
+                } else {
+                    currentItem = trimmedLine
+                }
+            } else if !currentItem.isEmpty && trimmedLine.count > 20 {
+                // If we have a current item and this is a substantial line,
+                // this might be a continuation or new item
+                if shouldCombineLines(currentItem, trimmedLine) {
+                    currentItem += " " + trimmedLine
+                    inMultiLineItem = true
+                } else {
+                    items.append(createAtomicItem(from: currentItem))
+                    currentItem = trimmedLine
+                    inMultiLineItem = false
+                }
+            } else {
+                // Default: add to current item or start new one
+                if currentItem.isEmpty {
+                    currentItem = trimmedLine
+                } else {
+                    currentItem += " " + trimmedLine
+                    inMultiLineItem = true
+                }
+            }
+        }
+        
+        // Add the last item if it exists
+        if !currentItem.isEmpty {
+            items.append(createAtomicItem(from: currentItem))
+        }
+        
+        logger.info("CONTEXTUAL: Parsed \(items.count) atomic items from \(lines.count) lines")
+        return items.isEmpty ? [createAtomicItem(from: response)] : items
+    }
+    
+    /// Determine if two lines should be combined into one atomic item
+    private func shouldCombineLines(_ line1: String, _ line2: String) -> Bool {
+        // Don't combine if first line already looks complete
+        if line1.hasSuffix(".") || line1.hasSuffix("!") || line1.hasSuffix("?") {
+            return false
+        }
+        
+        // Don't combine if second line starts with capital and looks like new sentence
+        if line2.first?.isUppercase == true && line2.count > 20 {
+            return false
+        }
+        
+        // Combine if total length is reasonable
+        return (line1.count + line2.count) < 200
+    }
+    
+    /// Create atomic item from content string
+    private func createAtomicItem(from content: String) -> AtomicItem {
+        let itemType = inferAtomicItemType(from: content)
+        let confidence = calculateAtomicItemConfidence(content: content, reasoning: nil, isActionable: nil)
+        
+        return AtomicItem(
+            content: content.trimmingCharacters(in: .whitespacesAndNewlines),
+            type: itemType,
+            contextualHints: [],
+            confidence: confidence
+        )
+    }
+    
+    /// Parse atomic item type from string
+    private func parseAtomicItemType(from typeString: String?) -> ContentType {
+        guard let typeString = typeString?.lowercased() else {
+            return .note
+        }
+        
+        switch typeString {
+        case "task", "action":
+            return .task
+        case "note", "idea":
+            return .note
+        default:
+            return .note
+        }
+    }
+    
+    /// Infer atomic item type from content
+    private func inferAtomicItemType(from content: String) -> ContentType {
+        let lowercaseContent = content.lowercased()
+        
+        // Task indicators
+        if lowercaseContent.contains("need to") || lowercaseContent.contains("should") ||
+           lowercaseContent.contains("must") || lowercaseContent.contains("todo") ||
+           lowercaseContent.contains("action") || lowercaseContent.contains("complete") {
+            return .task
+        }
+        
+        // Default to note (including questions, references, etc.)
+        return .note
+    }
+    
+    /// Calculate confidence for atomic item parsing
+    private func calculateAtomicItemConfidence(
+        content: String,
+        reasoning: String?,
+        isActionable: Bool?
+    ) -> Float {
+        var confidence: Float = 0.7 // Base confidence for atomic items
+        
+        // Boost confidence based on content length and structure
+        if content.count > 20 && content.count < 200 {
+            confidence += 0.1 // Good length range
+        }
+        
+        // Boost if reasoning provided (JSON parsing)
+        if reasoning != nil && !reasoning!.isEmpty {
+            confidence += 0.1
+        }
+        
+        // Boost if actionable flag provided (JSON parsing)
+        if isActionable != nil {
+            confidence += 0.1
+        }
+        
+        // Reduce confidence for very short or very long content
+        if content.count < 10 {
+            confidence -= 0.2
+        } else if content.count > 300 {
+            confidence -= 0.1
+        }
+        
+        return min(max(confidence, 0.3), 0.9) // Cap between 30% and 90%
     }
     
     private func buildInputSplittingPrompt(input: String, context: ProcessingContext) -> String {
@@ -299,33 +484,247 @@ class ContextualPARAEngine: ObservableObject {
     
     /// Parse LLM response into PARAClassification
     private func parseClassificationResponse(_ response: String) throws -> PARAClassification {
-        // Simple parsing implementation - in production would use more robust JSON parsing
+        logger.debug("CONTEXTUAL: Parsing classification response: \(response)")
+        
+        // Try to parse as JSON first
+        if let jsonData = response.data(using: .utf8) {
+            if let parsedResponse = try? parseJSONClassificationResponse(jsonData) {
+                logger.success("CONTEXTUAL: Successfully parsed JSON response")
+                return parsedResponse
+            }
+        }
+        
+        logger.warning("CONTEXTUAL: JSON parsing failed, falling back to heuristic parsing")
+        return try parseHeuristicClassificationResponse(response)
+    }
+    
+    /// Parse JSON classification response according to categorize_blob.txt template
+    private func parseJSONClassificationResponse(_ data: Data) throws -> PARAClassification {
+        struct JSONClassificationResponse: Codable {
+            let category: String
+            let suggested_area: String?
+            let suggested_project: String?
+            let actionable_tasks: [String]?
+            let tags: [String]?
+            let priority: String?
+            let work_personal: String?
+            let reasoning: String?
+        }
+        
+        let decoder = JSONDecoder()
+        let jsonResponse = try decoder.decode(JSONClassificationResponse.self, from: data)
+        
+        // Parse category with intelligent default inference
+        let category = parsePARACategory(from: jsonResponse.category, reasoning: jsonResponse.reasoning)
+        
+        // Parse work/personal type
+        let workPersonal = parseWorkPersonal(from: jsonResponse.work_personal)
+        
+        // Parse priority
+        let priority = parsePriority(from: jsonResponse.priority)
+        
+        // Calculate confidence based on reasoning quality
+        let confidence = calculateConfidence(from: jsonResponse.reasoning, category: category)
+        
+        return PARAClassification(
+            category: category,
+            subcategory: nil,
+            suggestedProject: jsonResponse.suggested_project,
+            suggestedArea: jsonResponse.suggested_area,
+            priority: priority,
+            dueDate: nil,
+            tags: jsonResponse.tags ?? [],
+            workPersonal: workPersonal,
+            confidence: confidence,
+            reasoning: jsonResponse.reasoning ?? "No reasoning provided"
+        )
+    }
+    
+    /// Parse PARA category with intelligent default inference
+    private func parsePARACategory(from categoryString: String?, reasoning: String?) -> PARACategory {
+        guard let categoryString = categoryString?.lowercased() else {
+            return intelligentCategoryInference(from: reasoning)
+        }
+        
+        switch categoryString {
+        case "project", "projects":
+            return .project
+        case "area", "areas":
+            return .area
+        case "resource", "resources":
+            return .resource
+        case "archive", "archives":
+            return .archive
+        default:
+            logger.warning("CONTEXTUAL: Unknown category '\(categoryString)', using intelligent inference")
+            return intelligentCategoryInference(from: reasoning)
+        }
+    }
+    
+    /// Intelligent category inference when explicit category is missing/unknown
+    private func intelligentCategoryInference(from reasoning: String?) -> PARACategory {
+        guard let reasoning = reasoning?.lowercased() else {
+            logger.info("CONTEXTUAL: No reasoning available, defaulting to resource")
+            return .resource
+        }
+        
+        // Project indicators: deadlines, deliverables, goals, completion
+        if reasoning.contains("deadline") || reasoning.contains("deliverable") || 
+           reasoning.contains("goal") || reasoning.contains("complete") ||
+           reasoning.contains("finish") || reasoning.contains("achieve") ||
+           reasoning.contains("project") || reasoning.contains("outcome") {
+            return .project
+        }
+        
+        // Area indicators: ongoing, responsibility, maintain, manage
+        if reasoning.contains("ongoing") || reasoning.contains("responsibility") ||
+           reasoning.contains("maintain") || reasoning.contains("manage") ||
+           reasoning.contains("area") || reasoning.contains("routine") ||
+           reasoning.contains("habit") || reasoning.contains("standard") {
+            return .area
+        }
+        
+        // Archive indicators: completed, old, inactive, done
+        if reasoning.contains("completed") || reasoning.contains("inactive") ||
+           reasoning.contains("done") || reasoning.contains("old") ||
+           reasoning.contains("archive") || reasoning.contains("finished") {
+            return .archive
+        }
+        
+        // Default to resource for reference materials, guides, etc.
+        return .resource
+    }
+    
+    /// Parse work/personal type from string
+    private func parseWorkPersonal(from workPersonalString: String?) -> WorkPersonalType {
+        guard let workPersonalString = workPersonalString?.lowercased() else {
+            return .personal // Default to personal
+        }
+        
+        switch workPersonalString {
+        case "work":
+            return .work
+        case "personal":
+            return .personal
+        case "both":
+            return .personal // Default both to personal for now
+        default:
+            return .personal
+        }
+    }
+    
+    /// Parse priority from string
+    private func parsePriority(from priorityString: String?) -> TaskPriority {
+        guard let priorityString = priorityString?.lowercased() else {
+            return .medium // Default priority
+        }
+        
+        switch priorityString {
+        case "urgent":
+            return .urgent
+        case "high":
+            return .high
+        case "medium":
+            return .medium
+        case "low":
+            return .low
+        default:
+            return .medium
+        }
+    }
+    
+    /// Calculate confidence based on reasoning quality and categorization clarity
+    private func calculateConfidence(from reasoning: String?, category: PARACategory) -> Float {
+        guard let reasoning = reasoning else {
+            return 0.3 // Low confidence if no reasoning
+        }
+        
+        var confidence: Float = 0.5 // Base confidence
+        
+        // Increase confidence based on reasoning quality
+        if reasoning.count > 50 {
+            confidence += 0.1 // Detailed reasoning
+        }
+        
+        if reasoning.count > 100 {
+            confidence += 0.1 // Very detailed reasoning
+        }
+        
+        // Increase confidence if reasoning mentions PARA categories
+        let reasoningLower = reasoning.lowercased()
+        if reasoningLower.contains("project") || reasoningLower.contains("area") ||
+           reasoningLower.contains("resource") || reasoningLower.contains("archive") {
+            confidence += 0.2
+        }
+        
+        // Increase confidence for specific indicators
+        switch category {
+        case .project:
+            if reasoningLower.contains("deadline") || reasoningLower.contains("goal") ||
+               reasoningLower.contains("deliverable") || reasoningLower.contains("outcome") {
+                confidence += 0.2
+            }
+        case .area:
+            if reasoningLower.contains("ongoing") || reasoningLower.contains("responsibility") ||
+               reasoningLower.contains("maintain") || reasoningLower.contains("routine") {
+                confidence += 0.2
+            }
+        case .resource:
+            if reasoningLower.contains("reference") || reasoningLower.contains("guide") ||
+               reasoningLower.contains("information") || reasoningLower.contains("material") {
+                confidence += 0.2
+            }
+        case .archive:
+            if reasoningLower.contains("completed") || reasoningLower.contains("inactive") ||
+               reasoningLower.contains("done") || reasoningLower.contains("finished") {
+                confidence += 0.2
+            }
+        }
+        
+        // Cap confidence at 0.95 (never 100% certain)
+        return min(confidence, 0.95)
+    }
+    
+    /// Fallback heuristic parsing for non-JSON responses
+    private func parseHeuristicClassificationResponse(_ response: String) throws -> PARAClassification {
         let lines = response.components(separatedBy: .newlines)
         
-        var category: PARACategory = .resource
+        // Use intelligent inference instead of defaulting to resource
+        var category: PARACategory = intelligentCategoryInference(from: response)
         var workPersonal: WorkPersonalType = .personal
         var priority: TaskPriority = .medium
-        let confidence: Float = 0.5
         
         for line in lines {
-            if line.lowercased().contains("project") {
+            let lowercaseLine = line.lowercased()
+            
+            // More specific category detection
+            if lowercaseLine.contains("project") && !lowercaseLine.contains("suggested") {
                 category = .project
-            } else if line.lowercased().contains("area") {
+            } else if lowercaseLine.contains("area") && !lowercaseLine.contains("suggested") {
                 category = .area
-            } else if line.lowercased().contains("archive") {
+            } else if lowercaseLine.contains("archive") {
                 category = .archive
+            } else if lowercaseLine.contains("resource") {
+                category = .resource
             }
             
-            if line.lowercased().contains("work") {
+            // Work/personal detection
+            if lowercaseLine.contains("work") {
                 workPersonal = .work
             }
             
-            if line.lowercased().contains("urgent") {
+            // Priority detection
+            if lowercaseLine.contains("urgent") {
                 priority = .urgent
-            } else if line.lowercased().contains("high") {
+            } else if lowercaseLine.contains("high") {
                 priority = .high
+            } else if lowercaseLine.contains("low") {
+                priority = .low
             }
         }
+        
+        // Calculate confidence for heuristic parsing (lower than JSON)
+        let confidence = calculateHeuristicConfidence(response: response, category: category)
         
         return PARAClassification(
             category: category,
@@ -337,8 +736,29 @@ class ContextualPARAEngine: ObservableObject {
             tags: [],
             workPersonal: workPersonal,
             confidence: confidence,
-            reasoning: "Parsed from LLM response"
+            reasoning: "Heuristic parsing fallback"
         )
+    }
+    
+    /// Calculate confidence for heuristic parsing (generally lower than JSON)
+    private func calculateHeuristicConfidence(response: String, category: PARACategory) -> Float {
+        let baseConfidence: Float = 0.4 // Lower base for heuristic
+        let responseLength = response.count
+        
+        var confidence = baseConfidence
+        
+        // Small boost for longer responses
+        if responseLength > 50 {
+            confidence += 0.1
+        }
+        
+        // Small boost if explicit category words found
+        let lowercaseResponse = response.lowercased()
+        if lowercaseResponse.contains(category.rawValue) {
+            confidence += 0.1
+        }
+        
+        return min(confidence, 0.6) // Cap heuristic confidence at 60%
     }
     
     private func buildContextualClassificationPrompt(
@@ -895,7 +1315,7 @@ class ContextualPARAEngine: ObservableObject {
             
             let correctionRecord = ContextualUserCorrectionRecord(
                 id: correction.id.uuidString,
-                user_id: getCurrentUserId().uuidString,
+                // user_id not needed for single-user app
                 original_item_id: UUID().uuidString, // Generate placeholder ID since not available
                 original_classification: originalClassificationData,
                 corrected_classification: correctedClassificationData,
@@ -976,7 +1396,7 @@ class ContextualPARAEngine: ObservableObject {
             // Create database record for personal rule
             let ruleData: [String: Any] = [
                 "id": rule.id.uuidString,
-                "user_id": getCurrentUserId().uuidString,
+                // "user_id" not needed for single-user app
                 "pattern": rule.pattern,
                 "target_classification": try JSONEncoder().encode(rule.targetClassification),
                 "confidence": rule.confidence,
@@ -1012,52 +1432,52 @@ class ContextualPARAEngine: ObservableObject {
         do {
             let supabaseService = SupabaseService.shared
             let logger = Logger.shared
-            let userId = getCurrentUserId()
             
-            logger.info("🔄 CONTEXTUAL: Refreshing context memory for user")
+            logger.info("🔄 CONTEXTUAL: Refreshing context memory")
             
             // Load recent PARA items (last 30 days)
             let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
             let thirtyDaysAgoString = ISO8601DateFormatter().string(from: thirtyDaysAgo)
             
-            // Fetch recent projects
+            // Fetch recent projects (with user_id filter for performance)
+            let currentUserId = try await SupabaseService.shared.getCurrentUserId()
             let recentProjects: [Project] = try await supabaseService.client
                 .from("projects")
                 .select()
-                .eq("user_id", value: userId.uuidString)
+                .eq("user_id", value: currentUserId)
                 .gte("created_at", value: thirtyDaysAgoString)
                 .order("created_at", ascending: false)
                 .limit(20)
                 .execute()
                 .value
             
-            // Fetch recent areas
+            // Fetch recent areas (with user_id filter for performance)
             let recentAreas: [Area] = try await supabaseService.client
                 .from("areas")
                 .select()
-                .eq("user_id", value: userId.uuidString)
+                .eq("user_id", value: currentUserId)
                 .gte("created_at", value: thirtyDaysAgoString)
                 .order("created_at", ascending: false)
                 .limit(20)
                 .execute()
                 .value
             
-            // Fetch recent resources
+            // Fetch recent resources (with user_id filter for performance)
             let recentResources: [Resource] = try await supabaseService.client
                 .from("resources")
                 .select()
-                .eq("user_id", value: userId.uuidString)
+                .eq("user_id", value: currentUserId)
                 .gte("created_at", value: thirtyDaysAgoString)
                 .order("created_at", ascending: false)
                 .limit(20)
                 .execute()
                 .value
             
-            // Fetch recent tasks
+            // Fetch recent tasks (with user_id filter for performance)
             let recentTasks: [LifeTask] = try await supabaseService.client
                 .from("tasks")
                 .select()
-                .eq("user_id", value: userId.uuidString)
+                .eq("user_id", value: currentUserId)
                 .gte("created_at", value: thirtyDaysAgoString)
                 .order("created_at", ascending: false)
                 .limit(50)
@@ -1470,11 +1890,6 @@ class ContextualPARAEngine: ObservableObject {
     
     // MARK: - Helper Methods
     
-    private func getCurrentUserId() -> UUID {
-        // In a real implementation, this would get the current user ID from authentication
-        // For now, using a default development user ID
-        return UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID()
-    }
     
     private func generateDailySummary(from items: [PARAItem]) -> String? {
         guard !items.isEmpty else { return nil }
@@ -1788,7 +2203,7 @@ struct ContextualProcessingResult {
 
 struct ContextualUserCorrectionRecord: Codable {
     let id: String
-    let user_id: String
+    // user_id removed - not needed for single-user app
     let original_item_id: String
     let original_classification: Data
     let corrected_classification: Data

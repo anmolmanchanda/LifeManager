@@ -1,0 +1,1459 @@
+[0/1] Planning build
+Building for production...
+[0/4] Write sources
+[1/4] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling LifeManager LifeManagerApp.swift
+/Users/Shared/LifeManager/Sources/LifeManager/Models/FocusViewModels.swift:13:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+ 11 | /// Represents the AI-curated "Today" list with smart prioritization
+ 12 | struct FocusSession: Identifiable, Codable {
+ 13 |     let id = UUID()
+    |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |         |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |         `- note: make the property mutable instead
+ 14 |     let date: String // ISO8601 date string for the focus session
+ 15 |     let items: [FocusItem]
+
+/Users/Shared/LifeManager/Sources/LifeManager/Models/FocusViewModels.swift:41:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+ 39 | /// Individual item in the focus session (task, event, or reminder)
+ 40 | struct FocusItem: Identifiable, Codable, Hashable {
+ 41 |     let id = UUID()
+    |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |         |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |         `- note: make the property mutable instead
+ 42 |     let sourceId: UUID // ID of the original task/event
+ 43 |     let sourceType: FocusItemType
+
+/Users/Shared/LifeManager/Sources/LifeManager/Models/FocusViewModels.swift:275:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+273 | /// Filter configuration for Focus View
+274 | struct FocusFilter: Identifiable, Codable {
+275 |     let id = UUID()
+    |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |         |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |         `- note: make the property mutable instead
+276 |     let name: String
+277 |     let icon: String
+
+/Users/Shared/LifeManager/Sources/LifeManager/Models/FocusViewModels.swift:444:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+442 | /// AI-generated recommendation for focus optimization
+443 | struct AIRecommendation: Identifiable, Codable {
+444 |     let id = UUID()
+    |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |         |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |         `- note: make the property mutable instead
+445 |     let type: RecommendationType
+446 |     let title: String
+
+/Users/Shared/LifeManager/Sources/LifeManager/Models/FocusViewModels.swift:517:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+515 | /// Daily mood and energy assessment (AI-generated, no manual input)
+516 | struct DailyMoodAssessment: Identifiable, Codable {
+517 |     let id = UUID()
+    |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |         |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |         `- note: make the property mutable instead
+518 |     let date: String // ISO8601 date string
+519 |     let overallMood: MoodLevel
+
+/Users/Shared/LifeManager/Sources/LifeManager/Models/FocusViewModels.swift:646:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+644 | 
+645 | struct MoodInsight: Identifiable, Codable {
+646 |     let id = UUID()
+    |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |         |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |         `- note: make the property mutable instead
+647 |     let category: InsightCategory
+648 |     let insight: String
+
+/Users/Shared/LifeManager/Sources/LifeManager/Models/FocusViewModels.swift:736:9: warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+734 | 
+735 | struct AchievementBadge: Identifiable, Codable {
+736 |     let id = UUID()
+    |         |- warning: immutable property will not be decoded because it is declared with an initial value which cannot be overwritten
+    |         |- note: set the initial value via the initializer or explicitly define a CodingKeys enum including a 'id' case to silence this warning
+    |         `- note: make the property mutable instead
+737 |     let type: AchievementType
+738 |     let title: String
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:18:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+ 16 |         let futureString = isoFormatter.string(from: future)
+ 17 |         
+ 18 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+ 19 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 20 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:18:40: warning: no 'async' operations occur within 'await' expression
+ 16 |         let futureString = isoFormatter.string(from: future)
+ 17 |         
+ 18 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+ 19 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 20 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:18:36: warning: no calls to throwing functions occur within 'try' expression
+ 16 |         let futureString = isoFormatter.string(from: future)
+ 17 |         
+ 18 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+ 19 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 20 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:42:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+ 40 |         let pastDateString = isoFormatter.string(from: pastDate)
+ 41 |         
+ 42 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+ 43 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 44 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:46:38: error: 'nil' requires a contextual type
+ 44 |             .select()
+ 45 |             .gte("created_at", value: pastDateString)
+ 46 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+ 47 |             .order("created_at", ascending: false)
+ 48 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:42:40: warning: no 'async' operations occur within 'await' expression
+ 40 |         let pastDateString = isoFormatter.string(from: pastDate)
+ 41 |         
+ 42 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+ 43 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 44 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:42:36: warning: no calls to throwing functions occur within 'try' expression
+ 40 |         let pastDateString = isoFormatter.string(from: pastDate)
+ 41 |         
+ 42 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+ 43 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 44 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:71:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+ 69 |         let statusValues = statuses.map { $0.rawValue }
+ 70 |         
+ 71 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+ 72 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 73 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:75:38: error: 'nil' requires a contextual type
+ 73 |             .select()
+ 74 |             .in("status", values: statusValues)
+ 75 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+ 76 |             .order("priority", ascending: false)
+ 77 |             .order("created_at", ascending: false)
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:71:40: warning: no 'async' operations occur within 'await' expression
+ 69 |         let statusValues = statuses.map { $0.rawValue }
+ 70 |         
+ 71 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+ 72 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 73 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:71:36: warning: no calls to throwing functions occur within 'try' expression
+ 69 |         let statusValues = statuses.map { $0.rawValue }
+ 70 |         
+ 71 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+ 72 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 73 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:91:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+ 89 |         let endDateString = isoFormatter.string(from: endDate)
+ 90 |         
+ 91 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+ 92 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 93 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:96:38: error: 'nil' requires a contextual type
+ 94 |             .gte("due_date", value: startDateString)
+ 95 |             .lte("due_date", value: endDateString)
+ 96 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+ 97 |             .order("due_date", ascending: true)
+ 98 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:91:40: warning: no 'async' operations occur within 'await' expression
+ 89 |         let endDateString = isoFormatter.string(from: endDate)
+ 90 |         
+ 91 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+ 92 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 93 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:91:36: warning: no calls to throwing functions occur within 'try' expression
+ 89 |         let endDateString = isoFormatter.string(from: endDate)
+ 90 |         
+ 91 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+ 92 |             .from(SupabaseService.TableName.tasks.rawValue)
+ 93 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:107:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+105 |     /// Fetch tasks by area ID
+106 |     func fetchTasksForArea(_ areaId: UUID) async throws -> [LifeTask] {
+107 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+108 |             .from(SupabaseService.TableName.tasks.rawValue)
+109 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:111:38: error: 'nil' requires a contextual type
+109 |             .select()
+110 |             .eq("area_id", value: areaId.uuidString)
+111 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+112 |             .order("priority", ascending: false)
+113 |             .order("created_at", ascending: false)
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:107:40: warning: no 'async' operations occur within 'await' expression
+105 |     /// Fetch tasks by area ID
+106 |     func fetchTasksForArea(_ areaId: UUID) async throws -> [LifeTask] {
+107 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+108 |             .from(SupabaseService.TableName.tasks.rawValue)
+109 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:107:36: warning: no calls to throwing functions occur within 'try' expression
+105 |     /// Fetch tasks by area ID
+106 |     func fetchTasksForArea(_ areaId: UUID) async throws -> [LifeTask] {
+107 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+108 |             .from(SupabaseService.TableName.tasks.rawValue)
+109 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:123:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+121 |     /// Fetch tasks by resource ID
+122 |     func fetchTasksForResource(_ resourceId: UUID) async throws -> [LifeTask] {
+123 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+124 |             .from(SupabaseService.TableName.tasks.rawValue)
+125 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:127:38: error: 'nil' requires a contextual type
+125 |             .select()
+126 |             .eq("resource_id", value: resourceId.uuidString)
+127 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+128 |             .order("priority", ascending: false)
+129 |             .order("created_at", ascending: false)
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:123:40: warning: no 'async' operations occur within 'await' expression
+121 |     /// Fetch tasks by resource ID
+122 |     func fetchTasksForResource(_ resourceId: UUID) async throws -> [LifeTask] {
+123 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+124 |             .from(SupabaseService.TableName.tasks.rawValue)
+125 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:123:36: warning: no calls to throwing functions occur within 'try' expression
+121 |     /// Fetch tasks by resource ID
+122 |     func fetchTasksForResource(_ resourceId: UUID) async throws -> [LifeTask] {
+123 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+124 |             .from(SupabaseService.TableName.tasks.rawValue)
+125 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:275:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+273 |         let cutoffString = isoFormatter.string(from: cutoffDate)
+274 |         
+275 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+276 |             .from(SupabaseService.TableName.tasks.rawValue)
+277 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:279:36: error: 'nil' requires a contextual type
+277 |             .select()
+278 |             .eq("status", value: TaskStatus.inbox.rawValue)
+279 |             .is("due_date", value: nil)
+    |                                    `- error: 'nil' requires a contextual type
+280 |             .lt("created_at", value: cutoffString)
+281 |             .is("deleted_at", value: nil)
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:281:38: error: 'nil' requires a contextual type
+279 |             .is("due_date", value: nil)
+280 |             .lt("created_at", value: cutoffString)
+281 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+282 |             .order("created_at", ascending: true)
+283 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:275:40: warning: no 'async' operations occur within 'await' expression
+273 |         let cutoffString = isoFormatter.string(from: cutoffDate)
+274 |         
+275 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+276 |             .from(SupabaseService.TableName.tasks.rawValue)
+277 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:275:36: warning: no calls to throwing functions occur within 'try' expression
+273 |         let cutoffString = isoFormatter.string(from: cutoffDate)
+274 |         
+275 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+276 |             .from(SupabaseService.TableName.tasks.rawValue)
+277 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:294:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+292 |         // Note: This assumes tags are stored as a JSON array in the tags column
+293 |         // Implementation may need adjustment based on actual schema
+294 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+295 |             .from(SupabaseService.TableName.tasks.rawValue)
+296 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:297:38: error: 'nil' requires a contextual type
+295 |             .from(SupabaseService.TableName.tasks.rawValue)
+296 |             .select()
+297 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+298 |             .order("created_at", ascending: false)
+299 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:305:22: error: value of type 'LifeTask' has no member 'tags'
+303 |         let filteredTasks = response.filter { task in
+304 |             return tags.allSatisfy { tag in
+305 |                 task.tags?.contains(tag) ?? false
+    |                      `- error: value of type 'LifeTask' has no member 'tags'
+306 |             }
+307 |         }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:294:40: warning: no 'async' operations occur within 'await' expression
+292 |         // Note: This assumes tags are stored as a JSON array in the tags column
+293 |         // Implementation may need adjustment based on actual schema
+294 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+295 |             .from(SupabaseService.TableName.tasks.rawValue)
+296 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:294:36: warning: no calls to throwing functions occur within 'try' expression
+292 |         // Note: This assumes tags are stored as a JSON array in the tags column
+293 |         // Implementation may need adjustment based on actual schema
+294 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+295 |             .from(SupabaseService.TableName.tasks.rawValue)
+296 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:315:21: error: 'supabaseService' is inaccessible due to 'private' protection level
+313 |     /// Fetch tasks with specific estimated durations
+314 |     func fetchTasksByDurationRange(min: Int? = nil, max: Int? = nil) async throws -> [LifeTask] {
+315 |         var query = supabaseService.client
+    |                     `- error: 'supabaseService' is inaccessible due to 'private' protection level
+316 |             .from(SupabaseService.TableName.tasks.rawValue)
+317 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:318:38: error: 'nil' requires a contextual type
+316 |             .from(SupabaseService.TableName.tasks.rawValue)
+317 |             .select()
+318 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+319 |         
+320 |         if let min = min {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:328:40: warning: no 'async' operations occur within 'await' expression
+326 |         }
+327 |         
+328 |         let response: [LifeTask] = try await query
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+329 |             .order("estimated_duration", ascending: true)
+330 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:328:36: warning: no calls to throwing functions occur within 'try' expression
+326 |         }
+327 |         
+328 |         let response: [LifeTask] = try await query
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+329 |             .order("estimated_duration", ascending: true)
+330 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:344:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+342 |         let cutoffString = isoFormatter.string(from: cutoffDate)
+343 |         
+344 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+345 |             .from(SupabaseService.TableName.tasks.rawValue)
+346 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:349:38: error: 'nil' requires a contextual type
+347 |             .in("status", values: [TaskStatus.todo.rawValue, TaskStatus.inProgress.rawValue])
+348 |             .lt("updated_at", value: cutoffString)
+349 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+350 |             .order("updated_at", ascending: true)
+351 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:344:40: warning: no 'async' operations occur within 'await' expression
+342 |         let cutoffString = isoFormatter.string(from: cutoffDate)
+343 |         
+344 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+345 |             .from(SupabaseService.TableName.tasks.rawValue)
+346 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:344:36: warning: no calls to throwing functions occur within 'try' expression
+342 |         let cutoffString = isoFormatter.string(from: cutoffDate)
+343 |         
+344 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+345 |             .from(SupabaseService.TableName.tasks.rawValue)
+346 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:363:46: error: 'supabaseService' is inaccessible due to 'private' protection level
+361 |         workPersonal: WorkPersonalType
+362 |     ) async throws -> [LifeTask] {
+363 |         let response: [LifeTask] = try await supabaseService.client
+    |                                              `- error: 'supabaseService' is inaccessible due to 'private' protection level
+364 |             .from(SupabaseService.TableName.tasks.rawValue)
+365 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift:8:17: note: 'supabaseService' declared here
+  6 |     // MARK: - Properties
+  7 |     
+  8 |     private let supabaseService = SupabaseService.shared
+    |                 `- note: 'supabaseService' declared here
+  9 |     
+ 10 |     // MARK: - CRUD Operations
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:368:38: error: 'nil' requires a contextual type
+366 |             .eq("priority", value: priority.rawValue)
+367 |             .eq("work_personal", value: workPersonal.rawValue)
+368 |             .is("deleted_at", value: nil)
+    |                                      `- error: 'nil' requires a contextual type
+369 |             .order("created_at", ascending: false)
+370 |             .execute()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:363:40: warning: no 'async' operations occur within 'await' expression
+361 |         workPersonal: WorkPersonalType
+362 |     ) async throws -> [LifeTask] {
+363 |         let response: [LifeTask] = try await supabaseService.client
+    |                                        `- warning: no 'async' operations occur within 'await' expression
+364 |             .from(SupabaseService.TableName.tasks.rawValue)
+365 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepositoryExtensions.swift:363:36: warning: no calls to throwing functions occur within 'try' expression
+361 |         workPersonal: WorkPersonalType
+362 |     ) async throws -> [LifeTask] {
+363 |         let response: [LifeTask] = try await supabaseService.client
+    |                                    `- warning: no calls to throwing functions occur within 'try' expression
+364 |             .from(SupabaseService.TableName.tasks.rawValue)
+365 |             .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:14:51: error: cannot find type 'UserSchedulingPreferences' in scope
+ 12 |     
+ 13 |     /// Save user scheduling preferences to database
+ 14 |     func saveSchedulingPreferences(_ preferences: UserSchedulingPreferences) async throws {
+    |                                                   `- error: cannot find type 'UserSchedulingPreferences' in scope
+ 15 |         do {
+ 16 |             // Convert preferences to database format
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:71:54: error: cannot find type 'UserSchedulingPreferences' in scope
+ 69 |     
+ 70 |     /// Load user scheduling preferences from database
+ 71 |     func loadSchedulingPreferences() async throws -> UserSchedulingPreferences? {
+    |                                                      `- error: cannot find type 'UserSchedulingPreferences' in scope
+ 72 |         do {
+ 73 |             guard let data = try await fetchSchedulingPreferencesData() else {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:121:25: error: cannot find type 'NotificationType' in scope
+119 |     /// Save notification preferences to database
+120 |     func saveNotificationPreferences(
+121 |         _ preferences: [NotificationType: NotificationPreference],
+    |                         `- error: cannot find type 'NotificationType' in scope
+122 |     ) async throws {
+123 |         do {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:158:57: error: cannot find type 'NotificationType' in scope
+156 |     
+157 |     /// Load notification preferences from database
+158 |     func loadNotificationPreferences() async throws -> [NotificationType: NotificationPreference] {
+    |                                                         `- error: cannot find type 'NotificationType' in scope
+159 |         do {
+160 |             let response: [NotificationPreferenceData] = try await supabaseService.client
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:208:43: error: cannot find type 'SchedulingPattern' in scope
+206 |     
+207 |     /// Save a scheduling pattern to database
+208 |     func saveSchedulingPattern(_ pattern: SchedulingPattern) async throws {
+    |                                           `- error: cannot find type 'SchedulingPattern' in scope
+209 |         do {
+210 |             let _: SchedulingPattern = try await supabaseService.insert(
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:224:52: error: cannot find type 'SchedulingPattern' in scope
+222 |     
+223 |     /// Load scheduling patterns for a user
+224 |     func loadSchedulingPatterns() async throws -> [SchedulingPattern] {
+    |                                                    `- error: cannot find type 'SchedulingPattern' in scope
+225 |         do {
+226 |             let response: [SchedulingPattern] = try await supabaseService.client
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:267:51: error: cannot find type 'PriorityIntelligence' in scope
+265 |     
+266 |     /// Save priority intelligence to cache
+267 |     func savePriorityIntelligence(_ intelligence: PriorityIntelligence) async throws {
+    |                                                   `- error: cannot find type 'PriorityIntelligence' in scope
+268 |         do {
+269 |             let _: PriorityIntelligence = try await supabaseService.insert(
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:283:65: error: cannot find type 'PriorityIntelligence' in scope
+281 |     
+282 |     /// Load priority intelligence from cache
+283 |     func loadPriorityIntelligence(taskId: UUID) async throws -> PriorityIntelligence? {
+    |                                                                 `- error: cannot find type 'PriorityIntelligence' in scope
+284 |         do {
+285 |             let response: [PriorityIntelligence] = try await supabaseService.client
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:79:57: error: cannot find 'FocusBlock' in scope
+ 77 |             
+ 78 |             // Decode JSON data
+ 79 |             let focusBlocks = try JSONDecoder().decode([FocusBlock].self, from: data.focusBlocks)
+    |                                                         `- error: cannot find 'FocusBlock' in scope
+ 80 |             let reschedulingSettings = try JSONDecoder().decode(ReschedulingSettings.self, from: data.reschedulingSettings)
+ 81 |             let notificationSettings = try JSONDecoder().decode(NotificationSettings.self, from: data.notificationSettings)
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:79:49: error: type of expression is ambiguous without a type annotation
+ 77 |             
+ 78 |             // Decode JSON data
+ 79 |             let focusBlocks = try JSONDecoder().decode([FocusBlock].self, from: data.focusBlocks)
+    |                                                 `- error: type of expression is ambiguous without a type annotation
+ 80 |             let reschedulingSettings = try JSONDecoder().decode(ReschedulingSettings.self, from: data.reschedulingSettings)
+ 81 |             let notificationSettings = try JSONDecoder().decode(NotificationSettings.self, from: data.notificationSettings)
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:80:65: error: cannot find 'ReschedulingSettings' in scope
+ 78 |             // Decode JSON data
+ 79 |             let focusBlocks = try JSONDecoder().decode([FocusBlock].self, from: data.focusBlocks)
+ 80 |             let reschedulingSettings = try JSONDecoder().decode(ReschedulingSettings.self, from: data.reschedulingSettings)
+    |                                                                 `- error: cannot find 'ReschedulingSettings' in scope
+ 81 |             let notificationSettings = try JSONDecoder().decode(NotificationSettings.self, from: data.notificationSettings)
+ 82 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:80:58: error: type of expression is ambiguous without a type annotation
+ 78 |             // Decode JSON data
+ 79 |             let focusBlocks = try JSONDecoder().decode([FocusBlock].self, from: data.focusBlocks)
+ 80 |             let reschedulingSettings = try JSONDecoder().decode(ReschedulingSettings.self, from: data.reschedulingSettings)
+    |                                                          `- error: type of expression is ambiguous without a type annotation
+ 81 |             let notificationSettings = try JSONDecoder().decode(NotificationSettings.self, from: data.notificationSettings)
+ 82 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:81:65: error: cannot find 'NotificationSettings' in scope
+ 79 |             let focusBlocks = try JSONDecoder().decode([FocusBlock].self, from: data.focusBlocks)
+ 80 |             let reschedulingSettings = try JSONDecoder().decode(ReschedulingSettings.self, from: data.reschedulingSettings)
+ 81 |             let notificationSettings = try JSONDecoder().decode(NotificationSettings.self, from: data.notificationSettings)
+    |                                                                 `- error: cannot find 'NotificationSettings' in scope
+ 82 |             
+ 83 |             let preferences = UserSchedulingPreferences(
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:81:58: error: type of expression is ambiguous without a type annotation
+ 79 |             let focusBlocks = try JSONDecoder().decode([FocusBlock].self, from: data.focusBlocks)
+ 80 |             let reschedulingSettings = try JSONDecoder().decode(ReschedulingSettings.self, from: data.reschedulingSettings)
+ 81 |             let notificationSettings = try JSONDecoder().decode(NotificationSettings.self, from: data.notificationSettings)
+    |                                                          `- error: type of expression is ambiguous without a type annotation
+ 82 |             
+ 83 |             let preferences = UserSchedulingPreferences(
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:83:31: error: cannot find 'UserSchedulingPreferences' in scope
+ 81 |             let notificationSettings = try JSONDecoder().decode(NotificationSettings.self, from: data.notificationSettings)
+ 82 |             
+ 83 |             let preferences = UserSchedulingPreferences(
+    |                               `- error: cannot find 'UserSchedulingPreferences' in scope
+ 84 |                 workingHours: WorkingHoursPreference(
+ 85 |                     startHour: data.workingHoursStartHour,
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:84:31: error: cannot find 'WorkingHoursPreference' in scope
+ 82 |             
+ 83 |             let preferences = UserSchedulingPreferences(
+ 84 |                 workingHours: WorkingHoursPreference(
+    |                               `- error: cannot find 'WorkingHoursPreference' in scope
+ 85 |                     startHour: data.workingHoursStartHour,
+ 86 |                     endHour: data.workingHoursEndHour,
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:166:31: error: cannot find type 'NotificationType' in scope
+164 |                 .value
+165 |             
+166 |             var preferences: [NotificationType: NotificationPreference] = [:]
+    |                               `- error: cannot find type 'NotificationType' in scope
+167 |             
+168 |             for data in response {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:169:46: error: cannot find 'NotificationType' in scope
+167 |             
+168 |             for data in response {
+169 |                 guard let notificationType = NotificationType(rawValue: data.notificationType),
+    |                                              `- error: cannot find 'NotificationType' in scope
+170 |                       let frequency = NotificationFrequency(rawValue: data.frequency) else {
+171 |                     logger.warning("USER_PREFERENCES: Invalid notification type or frequency in database")
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:170:39: error: cannot find 'NotificationFrequency' in scope
+168 |             for data in response {
+169 |                 guard let notificationType = NotificationType(rawValue: data.notificationType),
+170 |                       let frequency = NotificationFrequency(rawValue: data.frequency) else {
+    |                                       `- error: cannot find 'NotificationFrequency' in scope
+171 |                     logger.warning("USER_PREFERENCES: Invalid notification type or frequency in database")
+172 |                     continue
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:175:38: error: cannot find type 'SchedulingTimeSlot' in scope
+173 |                 }
+174 |                 
+175 |                 let preferredTiming: SchedulingTimeSlot? = {
+    |                                      `- error: cannot find type 'SchedulingTimeSlot' in scope
+176 |                     guard let timingData = data.preferredTiming else { return nil }
+177 |                     return try? JSONDecoder().decode(SchedulingTimeSlot.self, from: timingData)
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:182:34: error: cannot find 'NotificationPreference' in scope
+180 |                 let customSettings = (try? JSONDecoder().decode([String: AnyCodableValue].self, from: data.customSettings)) ?? [:]
+181 |                 
+182 |                 let preference = NotificationPreference(
+    |                                  `- error: cannot find 'NotificationPreference' in scope
+183 |                     id: data.id,
+184 |                     notificationType: notificationType,
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:210:20: error: cannot find type 'SchedulingPattern' in scope
+208 |     func saveSchedulingPattern(_ pattern: SchedulingPattern) async throws {
+209 |         do {
+210 |             let _: SchedulingPattern = try await supabaseService.insert(
+    |                    `- error: cannot find type 'SchedulingPattern' in scope
+211 |                 pattern,
+212 |                 into: "scheduling_patterns"
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:226:28: error: cannot find type 'SchedulingPattern' in scope
+224 |     func loadSchedulingPatterns() async throws -> [SchedulingPattern] {
+225 |         do {
+226 |             let response: [SchedulingPattern] = try await supabaseService.client
+    |                            `- error: cannot find type 'SchedulingPattern' in scope
+227 |                 .from("scheduling_patterns")
+228 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:226:53: warning: no 'async' operations occur within 'await' expression
+224 |     func loadSchedulingPatterns() async throws -> [SchedulingPattern] {
+225 |         do {
+226 |             let response: [SchedulingPattern] = try await supabaseService.client
+    |                                                     `- warning: no 'async' operations occur within 'await' expression
+227 |                 .from("scheduling_patterns")
+228 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:226:49: warning: no calls to throwing functions occur within 'try' expression
+224 |     func loadSchedulingPatterns() async throws -> [SchedulingPattern] {
+225 |         do {
+226 |             let response: [SchedulingPattern] = try await supabaseService.client
+    |                                                 `- warning: no calls to throwing functions occur within 'try' expression
+227 |                 .from("scheduling_patterns")
+228 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:269:20: error: cannot find type 'PriorityIntelligence' in scope
+267 |     func savePriorityIntelligence(_ intelligence: PriorityIntelligence) async throws {
+268 |         do {
+269 |             let _: PriorityIntelligence = try await supabaseService.insert(
+    |                    `- error: cannot find type 'PriorityIntelligence' in scope
+270 |                 intelligence,
+271 |                 into: "priority_intelligence_cache"
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:285:28: error: cannot find type 'PriorityIntelligence' in scope
+283 |     func loadPriorityIntelligence(taskId: UUID) async throws -> PriorityIntelligence? {
+284 |         do {
+285 |             let response: [PriorityIntelligence] = try await supabaseService.client
+    |                            `- error: cannot find type 'PriorityIntelligence' in scope
+286 |                 .from("priority_intelligence_cache")
+287 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:285:56: warning: no 'async' operations occur within 'await' expression
+283 |     func loadPriorityIntelligence(taskId: UUID) async throws -> PriorityIntelligence? {
+284 |         do {
+285 |             let response: [PriorityIntelligence] = try await supabaseService.client
+    |                                                        `- warning: no 'async' operations occur within 'await' expression
+286 |                 .from("priority_intelligence_cache")
+287 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:285:52: warning: no calls to throwing functions occur within 'try' expression
+283 |     func loadPriorityIntelligence(taskId: UUID) async throws -> PriorityIntelligence? {
+284 |         do {
+285 |             let response: [PriorityIntelligence] = try await supabaseService.client
+    |                                                    `- warning: no calls to throwing functions occur within 'try' expression
+286 |                 .from("priority_intelligence_cache")
+287 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Repositories/UserPreferencesRepository.swift:301:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+299 |             return intelligence
+300 |             
+301 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+302 |             logger.error("USER_PREFERENCES: Failed to load priority intelligence: \(error)")
+303 |             throw error
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextMemoryService.swift:623:17: warning: initialization of immutable value 'contextData' was never used; consider replacing with assignment to '_' or removing it
+ 621 |             
+ 622 |             // Convert context window to database format
+ 623 |             let contextData = try activeContextWindow.map { item in
+     |                 `- warning: initialization of immutable value 'contextData' was never used; consider replacing with assignment to '_' or removing it
+ 624 |                 [
+ 625 |                     "id": item.id.uuidString,
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextMemoryService.swift:666:17: warning: initialization of immutable value 'supabaseService' was never used; consider replacing with assignment to '_' or removing it
+ 664 |     private func persistDailySummaries() async {
+ 665 |         do {
+ 666 |             let supabaseService = SupabaseService.shared
+     |                 `- warning: initialization of immutable value 'supabaseService' was never used; consider replacing with assignment to '_' or removing it
+ 667 |             
+ 668 |             // Convert daily summaries to database format
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextMemoryService.swift:669:17: warning: initialization of immutable value 'summaryData' was never used; consider replacing with assignment to '_' or removing it
+ 667 |             
+ 668 |             // Convert daily summaries to database format
+ 669 |             let summaryData = try dailySummaries.map { summary in
+     |                 `- warning: initialization of immutable value 'summaryData' was never used; consider replacing with assignment to '_' or removing it
+ 670 |                 [
+ 671 |                     "id": UUID().uuidString,
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1023:59: error: value of type 'SupabaseService' has no member 'getCurrentUserId'
+1021 |             
+1022 |             // Fetch recent projects (with user_id filter for performance)
+1023 |             let currentUserId = try await supabaseService.getCurrentUserId()
+     |                                                           `- error: value of type 'SupabaseService' has no member 'getCurrentUserId'
+1024 |             let recentProjects: [Project] = try await supabaseService.client
+1025 |                 .from("projects")
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1024:49: warning: no 'async' operations occur within 'await' expression
+1022 |             // Fetch recent projects (with user_id filter for performance)
+1023 |             let currentUserId = try await supabaseService.getCurrentUserId()
+1024 |             let recentProjects: [Project] = try await supabaseService.client
+     |                                                 `- warning: no 'async' operations occur within 'await' expression
+1025 |                 .from("projects")
+1026 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1024:45: warning: no calls to throwing functions occur within 'try' expression
+1022 |             // Fetch recent projects (with user_id filter for performance)
+1023 |             let currentUserId = try await supabaseService.getCurrentUserId()
+1024 |             let recentProjects: [Project] = try await supabaseService.client
+     |                                             `- warning: no calls to throwing functions occur within 'try' expression
+1025 |                 .from("projects")
+1026 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1035:43: warning: no 'async' operations occur within 'await' expression
+1033 |             
+1034 |             // Fetch recent areas (with user_id filter for performance)
+1035 |             let recentAreas: [Area] = try await supabaseService.client
+     |                                           `- warning: no 'async' operations occur within 'await' expression
+1036 |                 .from("areas")
+1037 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1035:39: warning: no calls to throwing functions occur within 'try' expression
+1033 |             
+1034 |             // Fetch recent areas (with user_id filter for performance)
+1035 |             let recentAreas: [Area] = try await supabaseService.client
+     |                                       `- warning: no calls to throwing functions occur within 'try' expression
+1036 |                 .from("areas")
+1037 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1046:51: warning: no 'async' operations occur within 'await' expression
+1044 |             
+1045 |             // Fetch recent resources (with user_id filter for performance)
+1046 |             let recentResources: [Resource] = try await supabaseService.client
+     |                                                   `- warning: no 'async' operations occur within 'await' expression
+1047 |                 .from("resources")
+1048 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1046:47: warning: no calls to throwing functions occur within 'try' expression
+1044 |             
+1045 |             // Fetch recent resources (with user_id filter for performance)
+1046 |             let recentResources: [Resource] = try await supabaseService.client
+     |                                               `- warning: no calls to throwing functions occur within 'try' expression
+1047 |                 .from("resources")
+1048 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1057:47: warning: no 'async' operations occur within 'await' expression
+1055 |             
+1056 |             // Fetch recent tasks (with user_id filter for performance)
+1057 |             let recentTasks: [LifeTask] = try await supabaseService.client
+     |                                               `- warning: no 'async' operations occur within 'await' expression
+1058 |                 .from("tasks")
+1059 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/ContextualPARAEngine.swift:1057:43: warning: no calls to throwing functions occur within 'try' expression
+1055 |             
+1056 |             // Fetch recent tasks (with user_id filter for performance)
+1057 |             let recentTasks: [LifeTask] = try await supabaseService.client
+     |                                           `- warning: no calls to throwing functions occur within 'try' expression
+1058 |                 .from("tasks")
+1059 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/PersonalRulesService.swift:176:49: error: cannot convert value of type 'LifeTask' to expected argument type 'ContextualPARAItem'
+174 |             // Fallback to local rules
+175 |             return personalRules.filter { rule in
+176 |                 rule.isActive && rule.appliesTo(task)
+    |                                                 `- error: cannot convert value of type 'LifeTask' to expected argument type 'ContextualPARAItem'
+177 |             }
+178 |         }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/PersonalRulesService.swift:623:55: error: value of type 'PersonalRulesRepository' has no member 'createPersonalRule'
+621 |     private func persistPersonalRule(_ rule: PersonalPARARule) async {
+622 |         do {
+623 |             let _ = try await personalRulesRepository.createPersonalRule(rule)
+    |                                                       `- error: value of type 'PersonalRulesRepository' has no member 'createPersonalRule'
+624 |             
+625 |             await MainActor.run {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/PersonalRulesService.swift:642:55: error: value of type 'PersonalRulesRepository' has no member 'createUserCorrection'
+640 |     private func persistUserCorrection(_ correction: UserCorrection) async {
+641 |         do {
+642 |             let _ = try await personalRulesRepository.createUserCorrection(correction)
+    |                                                       `- error: value of type 'PersonalRulesRepository' has no member 'createUserCorrection'
+643 |             
+644 |             await MainActor.run {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/PersonalRulesService.swift:659:55: error: value of type 'PersonalRulesRepository' has no member 'updatePersonalRule'
+657 |     private func persistRuleUpdate(_ rule: PersonalPARARule, confidence: Float? = nil, isActive: Bool? = nil) async {
+658 |         do {
+659 |             let _ = try await personalRulesRepository.updatePersonalRule(rule)
+    |                                                       `- error: value of type 'PersonalRulesRepository' has no member 'updatePersonalRule'
+660 |             logger.success("PERSONAL_RULES: Updated rule: \(rule.pattern)")
+661 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/PersonalRulesService.swift:669:55: error: value of type 'PersonalRulesRepository' has no member 'updatePersonalRule'
+667 |     private func persistRuleUsage(_ rule: PersonalPARARule) async {
+668 |         do {
+669 |             let _ = try await personalRulesRepository.updatePersonalRule(rule)
+    |                                                       `- error: value of type 'PersonalRulesRepository' has no member 'updatePersonalRule'
+670 |             logger.success("PERSONAL_RULES: Updated rule usage: \(rule.pattern)")
+671 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/AI/PersonalRulesService.swift:679:47: error: value of type 'PersonalRulesRepository' has no member 'deletePersonalRule'
+677 |     private func removePersonalRule(_ rule: PersonalPARARule) async {
+678 |         do {
+679 |             try await personalRulesRepository.deletePersonalRule(id: rule.id)
+    |                                               `- error: value of type 'PersonalRulesRepository' has no member 'deletePersonalRule'
+680 |             logger.success("PERSONAL_RULES: Removed rule: \(rule.pattern)")
+681 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/BufferManagementService.swift:76:13: warning: initialization of immutable value 'durationMinutes' was never used; consider replacing with assignment to '_' or removing it
+ 74 |     ) -> Date? {
+ 75 |         
+ 76 |         let durationMinutes = Int(duration / 60)
+    |             `- warning: initialization of immutable value 'durationMinutes' was never used; consider replacing with assignment to '_' or removing it
+ 77 |         let calendar = Calendar.current
+ 78 |         
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/BufferManagementService.swift:132:13: warning: initialization of immutable value 'durationMinutes' was never used; consider replacing with assignment to '_' or removing it
+130 |         
+131 |         let endTime = startTime.addingTimeInterval(duration)
+132 |         let durationMinutes = Int(duration / 60)
+    |             `- warning: initialization of immutable value 'durationMinutes' was never used; consider replacing with assignment to '_' or removing it
+133 |         
+134 |         // Create a temporary event to test scheduling
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/BufferManagementService.swift:167:18: warning: immutable value 'index' was never used; consider replacing with '_' or removing it
+165 |         // Find conflicts between actual and planned events
+166 |         for actualEvent in actualEvents {
+167 |             for (index, plannedEvent) in updatedEvents.enumerated() {
+    |                  `- warning: immutable value 'index' was never used; consider replacing with '_' or removing it
+168 |                 if eventsOverlap(actualEvent, plannedEvent) {
+169 |                     var bumpedEvent = plannedEvent
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/BufferManagementService.swift:239:9: error: cannot find 'NotificationService' in scope
+237 |         
+238 |         // Send immediate notification
+239 |         NotificationService.shared.scheduleBufferWarning()
+    |         `- error: cannot find 'NotificationService' in scope
+240 |         
+241 |         // Schedule escalated warning if not addressed
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/BufferManagementService.swift:252:9: error: cannot find 'NotificationService' in scope
+250 |     private func triggerEscalatedWarning() {
+251 |         print("🔧 BUFFER: 🚨 Escalated warning - user has not responded to overbooking notification")
+252 |         NotificationService.shared.scheduleEscalatedWarning()
+    |         `- error: cannot find 'NotificationService' in scope
+253 |     }
+254 |     
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/CalendarOrchestrationService.swift:20:33: error: cannot find type 'EnhancedParkingLotService' in scope
+ 18 |     
+ 19 |     private let bufferService = BufferManagementService()
+ 20 |     private let parkingService: EnhancedParkingLotService
+    |                                 `- error: cannot find type 'EnhancedParkingLotService' in scope
+ 21 |     private let togglService = TogglService()
+ 22 |     private let notificationService = NotificationService.shared
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/CalendarOrchestrationService.swift:22:39: error: cannot find 'NotificationService' in scope
+ 20 |     private let parkingService: EnhancedParkingLotService
+ 21 |     private let togglService = TogglService()
+ 22 |     private let notificationService = NotificationService.shared
+    |                                       `- error: cannot find 'NotificationService' in scope
+ 23 |     private let llmService = LLMServiceCoordinator.shared
+ 24 |     
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/CalendarOrchestrationService.swift:40:31: error: cannot find 'EnhancedParkingLotService' in scope
+ 38 |     
+ 39 |     init() {
+ 40 |         self.parkingService = EnhancedParkingLotService(llmService: llmService)
+    |                               `- error: cannot find 'EnhancedParkingLotService' in scope
+ 41 |         setupOrchestration()
+ 42 |         startAutoRefresh()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/CalendarOrchestrationService.swift:298:34: error: cannot infer contextual base in reference to member 'conflictResolution'
+296 |                     await parkingService.parkEvent(
+297 |                         conflictEvent,
+298 |                         reason: .conflictResolution
+    |                                  `- error: cannot infer contextual base in reference to member 'conflictResolution'
+299 |                     )
+300 |                     
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/CalendarOrchestrationService.swift:346:80: error: cannot infer contextual base in reference to member 'bumpCascade'
+344 |                     } else {
+345 |                         // Park the event that can't be bumped
+346 |                         await parkingService.parkEvent(conflictEvent, reason: .bumpCascade)
+    |                                                                                `- error: cannot infer contextual base in reference to member 'bumpCascade'
+347 |                         plannedEvents.removeAll { $0.id == conflictEvent.id }
+348 |                     }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/EmbeddingsService.swift:458:30: warning: capture of 'self' with non-sendable type 'EmbeddingsService' in a '@Sendable' closure
+ 13 | /// Service for generating and managing text embeddings for semantic similarity
+ 14 | /// Enables contextual PARA matching based on meaning rather than keywords
+ 15 | class EmbeddingsService: ObservableObject {
+    |       `- note: class 'EmbeddingsService' does not conform to the 'Sendable' protocol
+ 16 |     
+ 17 |     static let shared = EmbeddingsService()
+    :
+456 |         return await withCheckedContinuation { continuation in
+457 |             cacheQueue.async {
+458 |                 let cached = self.embeddingsCache[key]
+    |                              `- warning: capture of 'self' with non-sendable type 'EmbeddingsService' in a '@Sendable' closure
+459 |                 
+460 |                 // Check if cache is expired
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/EmbeddingsService.swift:485:17: warning: capture of 'self' with non-sendable type 'EmbeddingsService' in a '@Sendable' closure
+ 13 | /// Service for generating and managing text embeddings for semantic similarity
+ 14 | /// Enables contextual PARA matching based on meaning rather than keywords
+ 15 | class EmbeddingsService: ObservableObject {
+    |       `- note: class 'EmbeddingsService' does not conform to the 'Sendable' protocol
+ 16 |     
+ 17 |     static let shared = EmbeddingsService()
+    :
+483 |         await withCheckedContinuation { continuation in
+484 |             cacheQueue.async {
+485 |                 self.embeddingsCache[key] = cachedEmbedding
+    |                 `- warning: capture of 'self' with non-sendable type 'EmbeddingsService' in a '@Sendable' closure
+486 |                 continuation.resume()
+487 |             }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/EmbeddingsService.swift:500:17: warning: initialization of immutable value 'cachedEmbeddings' was never used; consider replacing with assignment to '_' or removing it
+498 |     private func loadEmbeddingsCache() async {
+499 |         do {
+500 |             let cachedEmbeddings = try await supabaseService.client
+    |                 `- warning: initialization of immutable value 'cachedEmbeddings' was never used; consider replacing with assignment to '_' or removing it
+501 |                 .from("embeddings_cache")
+502 |                 .select()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/EmbeddingsService.swift:544:24: warning: cast from 'Void' to unrelated type '[[String : Any]]' always fails
+542 |                 .select("id, name, description")
+543 |                 .execute()
+544 |                 .value as? [[String: Any]] ?? []
+    |                        `- warning: cast from 'Void' to unrelated type '[[String : Any]]' always fails
+545 |             
+546 |             for project in projects {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/EmbeddingsService.swift:569:24: warning: cast from 'Void' to unrelated type '[[String : Any]]' always fails
+567 |                 .select("id, name, description")
+568 |                 .execute()
+569 |                 .value as? [[String: Any]] ?? []
+    |                        `- warning: cast from 'Void' to unrelated type '[[String : Any]]' always fails
+570 |             
+571 |             for area in areas {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/EmbeddingsService.swift:594:24: warning: cast from 'Void' to unrelated type '[[String : Any]]' always fails
+592 |                 .select("id, title, summary")
+593 |                 .execute()
+594 |                 .value as? [[String: Any]] ?? []
+    |                        `- warning: cast from 'Void' to unrelated type '[[String : Any]]' always fails
+595 |             
+596 |             for resource in resources {
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:31:40: error: type 'FocusFilter' does not conform to protocol 'Hashable'
+  29 |     @Published var todaysFocusItems: [FocusItem] = []
+  30 |     @Published var filteredFocusItems: [FocusItem] = []
+  31 |     @Published var activeFocusFilters: Set<FocusFilter> = []
+     |                                        `- error: type 'FocusFilter' does not conform to protocol 'Hashable'
+  32 |     @Published var availableFilters: [FocusFilter] = FocusFilter.defaultFilters
+  33 |     @Published var currentMoodAssessment: DailyMoodAssessment?
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:20:43: error: cannot find 'IntelligentReschedulingService' in scope
+  18 |     private let contextMemory = ContextMemoryService.shared
+  19 |     private let personalRules = PersonalRulesService.shared
+  20 |     private let intelligentRescheduling = IntelligentReschedulingService.shared
+     |                                           `- error: cannot find 'IntelligentReschedulingService' in scope
+  21 |     private let priorityEngine = PriorityIntelligenceEngine.shared
+  22 |     private let proactiveNotifications = ProactiveNotificationEngine.shared
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:21:34: error: cannot find 'PriorityIntelligenceEngine' in scope
+  19 |     private let personalRules = PersonalRulesService.shared
+  20 |     private let intelligentRescheduling = IntelligentReschedulingService.shared
+  21 |     private let priorityEngine = PriorityIntelligenceEngine.shared
+     |                                  `- error: cannot find 'PriorityIntelligenceEngine' in scope
+  22 |     private let proactiveNotifications = ProactiveNotificationEngine.shared
+  23 |     private let llmService = LLMServiceCoordinator.shared
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:22:42: error: cannot find 'ProactiveNotificationEngine' in scope
+  20 |     private let intelligentRescheduling = IntelligentReschedulingService.shared
+  21 |     private let priorityEngine = PriorityIntelligenceEngine.shared
+  22 |     private let proactiveNotifications = ProactiveNotificationEngine.shared
+     |                                          `- error: cannot find 'ProactiveNotificationEngine' in scope
+  23 |     private let llmService = LLMServiceCoordinator.shared
+  24 |     private let logger = Logger.shared
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:242:72: error: cannot find type 'PriorityIntelligence' in scope
+ 240 |     
+ 241 |     /// Generate AI reasoning for including an item in today's focus
+ 242 |     private func generateAIReasoning(for task: LifeTask, intelligence: PriorityIntelligence) async -> String {
+     |                                                                        `- error: cannot find type 'PriorityIntelligence' in scope
+ 243 |         // Use existing contextual information to generate reasoning
+ 244 |         var reasons: [String] = []
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:407:34: error: type 'FocusFilter' does not conform to protocol 'Hashable'
+ 405 |     
+ 406 |     /// Apply filters to focus items
+ 407 |     func applyFilters(_ filters: Set<FocusFilter>) {
+     |                                  `- error: type 'FocusFilter' does not conform to protocol 'Hashable'
+ 408 |         activeFocusFilters = filters
+ 409 |         
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:107:15: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 105 |                 logger.success("FOCUS_VIEW: Created session with \(focusItems.count) items")
+ 106 |                 
+ 107 |             } catch {
+     |               `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 108 |                 logger.error("FOCUS_VIEW: Failed to create focus session: \(error)")
+ 109 |             }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:354:15: error: type 'TaskPriority' has no member 'critical'
+ 352 |         // Combine task priority with AI score for focus priority
+ 353 |         switch taskPriority {
+ 354 |         case .critical:
+     |               `- error: type 'TaskPriority' has no member 'critical'
+ 355 |             return .critical
+ 356 |         case .high:
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:391:15: error: type 'TaskStatus' has no member 'done'
+ 389 |         case .inProgress:
+ 390 |             return .inProgress
+ 391 |         case .done, .completed:
+     |               `- error: type 'TaskStatus' has no member 'done'
+ 392 |             return .completed
+ 393 |         case .cancelled:
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:462:53: error: value of type 'ContextMemoryService' has no member 'getRecentContext'
+ 460 |         do {
+ 461 |             // Get recent context and activity
+ 462 |             let recentContext = await contextMemory.getRecentContext(hours: 24)
+     |                                                     `- error: value of type 'ContextMemoryService' has no member 'getRecentContext'
+ 463 |             let completionPatterns = await analyzeRecentCompletionPatterns()
+ 464 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:952:19: error: initializer for conditional binding must have Optional type, not 'String'
+ 950 |     private func calculateAverageCompletionTime(_ tasks: [LifeTask]) -> Double {
+ 951 |         let completedTasks = tasks.compactMap { task -> Double? in
+ 952 |             guard let createdString = task.createdAt,
+     |                   `- error: initializer for conditional binding must have Optional type, not 'String'
+ 953 |                   let completedString = task.completedAt,
+ 954 |                   let created = ISO8601DateFormatter().date(from: createdString),
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/FocusViewService.swift:971:13: warning: no 'async' operations occur within 'await' expression
+ 969 |         Task {
+ 970 |             isLoading = true
+ 971 |             await setupFocusSession()
+     |             `- warning: no 'async' operations occur within 'await' expression
+ 972 |             isLoading = false
+ 973 |         }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/LLMBrainDumpProcessor.swift:21:29: warning: 'LLMService' is deprecated: Use LLMServiceCoordinator.shared instead
+ 19 | /// Enhanced with advanced AI services for context-aware, self-improving processing
+ 20 | class LLMBrainDumpProcessor {
+ 21 |     private let llmService: LLMService
+    |                             `- warning: 'LLMService' is deprecated: Use LLMServiceCoordinator.shared instead
+ 22 |     private let blobRepository: BlobRepository
+ 23 |     private let taskRepository: TaskRepository
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/LLMProcessingService.swift:369:13: warning: variable 'optimalScheduling' was written to, but never read
+367 |         
+368 |         // Parse optimal scheduling
+369 |         var optimalScheduling: OptimalScheduling?
+    |             `- warning: variable 'optimalScheduling' was written to, but never read
+370 |         if let schedulingJson = json["optimal_scheduling"] as? [String: Any] {
+371 |             optimalScheduling = OptimalScheduling(
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/LLMProcessingService.swift:475:13: warning: initialization of immutable value 'logEntry' was never used; consider replacing with assignment to '_' or removing it
+473 |         success: Bool
+474 |     ) {
+475 |         let logEntry = PromptLogEntry(
+    |             `- warning: initialization of immutable value 'logEntry' was never used; consider replacing with assignment to '_' or removing it
+476 |             templateName: templateName,
+477 |             promptLength: promptLength,
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:47:53: warning: comparing non-optional value of type 'User' to 'nil' always returns true
+ 45 |             let session = try await client.auth.session
+ 46 |             await MainActor.run {
+ 47 |                 self.isAuthenticated = session.user != nil
+    |                                                     `- warning: comparing non-optional value of type 'User' to 'nil' always returns true
+ 48 |                 // currentUser will be set when needed
+ 49 |             }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:63:49: warning: comparing non-optional value of type 'User' to 'nil' always returns true
+ 61 |         
+ 62 |         await MainActor.run {
+ 63 |             self.isAuthenticated = session.user != nil
+    |                                                 `- warning: comparing non-optional value of type 'User' to 'nil' always returns true
+ 64 |             // Convert Auth.User to our User type if needed
+ 65 |         }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:151:54: warning: comparing non-optional value of type 'User' to 'nil' always returns true
+149 |             let response = try await client.auth.session
+150 |             await MainActor.run {
+151 |                 self.isAuthenticated = response.user != nil
+    |                                                      `- warning: comparing non-optional value of type 'User' to 'nil' always returns true
+152 |             }
+153 |             Logger.shared.success("SUPABASE AUTH: Successfully verified session")
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:168:53: warning: comparing non-optional value of type 'User' to 'nil' always returns true
+166 |             
+167 |             await MainActor.run {
+168 |                 self.isAuthenticated = session.user != nil
+    |                                                     `- warning: comparing non-optional value of type 'User' to 'nil' always returns true
+169 |             }
+170 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:384:23: warning: no 'async' operations occur within 'await' expression
+382 |         // Note: Realtime API might need updates based on Supabase version
+383 |         // This is a placeholder implementation
+384 |         let channel = await client.channel("public:\(table)")
+    |                       `- warning: no 'async' operations occur within 'await' expression
+385 |         await channel.subscribe()
+386 |     }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:462:33: error: cannot find 'client' in scope
+460 |     /// Get the current authenticated user's ID
+461 |     func getCurrentUserId() async throws -> UUID {
+462 |         let session = try await client.auth.session
+    |                                 `- error: cannot find 'client' in scope
+463 |         guard let user = session.user else {
+464 |             throw SupabaseError.authenticationRequired
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:462:27: warning: no 'async' operations occur within 'await' expression
+460 |     /// Get the current authenticated user's ID
+461 |     func getCurrentUserId() async throws -> UUID {
+462 |         let session = try await client.auth.session
+    |                           `- warning: no 'async' operations occur within 'await' expression
+463 |         guard let user = session.user else {
+464 |             throw SupabaseError.authenticationRequired
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift:462:23: warning: no calls to throwing functions occur within 'try' expression
+460 |     /// Get the current authenticated user's ID
+461 |     func getCurrentUserId() async throws -> UUID {
+462 |         let session = try await client.auth.session
+    |                       `- warning: no calls to throwing functions occur within 'try' expression
+463 |         guard let user = session.user else {
+464 |             throw SupabaseError.authenticationRequired
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/TaskRetentionService.swift:126:51: warning: reference to captured var 'deletedCount' in concurrently-executing code; this is an error in the Swift 6 language mode
+124 |             // Update statistics
+125 |             await MainActor.run {
+126 |                 cleanupStats.totalTasksDeleted += deletedCount
+    |                                                   `- warning: reference to captured var 'deletedCount' in concurrently-executing code; this is an error in the Swift 6 language mode
+127 |                 cleanupStats.totalCleanupRuns += 1
+128 |                 cleanupStats.lastCleanupDate = Date()
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/TaskRetentionService.swift:129:56: warning: reference to captured var 'deletedCount' in concurrently-executing code; this is an error in the Swift 6 language mode
+127 |                 cleanupStats.totalCleanupRuns += 1
+128 |                 cleanupStats.lastCleanupDate = Date()
+129 |                 cleanupStats.lastCleanupDeletedCount = deletedCount
+    |                                                        `- warning: reference to captured var 'deletedCount' in concurrently-executing code; this is an error in the Swift 6 language mode
+130 |                 cleanupStats.lastCleanupErrorCount = errorCount
+131 |             }
+
+/Users/Shared/LifeManager/Sources/LifeManager/Services/TaskRetentionService.swift:130:54: warning: reference to captured var 'errorCount' in concurrently-executing code; this is an error in the Swift 6 language mode
+128 |                 cleanupStats.lastCleanupDate = Date()
+129 |                 cleanupStats.lastCleanupDeletedCount = deletedCount
+130 |                 cleanupStats.lastCleanupErrorCount = errorCount
+    |                                                      `- warning: reference to captured var 'errorCount' in concurrently-executing code; this is an error in the Swift 6 language mode
+131 |             }
+132 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CalendarViewModel.swift:80:39: error: cannot find type 'EnhancedParkingLotService' in scope
+ 78 |     
+ 79 |     /// Parking lot service for overflow events
+ 80 |     @Published var parkingLotService: EnhancedParkingLotService
+    |                                       `- error: cannot find type 'EnhancedParkingLotService' in scope
+ 81 |     
+ 82 |     // MARK: - Private Properties
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CalendarViewModel.swift:851:24: error: cannot find type 'ParkingLotEvent' in scope
+849 |     
+850 |     /// Get parking lot events
+851 |     var parkedEvents: [ParkingLotEvent] {
+    |                        `- error: cannot find type 'ParkingLotEvent' in scope
+852 |         return parkingLotService.parkedEvents
+853 |     }
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CalendarViewModel.swift:91:34: error: cannot find 'EnhancedParkingLotService' in scope
+ 89 |     
+ 90 |     init() {
+ 91 |         self.parkingLotService = EnhancedParkingLotService()
+    |                                  `- error: cannot find 'EnhancedParkingLotService' in scope
+ 92 |         setupBindings()
+ 93 |         loadInitialData()
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CalendarViewModel.swift:812:9: warning: no 'async' operations occur within 'await' expression
+810 |         
+811 |         // Start orchestration service
+812 |         await orchestrationService.startContinuousMonitoring()
+    |         `- warning: no 'async' operations occur within 'await' expression
+813 |         
+814 |         // Process today's schedule
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CalendarViewModel.swift:886:27: warning: variable 'self' was written to, but never read
+884 |         orchestrationService.$bufferStatus
+885 |             .receive(on: DispatchQueue.main)
+886 |             .sink { [weak self] status in
+    |                           `- warning: variable 'self' was written to, but never read
+887 |                 // Could trigger UI updates for buffer warnings
+888 |                 LifeLogger.calendar(.debug, "Buffer status changed to: \(status.rawValue)")
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CoreMainViewModel.swift:128:75: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+126 |                 isLoading = false
+127 |                 authSuccess = "Successfully signed in!"
+128 |                 logger.success("🔐 AUTH: Sign in successful for user: \(user.email)")
+    |                                                                        |    |- note: use 'String(describing:)' to silence this warning
+    |                                                                        |    `- note: provide a default value to avoid this warning
+    |                                                                        `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+129 |             }
+130 |             
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CoreMainViewModel.swift:167:79: warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+165 |                     isLoading = false
+166 |                     authSuccess = "Account created successfully!"
+167 |                     logger.success("🔐 AUTH: Sign up successful for user: \(user.email)")
+    |                                                                            |    |- note: use 'String(describing:)' to silence this warning
+    |                                                                            |    `- note: provide a default value to avoid this warning
+    |                                                                            `- warning: string interpolation produces a debug description for an optional value; did you mean to make this explicit?
+168 |                 }
+169 |                 
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CoreMainViewModel.swift:243:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+241 |             await loadInitialData()
+242 |             
+243 |         } catch {
+    |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+244 |             await MainActor.run {
+245 |                 isLoading = false
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CoreMainViewModel.swift:268:19: warning: constant 'paraDataLoad' inferred to have type '()', which may be unexpected
+266 |         
+267 |         // Load data in parallel across ViewModels
+268 |         async let paraDataLoad = paraDataVM.loadAllData()
+    |                   |- warning: constant 'paraDataLoad' inferred to have type '()', which may be unexpected
+    |                   `- note: add an explicit type annotation to silence this warning
+269 |         
+270 |         // Wait for all data to load
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:223:17: warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+ 221 |         
+ 222 |         do {
+ 223 |             let session = try await supabaseService.signIn(email: email, password: password)
+     |                 `- warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+ 224 |             await MainActor.run {
+ 225 |                 // Handle successful sign in
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:532:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 530 |             }
+ 531 |             
+ 532 |         } catch {
+     |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 533 |             Logger.shared.error("DATA_LOAD: General error loading data - \(error)")
+ 534 |             await MainActor.run {
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:1326:21: warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1324 |             // Try to sign in first
+1325 |             do {
+1326 |                 let session = try await supabaseService.signIn(email: developmentEmail, password: developmentPassword)
+     |                     `- warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1327 |                 await MainActor.run {
+1328 |                     self.isAuthenticated = true
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:1340:21: warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1338 |             // If sign in failed, try to create the account
+1339 |             do {
+1340 |                 let session = try await supabaseService.signUp(email: developmentEmail, password: developmentPassword)
+     |                     `- warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1341 |                 await MainActor.run {
+1342 |                     self.isAuthenticated = true
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:1352:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+1350 |             }
+1351 |             
+1352 |         } catch {
+     |           `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+1353 |             Logger.shared.error("DEV_BYPASS: All authentication attempts failed: \(error)")
+1354 |         }
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:1373:17: warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1371 |         do {
+1372 |             // Force create account (ignoring errors if it already exists)
+1373 |             let session = try await supabaseService.signUp(email: developmentEmail, password: developmentPassword)
+     |                 `- warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1374 |             await MainActor.run {
+1375 |                 self.isAuthenticated = true
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:1383:21: warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1381 |             // If creation failed, try signing in
+1382 |             do {
+1383 |                 let session = try await supabaseService.signIn(email: developmentEmail, password: developmentPassword)
+     |                     `- warning: initialization of immutable value 'session' was never used; consider replacing with assignment to '_' or removing it
+1384 |                 await MainActor.run {
+1385 |                     self.isAuthenticated = true
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:1745:13: warning: initialization of variable 'updatedBlob' was never used; consider replacing with assignment to '_' or removing it
+1743 |         Logger.shared.info("MOVE_PARA: Moving blob \(blob.id) to category: \(category.displayName)")
+1744 |         
+1745 |         var updatedBlob = blob
+     |             `- warning: initialization of variable 'updatedBlob' was never used; consider replacing with assignment to '_' or removing it
+1746 |         var targetProjectId: UUID? = nil
+1747 |         var targetAreaId: UUID? = nil
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift:2152:17: warning: variable 'taskRepository' was never mutated; consider changing to 'let' constant
+2150 |             // Process enhancement results and update tasks that were enhanced
+2151 |             var enhancedCount = 0
+2152 |             var taskRepository = TaskRepository()
+     |                 `- warning: variable 'taskRepository' was never mutated; consider changing to 'let' constant
+2153 |             
+2154 |             for result in enhancementResults {
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/PARADataViewModel.swift:60:19: warning: constant 'areasTask' inferred to have type '()', which may be unexpected
+ 58 |         logger.info("📊 PARA: Loading all PARA data...")
+ 59 |         
+ 60 |         async let areasTask = loadAreas()
+    |                   |- warning: constant 'areasTask' inferred to have type '()', which may be unexpected
+    |                   `- note: add an explicit type annotation to silence this warning
+ 61 |         async let projectsTask = loadProjects()
+ 62 |         async let resourcesTask = loadResources()
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/PARADataViewModel.swift:61:19: warning: constant 'projectsTask' inferred to have type '()', which may be unexpected
+ 59 |         
+ 60 |         async let areasTask = loadAreas()
+ 61 |         async let projectsTask = loadProjects()
+    |                   |- warning: constant 'projectsTask' inferred to have type '()', which may be unexpected
+    |                   `- note: add an explicit type annotation to silence this warning
+ 62 |         async let resourcesTask = loadResources()
+ 63 |         async let archivesTask = loadArchives()
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/PARADataViewModel.swift:62:19: warning: constant 'resourcesTask' inferred to have type '()', which may be unexpected
+ 60 |         async let areasTask = loadAreas()
+ 61 |         async let projectsTask = loadProjects()
+ 62 |         async let resourcesTask = loadResources()
+    |                   |- warning: constant 'resourcesTask' inferred to have type '()', which may be unexpected
+    |                   `- note: add an explicit type annotation to silence this warning
+ 63 |         async let archivesTask = loadArchives()
+ 64 |         async let blobsTask = loadRecentBlobs()
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/PARADataViewModel.swift:63:19: warning: constant 'archivesTask' inferred to have type '()', which may be unexpected
+ 61 |         async let projectsTask = loadProjects()
+ 62 |         async let resourcesTask = loadResources()
+ 63 |         async let archivesTask = loadArchives()
+    |                   |- warning: constant 'archivesTask' inferred to have type '()', which may be unexpected
+    |                   `- note: add an explicit type annotation to silence this warning
+ 64 |         async let blobsTask = loadRecentBlobs()
+ 65 |         async let tasksTask = loadFocusTasks()
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/PARADataViewModel.swift:64:19: warning: constant 'blobsTask' inferred to have type '()', which may be unexpected
+ 62 |         async let resourcesTask = loadResources()
+ 63 |         async let archivesTask = loadArchives()
+ 64 |         async let blobsTask = loadRecentBlobs()
+    |                   |- warning: constant 'blobsTask' inferred to have type '()', which may be unexpected
+    |                   `- note: add an explicit type annotation to silence this warning
+ 65 |         async let tasksTask = loadFocusTasks()
+ 66 |         
+
+/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/PARADataViewModel.swift:65:19: warning: constant 'tasksTask' inferred to have type '()', which may be unexpected
+ 63 |         async let archivesTask = loadArchives()
+ 64 |         async let blobsTask = loadRecentBlobs()
+ 65 |         async let tasksTask = loadFocusTasks()
+    |                   |- warning: constant 'tasksTask' inferred to have type '()', which may be unexpected
+    |                   `- note: add an explicit type annotation to silence this warning
+ 66 |         
+ 67 |         // Wait for all data to load

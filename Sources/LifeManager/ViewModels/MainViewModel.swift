@@ -30,6 +30,7 @@ class MainViewModel: ObservableObject {
     private let supabaseService = SupabaseService.shared
     internal let llmService = LLMServiceCoordinator.shared
     private let brainDumpProcessor = LLMBrainDumpProcessor()
+    private let brainDumpVM = BrainDumpViewModel()
     private let logger = Logger.shared
     
     // MARK: - Development Mode
@@ -38,7 +39,7 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Authentication State
     
-    @Published var isAuthenticated = false
+    @Published var isAuthenticated = true // BYPASS: Always authenticated for immediate access
     @Published var currentUser: User?
     @Published var isLoading = false
     @Published var authError: String?
@@ -125,8 +126,7 @@ class MainViewModel: ObservableObject {
             Logger.shared.debug("MAIN_VM: Blob serialization test completed")
         }
         
-        Logger.shared.debug("MAIN_VM: Setting up authentication listener")
-        setupAuthListener()
+        Logger.shared.debug("MAIN_VM: Skipping authentication setup - bypassed for immediate access")
         
         // FIXED: Only start log monitoring in debug builds to avoid system password prompts
         #if DEBUG
@@ -341,10 +341,8 @@ class MainViewModel: ObservableObject {
     // MARK: - Data Loading
     
     private func loadInitialData() async {
-        guard isAuthenticated else { 
-            Logger.shared.debug("DATA_LOAD: Skipping data load - user not authenticated")
-            return 
-        }
+        // BYPASS: Skip authentication check for immediate access
+        Logger.shared.debug("DATA_LOAD: Authentication bypassed - loading data immediately")
         
         Logger.shared.info("DATA_LOAD: Starting initial data load")
     
@@ -2269,10 +2267,7 @@ class MainViewModel: ObservableObject {
             return
         }
         
-        let startTime = Date()
         Logger.shared.brainDumpStart(inboxInput)
-        isProcessingInbox = true
-        startBrainDumpProgressTimer()
         
         // Clear any previous messages
         errorMessage = ""
@@ -2280,64 +2275,28 @@ class MainViewModel: ObservableObject {
         
         Task {
             do {
-                // Show initial progress
+                // FIXED: Delegate to BrainDumpViewModel which has the improved PARA logic
+                // First set the input in the BrainDumpViewModel
                 await MainActor.run {
-                    self.successMessage = "🧠 Analyzing your input..."
+                    self.brainDumpVM.inboxInput = self.inboxInput
                 }
-                Logger.shared.brainDumpProgress("UI: Showing analysis message")
                 
-                try await Task.sleep(nanoseconds: 800_000_000) // 0.8 second delay for UI feedback
+                try await brainDumpVM.processBrainDump()
                 
+                // After processing completes, sync the results to MainViewModel
                 await MainActor.run {
-                    self.successMessage = "🧠 Loading context memory..."
-                }
-                Logger.shared.brainDumpProgress("UI: Showing context loading message")
-                
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-                
-                await MainActor.run {
-                    self.successMessage = "🤖 Connecting to AI services..."
-                }
-                Logger.shared.brainDumpProgress("UI: Showing AI connection message")
-                
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-                
-                await MainActor.run {
-                    self.successMessage = "🎯 Applying personal rules & context..."
-                }
-                Logger.shared.brainDumpProgress("UI: Showing intelligent processing message")
-                
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-                
-                Logger.shared.brainDumpProgress("Calling enhanced brain dump processor with AI services...")
-                // Use enhanced brain dump processor with integrated AI services
-                let result = try await brainDumpProcessor.processBrainDump(inboxInput)
-                
-                let processingTime = Date().timeIntervalSince(startTime)
-                Logger.shared.brainDumpSuccess(result.suggestedItems.count, processingTime: processingTime)
-                
-                await MainActor.run {
-                    Logger.shared.brainDumpProgress("Setting result and showing review UI")
-                    let finalElapsedTime = self.brainDumpElapsedTime
-                    self.stopBrainDumpProgressTimer()
+                    // Copy results from BrainDumpViewModel to MainViewModel for UI compatibility
+                    self.brainDumpResult = self.brainDumpVM.brainDumpResult
+                    self.showingBrainDumpReview = self.brainDumpVM.showingBrainDumpReview
+                    self.isProcessingInbox = self.brainDumpVM.isProcessingInbox
                     
-                    // Show completion message
-                    self.brainDumpProgressMessage = "Thought for \(finalElapsedTime) seconds"
-                    
-                    self.brainDumpResult = result
-                    self.showingBrainDumpReview = true
-                    self.isProcessingInbox = false
-                    
-                    // Show success message with details
-                    if result.suggestedItems.count > 0 {
+                    if let result = self.brainDumpResult, result.suggestedItems.count > 0 {
                         self.successMessage = "✅ Success! Found \(result.suggestedItems.count) items to review"
                         Logger.shared.success("BRAIN DUMP UI: Success message shown - \(result.suggestedItems.count) items")
                     } else {
                         self.successMessage = "✅ Processing complete - no items extracted"
                         Logger.shared.warning("BRAIN DUMP UI: No items extracted from input")
                     }
-                    
-                    Logger.shared.info("BRAIN DUMP UI: Review UI visible: \(self.showingBrainDumpReview)")
                     
                     // Keep success message visible for 3 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -2347,41 +2306,11 @@ class MainViewModel: ObservableObject {
                     }
                 }
                 
-            } catch LLMError.missingAPIKey {
-                let processingTime = Date().timeIntervalSince(startTime)
-                Logger.shared.brainDumpError(LLMError.missingAPIKey, processingTime: processingTime)
-                
-                await MainActor.run {
-                    self.stopBrainDumpProgressTimer()
-                    self.isProcessingInbox = false
-                    self.successMessage = ""
-                    self.errorMessage = "❌ Brain dump requires OpenAI API key. Please check your config.txt file."
-                    
-                    // Keep error message visible for 5 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                        self.errorMessage = ""
-                    }
-                }
             } catch {
-                let processingTime = Date().timeIntervalSince(startTime)
-                Logger.shared.brainDumpError(error, processingTime: processingTime)
-                
                 await MainActor.run {
-                    self.stopBrainDumpProgressTimer()
                     self.isProcessingInbox = false
                     self.successMessage = ""
-                    
-                    // Show specific error messages based on error type
-                    if error.localizedDescription.contains("timed out") {
-                        self.errorMessage = "⏱️ Network timeout - AI processing took too long. Please try again."
-                        Logger.shared.error("BRAIN DUMP UI: Timeout error shown to user")
-                    } else if error.localizedDescription.contains("network") || error.localizedDescription.contains("connection") {
-                        self.errorMessage = "🌐 Network error - Please check your internet connection and try again."
-                        Logger.shared.error("BRAIN DUMP UI: Network error shown to user")
-                    } else {
-                        self.errorMessage = "❌ Processing failed: \(error.localizedDescription)"
-                        Logger.shared.error("BRAIN DUMP UI: Generic error shown to user")
-                    }
+                    self.errorMessage = "❌ Processing failed: \(error.localizedDescription)"
                     
                     // Keep error message visible for 5 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {

@@ -110,8 +110,12 @@ class LLMConfigurationService: ObservableObject {
         
         var isAvailable: Bool {
             switch self {
-            case .openAI: return !LLMConfigurationService.shared.getOpenAIKey().isEmpty && LLMConfigurationService.shared.getOpenAIKey() != "your-openai-api-key-here"
-            case .claude: return !LLMConfigurationService.shared.getClaudeKey().isEmpty
+            case .openAI: 
+                let key = APIConfig.openAIKey
+                return !key.isEmpty && key != "your-openai-api-key-here"
+            case .claude: 
+                let key = APIConfig.claudeKey
+                return !key.isEmpty
             }
         }
     }

@@ -310,6 +310,7 @@ class EmbeddingsService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0 // 30 second timeout to prevent indefinite hangs
         request.httpBody = requestData
         
         do {
@@ -790,6 +791,8 @@ private extension EmbeddingsService {
         
         // Priority-based enhancement
         switch item.priority {
+        case .critical:
+            enhanced *= 1.35
         case .urgent:
             enhanced *= 1.25
         case .high:

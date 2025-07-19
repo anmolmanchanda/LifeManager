@@ -499,4 +499,38 @@ class TaskRepository: ObservableObject {
     func fetchTasksCompletedBetween(start: Date, end: Date) async throws -> [LifeTask] {
         return try await getCompletedTasks(from: start, to: end)
     }
+    
+    /// Fetch tasks due soon for focus view
+    func fetchTasksDueSoon(within days: Int = 7) async throws -> [LifeTask] {
+        let calendar = Calendar.current
+        let endDate = calendar.date(byAdding: .day, value: days, to: Date()) ?? Date()
+        
+        let response: [LifeTask] = try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .is("deleted_at", value: nil)
+            .lte("due_date", value: endDate.ISO8601Format())
+            .order("due_date", ascending: true)
+            .execute()
+            .value
+        
+        return response
+    }
+    
+    /// Fetch tasks created in the last N days
+    func fetchTasksCreatedInLast(days: Int) async throws -> [LifeTask] {
+        let calendar = Calendar.current
+        let startDate = calendar.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        
+        let response: [LifeTask] = try await supabaseService.client
+            .from(SupabaseService.TableName.tasks.rawValue)
+            .select()
+            .is("deleted_at", value: nil)
+            .gte("created_at", value: startDate.ISO8601Format())
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        
+        return response
+    }
 } 

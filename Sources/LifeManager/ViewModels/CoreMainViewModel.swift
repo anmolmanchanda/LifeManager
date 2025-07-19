@@ -51,11 +51,16 @@ class CoreMainViewModel: ObservableObject {
             logger.info("🔧 CORE: Blob serialization test completed")
         }
         
-        logger.info("🔧 CORE: Setting up auth listener")
-        setupAuthListener()
+        // FIXED: Skip auth listener to prevent keychain access - using bypass mode
+        logger.info("🔧 CORE: Skipping auth listener setup - authentication bypassed")
         
-        // Start log monitoring automatically
+        // Set authentication state directly for bypass mode
+        isAuthenticated = true
+        
+        // FIXED: Only start log monitoring in debug builds to prevent permission dialogs
+        #if DEBUG
         startLogMonitoring()
+        #endif
         
         Task {
             logger.info("🔧 CORE: Loading initial data")

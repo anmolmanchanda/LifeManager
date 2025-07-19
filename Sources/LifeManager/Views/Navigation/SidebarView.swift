@@ -47,8 +47,8 @@ struct SidebarView: View {
             }
             
             Section("Views") {
-                NavigationLink(destination: FocusView().environmentObject(viewModel)) {
-                    Label("Focus", systemImage: "scope")
+                NavigationLink(destination: Text("Enhanced Focus - Temporarily Disabled").environmentObject(viewModel)) {
+                    Label("Enhanced Focus", systemImage: "scope")
                 }
                 .tag(PARAView.focus)
                 
@@ -57,8 +57,8 @@ struct SidebarView: View {
                 }
                 .tag(PARAView.calendar)
                 
-                NavigationLink(destination: TimelineView().environmentObject(viewModel)) {
-                    Label("Timeline", systemImage: "timeline.selection")
+                NavigationLink(destination: Text("Intelligent Timeline - Temporarily Disabled").environmentObject(viewModel)) {
+                    Label("Intelligent Timeline", systemImage: "timeline.selection")
                 }
                 .tag(PARAView.timeline)
                 
@@ -71,6 +71,13 @@ struct SidebarView: View {
                     Label("Tags", systemImage: "tag")
                 }
                 .tag(PARAView.tags)
+            }
+            
+            Section("Automation") {
+                NavigationLink(destination: Text("Automation Dashboard - Temporarily Disabled").environmentObject(viewModel)) {
+                    Label("Automation Dashboard", systemImage: "gearshape.2")
+                }
+                .tag(PARAView.automationDashboard)
             }
             
             Section("Search & History") {

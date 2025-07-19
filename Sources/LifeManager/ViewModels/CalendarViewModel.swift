@@ -82,7 +82,8 @@ class CalendarViewModel: ObservableObject {
     // MARK: - Private Properties
     
     private var cancellables = Set<AnyCancellable>()
-    private let togglService = TogglService()
+    // DISABLED: TogglService disabled to prevent keychain access
+    // private let togglService = TogglService()
     private let bufferService = BufferManagementService()
     
     // MARK: - Initialization
@@ -203,9 +204,11 @@ class CalendarViewModel: ObservableObject {
             let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? selectedDate
             
             // First ensure projects are fetched for colors
-            await togglService.fetchProjects()
+            // DISABLED: TogglService calls commented out to prevent keychain access
+            // await togglService.fetchProjects()
             
-            let togglEvents = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            // let togglEvents = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            let togglEvents: [TogglTimeEntry] = [] // Empty array to maintain compatibility
             await MainActor.run {
                 // Update events with Toggl data
                 updateEventsWithTogglData(togglEvents)
@@ -513,13 +516,16 @@ class CalendarViewModel: ObservableObject {
             let startOfDay = calendar.startOfDay(for: date)
             let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
             
-            let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            // DISABLED: TogglService calls commented out to prevent keychain access
+            // let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            let togglEntries: [TogglTimeEntry] = [] // Empty array to maintain compatibility
             
             // Convert TogglTimeEntry to CalendarEvent
             let calendarEvents = togglEntries.map { togglEntry in
                 // Get project color from TogglService
                 let projectColor = togglEntry.projectId.flatMap { projectId in
-                    togglService.projectColors[projectId]
+                    // togglService.projectColors[projectId]
+                    Color.blue // Default color since togglService is disabled
                 } ?? .green  // Default to green if no project color found
                 
                 return CalendarEvent(
@@ -577,8 +583,9 @@ class CalendarViewModel: ObservableObject {
             // Add 3-second delay before API call to prevent rate limiting
             try await Task.sleep(nanoseconds: 3_000_000_000)
             
-            // Fetch entries for the entire month view range with rate limiting
-            let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            // DISABLED: TogglService calls commented out to prevent keychain access
+            // let togglEntries = try await togglService.fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
+            let togglEntries: [TogglTimeEntry] = [] // Empty array to maintain compatibility
             
             // Group by date and get top 3 longest projects per day to reduce data further
             let entriesByDate = Dictionary(grouping: togglEntries) { entry in
@@ -639,8 +646,9 @@ class CalendarViewModel: ObservableObject {
     /// Load events for a date range (used for month view to avoid rate limiting)
     func loadEventsForDateRange(startDate: Date, endDate: Date) async {
         do {
-            // Sync with Toggl for the entire range in one request
-            let togglEvents = try await togglService.fetchTimeEntries(startDate: startDate, endDate: endDate)
+            // DISABLED: TogglService calls commented out to prevent keychain access
+            // let togglEvents = try await togglService.fetchTimeEntries(startDate: startDate, endDate: endDate)
+            let togglEvents: [TogglTimeEntry] = [] // Empty array to maintain compatibility
             
             await MainActor.run {
                 // Update events with Toggl data
@@ -735,7 +743,8 @@ class CalendarViewModel: ObservableObject {
         let calendarEvents = togglEvents.map { togglEntry in
             // Get project color from TogglService
             let projectColor = togglEntry.projectId.flatMap { projectId in
-                togglService.projectColors[projectId]
+                // togglService.projectColors[projectId]
+                Color.blue // Default color since togglService is disabled
             } ?? .green  // Default to green if no project color found
             
             return CalendarEvent(
@@ -857,7 +866,7 @@ class CalendarViewModel: ObservableObject {
         let success = await parkingLotService.attemptReschedule(
             parkedEventId: eventId,
             targetDate: targetDate,
-            allEvents: events
+            bufferMinutes: 15
         )
         
         if success {

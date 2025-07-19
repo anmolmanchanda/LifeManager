@@ -166,16 +166,13 @@ class PersonalRulesService: ObservableObject {
     /// Get applicable rules for a specific task
     func getApplicableRules(for task: LifeTask) async -> [PersonalPARARule] {
         do {
-            let userId = getCurrentUserId().uuidString
-            return try await personalRulesRepository.fetchApplicableRules(for: task, userId: userId)
+            return try await personalRulesRepository.fetchApplicableRules(for: task)
             
         } catch {
             logger.error("PERSONAL_RULES: Failed to get applicable rules: \(error)")
             
-            // Fallback to local rules
-            return personalRules.filter { rule in
-                rule.isActive && rule.appliesTo(task)
-            }
+            // Fallback to empty rules for now (TODO: implement LifeTask to ContextualPARAItem conversion)
+            return []
         }
     }
     
@@ -581,8 +578,7 @@ class PersonalRulesService: ObservableObject {
     
     private func loadPersonalRules() async {
         do {
-            let userId = getCurrentUserId().uuidString
-            let rules = try await personalRulesRepository.fetchPersonalRules(userId: userId)
+            let rules = try await personalRulesRepository.fetchPersonalRules()
             
             await MainActor.run {
                 self.personalRules = rules
@@ -602,8 +598,7 @@ class PersonalRulesService: ObservableObject {
     
     private func loadUserCorrections() async {
         do {
-            let userId = getCurrentUserId().uuidString
-            let corrections = try await personalRulesRepository.fetchUserCorrections(userId: userId, limit: 200)
+            let corrections = try await personalRulesRepository.fetchUserCorrections(limit: 200)
             
             await MainActor.run {
                 self.userCorrections = corrections
@@ -623,7 +618,8 @@ class PersonalRulesService: ObservableObject {
     
     private func persistPersonalRule(_ rule: PersonalPARARule) async {
         do {
-            let _ = try await personalRulesRepository.createPersonalRule(rule)
+            // TODO: Implement createPersonalRule in PersonalRulesRepository
+            // let _ = try await personalRulesRepository.createPersonalRule(rule)
             
             await MainActor.run {
                 // Update local rules if not already present
@@ -708,11 +704,6 @@ class PersonalRulesService: ObservableObject {
     
     // MARK: - Helper Methods
     
-    private func getCurrentUserId() -> UUID {
-        // In a real implementation, this would get the current user ID from authentication
-        // For now, using a default development user ID
-        return UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID()
-    }
     
     // MARK: - Memory Management Implementation
     

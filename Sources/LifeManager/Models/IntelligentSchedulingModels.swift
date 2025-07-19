@@ -723,23 +723,7 @@ struct NotificationSettings: Codable {
     )
 }
 
-// MARK: - Task Dependencies
-
-/// Task dependency information
-struct TaskDependency: Identifiable, Codable {
-    let id = UUID()
-    let taskId: UUID
-    let dependsOnTaskId: UUID
-    let dependencyType: DependencyType
-    let createdAt: Date
-}
-
-enum DependencyType: String, Codable, CaseIterable {
-    case finishToStart = "finish_to_start"     // Prerequisite must finish before this can start
-    case startToStart = "start_to_start"       // Both can start at same time, but prerequisite must start first
-    case finishToFinish = "finish_to_finish"   // Both must finish at same time
-    case startToFinish = "start_to_finish"     // This must finish when prerequisite starts (rare)
-}
+// MARK: - Task Dependencies (defined above)
 
 /// Extended task information with dependency data
 struct TaskWithDependencies {
@@ -751,7 +735,7 @@ struct TaskWithDependencies {
     /// Check if all prerequisites are completed
     var canStart: Bool {
         return prerequisites.allSatisfy { prerequisite in
-            prerequisite.status == .done || prerequisite.status == .completed
+            prerequisite.status == .completed
         }
     }
     

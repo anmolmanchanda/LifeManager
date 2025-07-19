@@ -106,6 +106,7 @@ class LLMCommunicationService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(configService.getOpenAIKey())", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 30.0 // 30 second timeout
         
         let requestBody: [String: Any] = [
             "model": "gpt-4",
@@ -164,6 +165,7 @@ class LLMCommunicationService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.timeoutInterval = 30.0 // 30 second timeout
         
         let requestBody: [String: Any] = [
             "model": "claude-3-sonnet-20240229",

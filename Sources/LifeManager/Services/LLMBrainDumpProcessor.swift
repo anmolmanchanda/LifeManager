@@ -50,7 +50,9 @@ class LLMBrainDumpProcessor {
     func processBrainDump(_ input: String) async throws -> BrainDumpResult {
         Logger.shared.brainDumpProgress("🧠 Starting enhanced brain dump processing...")
         
-        // Step 1: Prepare processing context using ContextMemoryService
+        // Add global timeout of 90 seconds to prevent infinite hangs
+        return try await withTimeout(seconds: 90) { [self] in
+            // Step 1: Prepare processing context using ContextMemoryService
         let processingContext = await contextMemoryService.getCurrentContext()
         Logger.shared.brainDumpProgress("📝 Loaded context: \(processingContext.recentItems.count) recent items")
         
@@ -100,6 +102,7 @@ class LLMBrainDumpProcessor {
         } catch {
             Logger.shared.error("🧠 Enhanced processing failed, falling back to basic LLM: \(error)")
             return try await processBrainDumpFallback(input)
+        }
         }
     }
     
@@ -484,12 +487,17 @@ class LLMBrainDumpProcessor {
     }
     
     private func createFallbackItem(from text: String) -> EnhancedBrainDumpItem {
-        // Simple heuristics for fallback processing
+        // Improved heuristics for fallback processing
         let lowercaseText = text.lowercased()
         
-        let contentType: ContentType = lowercaseText.contains("note") ? .note : .task
-        let category: PARACategory = lowercaseText.contains("project") ? .project : .resource
-        let priority: TaskPriority = lowercaseText.contains("urgent") ? .urgent : .medium
+        // Better content type inference
+        let contentType: ContentType = inferContentType(from: lowercaseText)
+        
+        // Better PARA category inference
+        let category: PARACategory = inferPARACategory(from: lowercaseText)
+        
+        // Better priority inference
+        let priority: TaskPriority = inferPriority(from: lowercaseText)
         
         return EnhancedBrainDumpItem(
             id: UUID(),
@@ -535,6 +543,105 @@ class LLMBrainDumpProcessor {
                 bufferTime: 900
             )
         )
+    }
+    
+    // MARK: - Improved Heuristics Helper Methods
+    
+    /// Infer content type from text using improved heuristics
+    private func inferContentType(from text: String) -> ContentType {
+        // Task indicators
+        if text.contains("need to") || text.contains("should") || text.contains("must") ||
+           text.contains("todo") || text.contains("action") || text.contains("complete") ||
+           text.contains("finish") || text.contains("do ") || text.contains("create") ||
+           text.contains("implement") || text.contains("setup") || text.contains("build") {
+            return .task
+        }
+        
+        // Note indicators (general information, ideas, thoughts)
+        return .note
+    }
+    
+    /// Infer PARA category from text using improved heuristics
+    private func inferPARACategory(from text: String) -> PARACategory {
+        // Project indicators: deadlines, deliverables, goals, completion
+        if text.contains("project") || text.contains("deadline") || text.contains("deliverable") ||
+           text.contains("goal") || text.contains("complete") || text.contains("finish") ||
+           text.contains("achieve") || text.contains("outcome") || text.contains("milestone") ||
+           text.contains("launch") || text.contains("release") || text.contains("implement") {
+            return .project
+        }
+        
+        // Area indicators: ongoing, responsibility, maintain, manage
+        if text.contains("area") || text.contains("ongoing") || text.contains("responsibility") ||
+           text.contains("maintain") || text.contains("manage") || text.contains("routine") ||
+           text.contains("habit") || text.contains("standard") || text.contains("process") ||
+           text.contains("workflow") || text.contains("system") {
+            return .area
+        }
+        
+        // Archive indicators: completed, old, inactive, done
+        if text.contains("archive") || text.contains("completed") || text.contains("inactive") ||
+           text.contains("done") || text.contains("old") || text.contains("finished") ||
+           text.contains("closed") || text.contains("obsolete") {
+            return .archive
+        }
+        
+        // Resource indicators and default: reference materials, guides, information
+        return .resource
+    }
+    
+    /// Infer priority from text using improved heuristics
+    private func inferPriority(from text: String) -> TaskPriority {
+        // Urgent indicators
+        if text.contains("urgent") || text.contains("asap") || text.contains("immediately") ||
+           text.contains("critical") || text.contains("emergency") || text.contains("now") {
+            return .urgent
+        }
+        
+        // High priority indicators
+        if text.contains("high") || text.contains("important") || text.contains("priority") ||
+           text.contains("soon") || text.contains("quickly") || text.contains("fast") {
+            return .high
+        }
+        
+        // Low priority indicators
+        if text.contains("low") || text.contains("later") || text.contains("someday") ||
+           text.contains("maybe") || text.contains("eventually") || text.contains("nice to have") {
+            return .low
+        }
+        
+        // Default to medium priority
+        return .medium
+    }
+}
+
+// MARK: - Timeout Helper
+
+/// Helper function to add timeout to async operations
+func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+    return try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask {
+            try await operation()
+        }
+        
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw TimeoutError()
+        }
+        
+        guard let result = try await group.next() else {
+            throw TimeoutError()
+        }
+        
+        group.cancelAll()
+        return result
+    }
+}
+
+/// Timeout error for brain dump processing
+struct TimeoutError: Error, LocalizedError {
+    var errorDescription: String? {
+        return "Brain dump processing timed out after 90 seconds. Please try again with a shorter input."
     }
 }
 

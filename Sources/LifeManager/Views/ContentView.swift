@@ -150,11 +150,15 @@ struct PARADetailView: View {
             case .archives:
                 ArchivesView()
             case .focus:
-                FocusView()
+                Text("Focus View - Temporarily Disabled")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.gray.opacity(0.1))
             case .calendar:
                 CalendarView()
             case .timeline:
-                TimelineView()
+                Text("Timeline View - Temporarily Disabled")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.gray.opacity(0.1))
             case .mindmap:
                 MindMapView()
             case .tags:
@@ -163,6 +167,10 @@ struct PARADetailView: View {
                 SearchView()
             case .history:
                 HistoryView()
+            case .automationDashboard:
+                Text("Automation Dashboard - Temporarily Disabled")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.gray.opacity(0.1))
             }
         }
         .environmentObject(viewModel)

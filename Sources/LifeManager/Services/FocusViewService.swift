@@ -135,7 +135,7 @@ class FocusViewService: ObservableObject {
             // Fetch relevant tasks and events
             let overdueTasks = try await taskRepository.fetchOverdueTasks()
             let todayTasks = try await taskRepository.fetchTasksDueToday()
-            let upcomingTasks = try await taskRepository.fetchTasksDueSoon(days: 3)
+            let upcomingTasks = try await taskRepository.fetchTasksDueSoon(within: 3)
             let focusTasks = try await taskRepository.fetchFocusTasks()
             
             // Combine and deduplicate
@@ -170,10 +170,10 @@ class FocusViewService: ObservableObject {
         do {
             // Calculate AI priority and reasoning
             let priorityIntelligence = await priorityEngine.calculatePriorityIntelligence(for: task)
-            let aiReason = await generateAIReasoning(for: task, intelligence: priorityIntelligence)
+            let aiReason = await generateAIReasoning(for: task, intelligence: priorityIntelligence ?? createDefaultIntelligence())
             
             // Determine focus priority from task priority and AI analysis
-            let focusPriority = mapToFocusPriority(task.priority, aiScore: priorityIntelligence.overallScore)
+            let focusPriority = mapToFocusPriority(task.priority, aiScore: priorityIntelligence?.intelligenceScore ?? 0.5)
             
             // Determine urgency from due date
             let urgency = calculateUrgencyLevel(for: task)
@@ -353,6 +353,8 @@ class FocusViewService: ObservableObject {
         switch taskPriority {
         case .critical:
             return .critical
+        case .urgent:
+            return .critical
         case .high:
             return aiScore > 0.8 ? .critical : .high
         case .medium:
@@ -464,7 +466,7 @@ class FocusViewService: ObservableObject {
             
             // Generate mood assessment using AI
             let assessment = await generateMoodAssessment(
-                context: recentContext,
+                context: [recentContext],
                 patterns: completionPatterns
             )
             
@@ -861,7 +863,7 @@ class FocusViewService: ObservableObject {
         
         if !newBadges.isEmpty {
             // Trigger celebration notification
-            await proactiveNotifications.sendAchievementNotification(newBadges.first!)
+            await proactiveNotifications.sendAchievementNotification(newBadges.first!.title)
         }
     }
     
@@ -949,9 +951,8 @@ class FocusViewService: ObservableObject {
     
     private func calculateAverageCompletionTime(_ tasks: [LifeTask]) -> Double {
         let completedTasks = tasks.compactMap { task -> Double? in
-            guard let createdString = task.createdAt,
-                  let completedString = task.completedAt,
-                  let created = ISO8601DateFormatter().date(from: createdString),
+            guard let completedString = task.completedAt,
+                  let created = ISO8601DateFormatter().date(from: task.createdAt),
                   let completed = ISO8601DateFormatter().date(from: completedString) else {
                 return nil
             }
@@ -1000,5 +1001,19 @@ class FocusViewService: ObservableObject {
     /// Clear all selections
     func clearSelection() {
         selectedFocusItems.removeAll()
+    }
+    
+    /// Create default priority intelligence when none is available
+    private func createDefaultIntelligence() -> PriorityIntelligence {
+        return PriorityIntelligence(
+            taskId: UUID(),
+            intelligenceScore: 0.5,
+            urgencyScore: 0.5,
+            importanceScore: 0.5,
+            contextScore: 0.5,
+            userPatternScore: 0.5,
+            reasoningFactors: ["default"],
+            confidence: 0.5
+        )
     }
 }

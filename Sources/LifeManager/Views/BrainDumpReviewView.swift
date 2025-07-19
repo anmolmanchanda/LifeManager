@@ -711,6 +711,8 @@ extension PARACategory {
 extension TaskPriority {
     var color: Color {
         switch self {
+        case .critical:
+            return .purple
         case .urgent:
             return .red
         case .high:

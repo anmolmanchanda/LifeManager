@@ -11,12 +11,11 @@ class UserPreferencesRepository: ObservableObject {
     // MARK: - User Scheduling Preferences
     
     /// Save user scheduling preferences to database
-    func saveSchedulingPreferences(_ preferences: UserSchedulingPreferences, userId: String) async throws {
+    func saveSchedulingPreferences(_ preferences: UserSchedulingPreferences) async throws {
         do {
             // Convert preferences to database format
             let preferencesData = UserSchedulingPreferencesData(
                 id: UUID(),
-                userId: userId,
                 workingHoursStartHour: preferences.workingHours.startHour,
                 workingHoursEndHour: preferences.workingHours.endHour,
                 workingHoursWorkDays: preferences.workingHours.workDays,
@@ -29,13 +28,12 @@ class UserPreferencesRepository: ObservableObject {
             )
             
             // Check if preferences already exist for this user
-            let existingPreferences = try await fetchSchedulingPreferencesData(userId: userId)
+            let existingPreferences = try await fetchSchedulingPreferencesData()
             
             if let existing = existingPreferences {
                 // Update existing preferences
                 let updatedData = UserSchedulingPreferencesData(
                     id: existing.id,
-                    userId: existing.userId,
                     workingHoursStartHour: preferences.workingHours.startHour,
                     workingHoursEndHour: preferences.workingHours.endHour,
                     workingHoursWorkDays: preferences.workingHours.workDays,
@@ -61,7 +59,7 @@ class UserPreferencesRepository: ObservableObject {
                 )
             }
             
-            logger.success("USER_PREFERENCES: Saved scheduling preferences for user \(userId)")
+            logger.success("USER_PREFERENCES: Saved scheduling preferences")
             
         } catch {
             logger.error("USER_PREFERENCES: Failed to save scheduling preferences: \(error)")
@@ -70,10 +68,10 @@ class UserPreferencesRepository: ObservableObject {
     }
     
     /// Load user scheduling preferences from database
-    func loadSchedulingPreferences(userId: String) async throws -> UserSchedulingPreferences? {
+    func loadSchedulingPreferences() async throws -> UserSchedulingPreferences? {
         do {
-            guard let data = try await fetchSchedulingPreferencesData(userId: userId) else {
-                logger.debug("USER_PREFERENCES: No scheduling preferences found for user \(userId)")
+            guard let data = try await fetchSchedulingPreferencesData() else {
+                logger.debug("USER_PREFERENCES: No scheduling preferences found")
                 return nil
             }
             
@@ -94,7 +92,7 @@ class UserPreferencesRepository: ObservableObject {
                 notificationSettings: notificationSettings
             )
             
-            logger.success("USER_PREFERENCES: Loaded scheduling preferences for user \(userId)")
+            logger.success("USER_PREFERENCES: Loaded scheduling preferences")
             return preferences
             
         } catch {
@@ -104,11 +102,10 @@ class UserPreferencesRepository: ObservableObject {
     }
     
     /// Fetch raw scheduling preferences data from database
-    private func fetchSchedulingPreferencesData(userId: String) async throws -> UserSchedulingPreferencesData? {
+    private func fetchSchedulingPreferencesData() async throws -> UserSchedulingPreferencesData? {
         let response: [UserSchedulingPreferencesData] = try await supabaseService.client
             .from("user_scheduling_preferences")
             .select()
-            .eq("user_id", value: userId)
             .order("updated_at", ascending: false)
             .limit(1)
             .execute()
@@ -122,15 +119,13 @@ class UserPreferencesRepository: ObservableObject {
     /// Save notification preferences to database
     func saveNotificationPreferences(
         _ preferences: [NotificationType: NotificationPreference],
-        userId: String
     ) async throws {
         do {
             // Clear existing preferences for this user
             try await supabaseService.client
                 .from("notification_preferences")
                 .delete()
-                .eq("user_id", value: userId)
-                .execute()
+                    .execute()
             
             // Insert new preferences
             for (_, preference) in preferences {
@@ -152,7 +147,7 @@ class UserPreferencesRepository: ObservableObject {
                 )
             }
             
-            logger.success("USER_PREFERENCES: Saved \(preferences.count) notification preferences for user \(userId)")
+            logger.success("USER_PREFERENCES: Saved \(preferences.count) notification preferences")
             
         } catch {
             logger.error("USER_PREFERENCES: Failed to save notification preferences: \(error)")
@@ -161,13 +156,12 @@ class UserPreferencesRepository: ObservableObject {
     }
     
     /// Load notification preferences from database
-    func loadNotificationPreferences(userId: String) async throws -> [NotificationType: NotificationPreference] {
+    func loadNotificationPreferences() async throws -> [NotificationType: NotificationPreference] {
         do {
             let response: [NotificationPreferenceData] = try await supabaseService.client
                 .from("notification_preferences")
                 .select()
-                .eq("user_id", value: userId)
-                .execute()
+                    .execute()
                 .value
             
             var preferences: [NotificationType: NotificationPreference] = [:]
@@ -188,7 +182,7 @@ class UserPreferencesRepository: ObservableObject {
                 
                 let preference = NotificationPreference(
                     id: data.id,
-                    userId: data.userId,
+                    userId: data.userId ?? "",
                     notificationType: notificationType,
                     isEnabled: data.isEnabled,
                     preferredTiming: preferredTiming,
@@ -201,7 +195,7 @@ class UserPreferencesRepository: ObservableObject {
                 preferences[notificationType] = preference
             }
             
-            logger.success("USER_PREFERENCES: Loaded \(preferences.count) notification preferences for user \(userId)")
+            logger.success("USER_PREFERENCES: Loaded \(preferences.count) notification preferences")
             return preferences
             
         } catch {
@@ -229,17 +223,16 @@ class UserPreferencesRepository: ObservableObject {
     }
     
     /// Load scheduling patterns for a user
-    func loadSchedulingPatterns(userId: String) async throws -> [SchedulingPattern] {
+    func loadSchedulingPatterns() async throws -> [SchedulingPattern] {
         do {
             let response: [SchedulingPattern] = try await supabaseService.client
                 .from("scheduling_patterns")
                 .select()
-                .eq("user_id", value: userId)
-                .order("confidence", ascending: false)
+                    .order("confidence", ascending: false)
                 .execute()
                 .value
             
-            logger.success("USER_PREFERENCES: Loaded \(response.count) scheduling patterns for user \(userId)")
+            logger.success("USER_PREFERENCES: Loaded \(response.count) scheduling patterns")
             return response
             
         } catch {
@@ -338,7 +331,6 @@ class UserPreferencesRepository: ObservableObject {
 /// Database model for user scheduling preferences
 struct UserSchedulingPreferencesData: Codable, Identifiable {
     let id: UUID
-    let userId: String
     let workingHoursStartHour: Int
     let workingHoursEndHour: Int
     let workingHoursWorkDays: [Int]
@@ -351,7 +343,6 @@ struct UserSchedulingPreferencesData: Codable, Identifiable {
     
     enum CodingKeys: String, CodingKey {
         case id
-        case userId = "user_id"
         case workingHoursStartHour = "working_hours_start_hour"
         case workingHoursEndHour = "working_hours_end_hour"
         case workingHoursWorkDays = "working_hours_work_days"
@@ -367,7 +358,7 @@ struct UserSchedulingPreferencesData: Codable, Identifiable {
 /// Database model for notification preferences
 struct NotificationPreferenceData: Codable, Identifiable {
     let id: UUID
-    let userId: String
+    let userId: String?
     let notificationType: String
     let isEnabled: Bool
     let preferredTiming: Data?

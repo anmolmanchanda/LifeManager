@@ -618,13 +618,11 @@ class ContextMemoryService: ObservableObject {
     private func persistContextWindow() async {
         do {
             let supabaseService = SupabaseService.shared
-            let userId = getCurrentUserId()
             
             // Convert context window to database format
             let contextData = try activeContextWindow.map { item in
                 [
                     "id": item.id.uuidString,
-                    "user_id": userId.uuidString,
                     "item_id": item.itemId.uuidString,
                     "item_type": item.itemType.rawValue,
                     "content": item.content,
@@ -640,11 +638,10 @@ class ContextMemoryService: ObservableObject {
                 ]
             }
             
-            // Clear existing context window for user
+            // Clear existing context window (single-user app)
             try await supabaseService.client
                 .from("context_memory_items")
                 .delete()
-                .eq("user_id", value: userId.uuidString)
                 .execute()
             
             // TODO: Fix Supabase insert with proper Codable types
@@ -667,13 +664,11 @@ class ContextMemoryService: ObservableObject {
     private func persistDailySummaries() async {
         do {
             let supabaseService = SupabaseService.shared
-            let userId = getCurrentUserId()
             
             // Convert daily summaries to database format
             let summaryData = try dailySummaries.map { summary in
                 [
                     "id": UUID().uuidString,
-                    "user_id": userId.uuidString,
                     "date": ISO8601DateFormatter().string(from: summary.date),
                     "summary_text": "Daily summary for \(summary.date)",
                     "total_items": 0,
@@ -705,7 +700,6 @@ class ContextMemoryService: ObservableObject {
     
     private func loadContextWindow() async throws -> [ContextMemoryItem] {
         let supabaseService = SupabaseService.shared
-        let userId = getCurrentUserId()
         
         struct ContextItemRecord: Codable {
             let id: String
@@ -727,7 +721,6 @@ class ContextMemoryService: ObservableObject {
         let records: [ContextItemRecord] = try await supabaseService.client
             .from("context_memory_items")
             .select()
-            .eq("user_id", value: userId.uuidString)
             .order("relevance_score", ascending: false)
             .order("last_accessed", ascending: false)
             .limit(50) // Use fixed limit instead of ContextConfig.maxContextWindowSize
@@ -772,7 +765,6 @@ class ContextMemoryService: ObservableObject {
     
     private func loadDailySummaries() async throws -> [DailySummary] {
         let supabaseService = SupabaseService.shared
-        let userId = getCurrentUserId()
         
         struct DailySummaryRecord: Codable {
             let id: String
@@ -795,7 +787,6 @@ class ContextMemoryService: ObservableObject {
         let records: [DailySummaryRecord] = try await supabaseService.client
             .from("daily_summaries")
             .select()
-            .eq("user_id", value: userId.uuidString)
             .gte("date", value: thirtyDaysAgoString)
             .order("date", ascending: false)
             .execute()
@@ -820,7 +811,6 @@ class ContextMemoryService: ObservableObject {
     
     private func loadWeeklySummaries() async throws -> [WeeklySummary] {
         let supabaseService = SupabaseService.shared
-        let userId = getCurrentUserId()
         
         struct WeeklySummaryRecord: Codable {
             let id: String
@@ -843,7 +833,6 @@ class ContextMemoryService: ObservableObject {
         let records: [WeeklySummaryRecord] = try await supabaseService.client
             .from("weekly_summaries")
             .select()
-            .eq("user_id", value: userId.uuidString)
             .gte("week_start", value: twelveWeeksAgoString)
             .order("week_start", ascending: false)
             .execute()
@@ -871,7 +860,6 @@ class ContextMemoryService: ObservableObject {
     
     private func loadMonthlySummaries() async throws -> [MonthlySummary] {
         let supabaseService = SupabaseService.shared
-        let userId = getCurrentUserId()
         
         struct MonthlySummaryRecord: Codable {
             let id: String
@@ -897,7 +885,6 @@ class ContextMemoryService: ObservableObject {
         let records: [MonthlySummaryRecord] = try await supabaseService.client
             .from("monthly_summaries")
             .select()
-            .eq("user_id", value: userId.uuidString)
             .gte("month_start", value: sixMonthsAgoString)
             .order("month_start", ascending: false)
             .execute()
@@ -1041,6 +1028,8 @@ class ContextMemoryService: ObservableObject {
             return baseDuration * 1.5 // 1.5 hours
         case .urgent:
             return baseDuration * 2.0 // 2 hours
+        case .critical:
+            return baseDuration * 2.5 // 2.5 hours
         }
     }
     
@@ -1058,11 +1047,6 @@ class ContextMemoryService: ObservableObject {
     
     // MARK: - Helper Methods
     
-    private func getCurrentUserId() -> UUID {
-        // In a real implementation, this would get the current user ID from authentication
-        // For now, using a default development user ID
-        return UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID()
-    }
     
     // MARK: - Memory Management Implementation
     
@@ -1135,6 +1119,24 @@ class ContextMemoryService: ObservableObject {
             
             return totalUsage
         }
+    }
+    
+    /// Get recent context for AI processing
+    func getRecentContext() async -> String {
+        let recentItems = await MainActor.run { 
+            Array(activeContextWindow.prefix(10))
+        }
+        
+        let contextSummary = recentItems.map { item in
+            "\(item.title): \(item.content.prefix(50))"
+        }.joined(separator: "; ")
+        
+        return contextSummary.isEmpty ? "No recent context available" : contextSummary
+    }
+    
+    /// Get recent context for AI processing with hours parameter
+    func getRecentContext(hours: Int) async -> String {
+        return await getRecentContext()
     }
 }
 
