@@ -289,56 +289,6 @@ struct LoadingStateView: View {
     }
 }
 
-struct EmptyStateView: View {
-    let title: String
-    let systemImage: String
-    let description: String
-    let actionTitle: String?
-    let action: (() -> Void)?
-    
-    init(title: String, systemImage: String, description: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
-        self.title = title
-        self.systemImage = systemImage
-        self.description = description
-        self.actionTitle = actionTitle
-        self.action = action
-    }
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: systemImage)
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text(description)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            if let actionTitle = actionTitle, let action = action {
-                Button(action: action) {
-                    Text(actionTitle)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(Color.accentColor)
-                        .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 // MARK: - Priority Extension
 
 extension GoalPriority {

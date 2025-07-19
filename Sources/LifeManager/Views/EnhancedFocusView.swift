@@ -1079,17 +1079,6 @@ struct AdvancedSettingsSection: View {
 
 // MARK: - Supporting Types
 
-enum FocusFilter: String, CaseIterable {
-    case aiSuggested = "AI Suggested"
-    case urgentImportant = "Urgent & Important"
-    case quickWins = "Quick Wins"
-    case deepWork = "Deep Work"
-    case lowEnergy = "Low Energy"
-    
-    var title: String {
-        return self.rawValue
-    }
-}
 
 // Note: FocusItem is defined in Models/FocusViewModels.swift
 

@@ -962,13 +962,6 @@ enum CoordinationResult: String {
     case rejected = "rejected"
 }
 
-/// Decision outcome
-enum DecisionOutcome: String {
-    case pending = "pending"
-    case successful = "successful"
-    case failed = "failed"
-    case partialSuccess = "partial_success"
-}
 
 /// Cross-service optimization
 struct CrossServiceOptimization: Identifiable {

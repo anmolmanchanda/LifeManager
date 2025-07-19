@@ -43,7 +43,7 @@ extension TaskRepository {
             .from(SupabaseService.TableName.tasks.rawValue)
             .select()
             .gte("created_at", value: pastDateString)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -72,7 +72,7 @@ extension TaskRepository {
             .from(SupabaseService.TableName.tasks.rawValue)
             .select()
             .in("status", values: statusValues)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("priority", ascending: false)
             .order("created_at", ascending: false)
             .execute()
@@ -93,7 +93,7 @@ extension TaskRepository {
             .select()
             .gte("due_date", value: startDateString)
             .lte("due_date", value: endDateString)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("due_date", ascending: true)
             .execute()
             .value
@@ -108,7 +108,7 @@ extension TaskRepository {
             .from(SupabaseService.TableName.tasks.rawValue)
             .select()
             .eq("area_id", value: areaId.uuidString)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("priority", ascending: false)
             .order("created_at", ascending: false)
             .execute()
@@ -124,7 +124,7 @@ extension TaskRepository {
             .from(SupabaseService.TableName.tasks.rawValue)
             .select()
             .eq("resource_id", value: resourceId.uuidString)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("priority", ascending: false)
             .order("created_at", ascending: false)
             .execute()
@@ -278,7 +278,7 @@ extension TaskRepository {
             .eq("status", value: TaskStatus.inbox.rawValue)
             .is("due_date", value: nil)
             .lt("created_at", value: cutoffString)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("created_at", ascending: true)
             .execute()
             .value
@@ -294,7 +294,7 @@ extension TaskRepository {
         let response: [LifeTask] = try await supabaseService.client
             .from(SupabaseService.TableName.tasks.rawValue)
             .select()
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -315,7 +315,7 @@ extension TaskRepository {
         var query = supabaseService.client
             .from(SupabaseService.TableName.tasks.rawValue)
             .select()
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
         
         if let min = min {
             query = query.gte("estimated_duration", value: min)
@@ -346,7 +346,7 @@ extension TaskRepository {
             .select()
             .in("status", values: [TaskStatus.todo.rawValue, TaskStatus.inProgress.rawValue])
             .lt("updated_at", value: cutoffString)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("updated_at", ascending: true)
             .execute()
             .value
@@ -365,7 +365,7 @@ extension TaskRepository {
             .select()
             .eq("priority", value: priority.rawValue)
             .eq("work_personal", value: workPersonal.rawValue)
-            .is("deleted_at", value: nil)
+            .is("deleted_at", value: nil as String?)
             .order("created_at", ascending: false)
             .execute()
             .value

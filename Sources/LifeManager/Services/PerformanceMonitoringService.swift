@@ -1013,21 +1013,3 @@ struct AlertThresholds {
 
 // MARK: - Performance Timer
 
-/// High-precision performance timer for measuring operation duration
-class PerformanceTimer {
-    private let operation: String
-    private let startTime: CFAbsoluteTime
-    
-    init(operation: String) {
-        self.operation = operation
-        self.startTime = CFAbsoluteTimeGetCurrent()
-    }
-    
-    func end() -> TimeInterval {
-        return CFAbsoluteTimeGetCurrent() - startTime
-    }
-    
-    var elapsed: TimeInterval {
-        return CFAbsoluteTimeGetCurrent() - startTime
-    }
-}

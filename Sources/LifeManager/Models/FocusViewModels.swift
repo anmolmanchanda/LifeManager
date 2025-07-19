@@ -286,8 +286,8 @@ struct FocusFilter: Identifiable, Codable {
             icon: "flame",
             description: "Critical tasks that need immediate attention",
             criteria: FocusFilterCriteria(
-                urgency: [.urgent, .soonDue],
-                priority: [.critical, .high]
+                priority: [.critical, .high],
+                urgency: [.urgent, .soonDue]
             ),
             isDefault: true,
             sortOrder: 0
@@ -307,8 +307,8 @@ struct FocusFilter: Identifiable, Codable {
             icon: "bolt",
             description: "Tasks that can be completed quickly",
             criteria: FocusFilterCriteria(
-                maxDuration: 30,
-                complexity: [.simple]
+                complexity: [.simple],
+                maxDuration: 30
             ),
             isDefault: true,
             sortOrder: 2
@@ -318,8 +318,8 @@ struct FocusFilter: Identifiable, Codable {
             icon: "brain.head.profile",
             description: "Complex tasks requiring focused attention",
             criteria: FocusFilterCriteria(
-                complexity: [.complex],
-                energyLevel: [.high]
+                energyLevel: [.high],
+                complexity: [.complex]
             ),
             isDefault: true,
             sortOrder: 3

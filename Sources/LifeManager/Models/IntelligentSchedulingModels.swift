@@ -191,56 +191,6 @@ struct SchedulingTimeSlot: Codable, Equatable {
     static let lateEvening = SchedulingTimeSlot(startHour: 19, startMinute: 0, endHour: 21, endMinute: 0)
 }
 
-/// Task rescheduling history for learning
-struct ReschedulingEvent: Codable, Identifiable {
-    let id: UUID
-    let taskId: UUID
-    let originalDate: String
-    let newDate: String
-    let reason: ReschedulingReason
-    let wasAutomatic: Bool
-    let userOverrode: Bool
-    let overrideReason: String?
-    let confidence: Double
-    let createdAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case taskId = "task_id"
-        case originalDate = "original_date"
-        case newDate = "new_date"
-        case reason
-        case wasAutomatic = "was_automatic"
-        case userOverrode = "user_overrode"
-        case overrideReason = "override_reason"
-        case confidence
-        case createdAt = "created_at"
-    }
-    
-    init(
-        id: UUID = UUID(),
-        taskId: UUID,
-        originalDate: String,
-        newDate: String,
-        reason: ReschedulingReason,
-        wasAutomatic: Bool = true,
-        userOverrode: Bool = false,
-        overrideReason: String? = nil,
-        confidence: Double = 0.8,
-        createdAt: String = ISO8601DateFormatter().string(from: Date())
-    ) {
-        self.id = id
-        self.taskId = taskId
-        self.originalDate = originalDate
-        self.newDate = newDate
-        self.reason = reason
-        self.wasAutomatic = wasAutomatic
-        self.userOverrode = userOverrode
-        self.overrideReason = overrideReason
-        self.confidence = confidence
-        self.createdAt = createdAt
-    }
-}
 
 /// Reasons for task rescheduling
 enum ReschedulingReason: String, CaseIterable, Codable {

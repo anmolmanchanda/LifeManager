@@ -936,7 +936,7 @@ struct LearningInsight: Identifiable {
 }
 
 /// Types of learning insights
-enum InsightType: String {
+enum InsightType: String, Codable {
     case behaviorPattern = "behavior_pattern"
     case performance = "performance"
     case optimization = "optimization"
