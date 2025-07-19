@@ -2,6 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 MANDATORY: ENTERPRISE DEVELOPMENT STANDARDS
+
+**CRITICAL REQUIREMENT**: Before making ANY changes to this codebase, you MUST read and follow the [DEVELOPMENT_STANDARDS.md](./DEVELOPMENT_STANDARDS.md) document. This repository operates under enterprise-grade development practices with ZERO TOLERANCE for:
+
+- Code loss or accidental deletions
+- Direct commits to main/dev branches  
+- Unreviewed changes to production code
+- Missing tests or documentation
+- Non-compliant commit messages
+
+**EVERY CHANGE MUST:**
+1. **Create a feature branch** from dev
+2. **Follow naming convention**: `feature/JIRA-XXX-description`
+3. **Include comprehensive tests** (90% coverage minimum)
+4. **Update documentation** for any public APIs
+5. **Pass all quality gates** before merge
+6. **Use conventional commit format**
+
+**NEVER:**
+- Make direct changes to main or dev branches
+- Commit without running tests first
+- Skip code review processes  
+- Leave code in broken state
+- Remove or modify large amounts of code without explicit approval
+
+See [DEVELOPMENT_STANDARDS.md](./DEVELOPMENT_STANDARDS.md) for complete guidelines.
+
 ## Development Commands
 
 ### Building and Running
