@@ -9,7 +9,9 @@
 
 import Foundation
 import SwiftUI
+#if canImport(MessageUI)
 import MessageUI
+#endif
 import Combine
 
 /// Advanced notification service with SMS/email escalation and proactive support

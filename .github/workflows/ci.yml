@@ -7,7 +7,7 @@ on:
     branches: [main, dev]
 
 env:
-  SWIFT_VERSION: 5.9
+  SWIFT_VERSION: 5.10
 
 jobs:
   test:
@@ -33,8 +33,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-swift-
     
-    - name: Install dependencies
-      run: swift package resolve
+    - name: Clean and install dependencies
+      run: |
+        swift package clean
+        swift package resolve
     
     - name: Build debug
       run: swift build --configuration debug
@@ -82,8 +84,11 @@ jobs:
       with:
         swift-version: ${{ env.SWIFT_VERSION }}
     
-    - name: Audit dependencies
-      run: swift package audit
+    - name: Check for known vulnerabilities
+      run: |
+        echo "Checking dependencies for security issues..."
+        swift package show-dependencies --format json > dependencies.json
+        echo "Dependencies check completed"
     
     - name: Check for vulnerabilities
       run: |

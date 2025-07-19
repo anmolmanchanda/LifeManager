@@ -1297,66 +1297,7 @@ struct TimelineItem: Identifiable {
     }
 }
 
-// Placeholder TimelineViewService
-class TimelineViewService: ObservableObject {
-    static let shared = TimelineViewService()
-    
-    @Published var completedTasks = 8
-    @Published var totalTasks = 15
-    @Published var inProgressTasks = 4
-    
-    func getTimelineItems(for timeRange: TimeRange, filter: TimelineFilter) -> [TimelineItem] {
-        return [
-            TimelineItem(
-                title: "Complete project proposal",
-                description: "Finalize the Q3 project proposal with budget analysis",
-                dueDate: Date().addingTimeInterval(86400),
-                category: "Project",
-                status: .inProgress,
-                isAIEnhanced: true,
-                aiConfidence: 0.92,
-                aiInsight: "Optimal completion time based on your focus patterns: 2-4 PM",
-                isAutomated: true
-            ),
-            TimelineItem(
-                title: "Team meeting preparation",
-                description: "Prepare agenda and materials for weekly team sync",
-                dueDate: Date().addingTimeInterval(43200),
-                category: "Area",
-                status: .pending,
-                isAIEnhanced: true,
-                aiConfidence: 0.85,
-                aiInsight: "Consider scheduling after proposal completion",
-                dependencies: [UUID()]
-            ),
-            TimelineItem(
-                title: "Review design mockups",
-                description: "Provide feedback on new UI designs",
-                dueDate: Date().addingTimeInterval(172800),
-                category: "Task",
-                status: .automated,
-                isAIEnhanced: true,
-                aiConfidence: 0.78,
-                aiInsight: "Automatically rescheduled to align with design sprint",
-                isAutomated: true
-            )
-        ]
-    }
-    
-    func refreshData() async {
-        // Simulate data refresh
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-    }
-    
-    func markAsCompleted(_ id: UUID) async {
-        completedTasks += 1
-        totalTasks += 1
-    }
-    
-    func requestReschedule(_ id: UUID) async {
-        // Implementation for rescheduling
-    }
-}
+// Note: TimelineViewService is implemented in Services/TimelineViewService.swift
 
 // Shared CardView component
 struct CardView<Content: View>: View {
@@ -1371,7 +1312,7 @@ struct CardView<Content: View>: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemBackground))
+                    .fill(Color(NSColor.controlBackgroundColor))
                     .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
             )
     }
