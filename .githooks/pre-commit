@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# Enterprise-grade pre-commit hook
+# This script prevents commits that don't meet our standards
+
+set -e
+
+echo "🔍 Running enterprise pre-commit checks..."
+
+# Check if we're on a protected branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [[ "$current_branch" == "main" || "$current_branch" == "dev" ]]; then
+    echo "❌ BLOCKED: Direct commits to protected branches ($current_branch) are not allowed"
+    echo "   Create a feature branch: git checkout -b feature/JIRA-XXX-description"
+    exit 1
+fi
+
+# Check commit message format (conventional commits)
+commit_regex='^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .{1,72}'
+commit_message=$(cat .git/COMMIT_EDITMSG 2>/dev/null || echo "")
+if [[ ! -z "$commit_message" ]] && [[ ! $commit_message =~ $commit_regex ]]; then
+    echo "❌ BLOCKED: Commit message must follow conventional commit format"
+    echo "   Format: type(scope): description"
+    echo "   Example: feat(auth): implement OAuth2 authentication"
+    exit 1
+fi
+
+# Check for Swift compilation
+echo "🔨 Checking Swift compilation..."
+if ! swift build --configuration debug > /dev/null 2>&1; then
+    echo "❌ BLOCKED: Swift compilation failed"
+    echo "   Fix compilation errors before committing"
+    exit 1
+fi
+
+# Run SwiftLint if available
+if command -v swiftlint &> /dev/null; then
+    echo "🧹 Running SwiftLint..."
+    if ! swiftlint lint --strict --quiet; then
+        echo "❌ BLOCKED: SwiftLint violations found"
+        echo "   Fix linting errors before committing"
+        exit 1
+    fi
+fi
+
+# Run tests
+echo "🧪 Running tests..."
+if ! swift test --parallel > /dev/null 2>&1; then
+    echo "❌ BLOCKED: Tests failed"
+    echo "   All tests must pass before committing"
+    exit 1
+fi
+
+# Check for debug statements
+echo "🔍 Checking for debug statements..."
+debug_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(swift)$' | xargs grep -l -E '(print\(|NSLog\(|debugPrint\(|dump\()' || true)
+if [[ ! -z "$debug_files" ]]; then
+    echo "❌ BLOCKED: Debug statements found in:"
+    echo "$debug_files"
+    echo "   Remove debug statements or use Logger.shared instead"
+    exit 1
+fi
+
+# Check for TODO/FIXME without JIRA tickets
+echo "🔍 Checking for TODOs..."
+todo_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(swift)$' | xargs grep -l -E '(TODO|FIXME)(?!.*JIRA)' || true)
+if [[ ! -z "$todo_files" ]]; then
+    echo "⚠️  WARNING: TODOs found without JIRA tickets in:"
+    echo "$todo_files"
+    echo "   Consider creating JIRA tickets for tracking"
+fi
+
+# Check for large files
+echo "🔍 Checking for large files..."
+large_files=$(git diff --cached --name-only | xargs ls -la 2>/dev/null | awk '$5 > 1048576 {print $9, $5}' || true)
+if [[ ! -z "$large_files" ]]; then
+    echo "❌ BLOCKED: Large files detected (>1MB):"
+    echo "$large_files"
+    echo "   Use Git LFS for large files"
+    exit 1
+fi
+
+# Check for secrets
+echo "🔐 Checking for secrets..."
+secret_patterns="(api_key|password|secret|token|credential)"
+secret_files=$(git diff --cached --name-only | xargs grep -i -l -E "$secret_patterns" 2>/dev/null || true)
+if [[ ! -z "$secret_files" ]]; then
+    echo "❌ BLOCKED: Potential secrets found in:"
+    echo "$secret_files"
+    echo "   Never commit secrets to the repository"
+    exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"
+exit 0

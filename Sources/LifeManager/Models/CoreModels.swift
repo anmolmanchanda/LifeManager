@@ -939,4 +939,37 @@ struct TaskEnhancementResult {
     }
 }
 
+// MARK: - Unified System Enums
+
+/// Unified pattern types for all services
+enum UnifiedPatternType: String, CaseIterable, Codable {
+    case recurring = "recurring"
+    case temporal = "temporal" 
+    case contextual = "contextual"
+    case behavioral = "behavioral"
+    case semantic = "semantic"
+    case serviceUsage = "service_usage"
+    case decisionMaking = "decision_making"
+}
+
+/// Unified optimization types for all services
+enum UnifiedOptimizationType: String, CaseIterable, Codable {
+    case responseTimeOptimization = "response_time_optimization"
+    case coordinationImprovement = "coordination_improvement"
+    case memoryOptimization = "memory_optimization"
+    case errorReduction = "error_reduction"
+    case serviceOptimization = "service_optimization"
+    case databaseOptimization = "database_optimization"
+    case aiOptimization = "ai_optimization"
+    case cacheOptimization = "cache_optimization"
+}
+
+/// Unified risk level for all services
+enum UnifiedRiskLevel: String, CaseIterable, Codable {
+    case low = "low"
+    case medium = "medium" 
+    case high = "high"
+    case critical = "critical"
+}
+
 // MARK: - Task Extraction Info 

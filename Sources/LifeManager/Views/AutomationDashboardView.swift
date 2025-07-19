@@ -65,9 +65,9 @@ struct AutomationDashboardView: View {
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             }
             .navigationTitle("Automation Dashboard")
-            .navigationBarTitleDisplayMode(.large)
+            // navigationBarTitleDisplayMode is iOS-only
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button("Export Metrics") {
                             exportMetrics()
@@ -150,11 +150,11 @@ struct DashboardHeaderView: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Color(.separator)),
+                .foregroundColor(Color(NSColor.separatorColor)),
             alignment: .bottom
         )
     }
@@ -189,7 +189,7 @@ struct DashboardTabBar: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
     }
 }
 
@@ -515,7 +515,7 @@ struct CardView<Content: View>: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemBackground))
+                    .fill(Color(NSColor.controlBackgroundColor))
                     .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
             )
     }

@@ -1112,37 +1112,9 @@ struct FocusItem: Identifiable {
     }
 }
 
-enum TaskPriority: String {
-    case high = "high"
-    case medium = "medium"
-    case low = "low"
-}
+// TaskPriority is defined in CoreModels.swift
 
-// Placeholder FocusViewService
-class FocusViewService: ObservableObject {
-    static let shared = FocusViewService()
-    
-    @Published var completedTasksToday = 5
-    @Published var totalTasksToday = 12
-    @Published var inProgressTasks = 3
-    
-    func getFocusItems(for filter: FocusFilter) -> [FocusItem] {
-        // Placeholder implementation
-        return [
-            FocusItem(title: "Review project proposal", priority: .high, aiConfidence: 0.9, aiRecommendation: "Best completed in the next 2 hours based on your peak focus time"),
-            FocusItem(title: "Update documentation", priority: .medium, aiConfidence: 0.7, aiRecommendation: "Good task for low-energy periods"),
-            FocusItem(title: "Team meeting preparation", priority: .high, aiConfidence: 0.95, aiRecommendation: "Critical for tomorrow's meeting")
-        ]
-    }
-    
-    func markAsCompleted(_ id: UUID) async {
-        completedTasksToday += 1
-    }
-    
-    func requestReschedule(_ id: UUID) async {
-        // Placeholder implementation
-    }
-}
+// Note: FocusViewService is implemented in Services/FocusViewService.swift
 
 #Preview {
     EnhancedFocusView()

@@ -70,13 +70,21 @@ class PersonalRulesRepository: ObservableObject {
     /// Update personal rule confidence and usage
     func updatePersonalRule(_ rule: PersonalPARARule) async throws -> PersonalPARARule {
         do {
-            let updateData: [String: Any] = [
-                "confidence": rule.confidence,
-                "usage_count": rule.usageCount,
-                "is_active": rule.isActive,
-                "last_used": rule.lastUsed?.ISO8601Format() ?? NSNull(),
-                "updated_at": ISO8601DateFormatter().string(from: Date())
-            ]
+            struct UpdateData: Codable {
+                let confidence: Float
+                let usage_count: Int
+                let is_active: Bool
+                let last_used: String?
+                let updated_at: String
+            }
+            
+            let updateData = UpdateData(
+                confidence: rule.confidence,
+                usage_count: rule.usageCount,
+                is_active: rule.isActive,
+                last_used: rule.lastUsed?.ISO8601Format(),
+                updated_at: ISO8601DateFormatter().string(from: Date())
+            )
             
             try await supabaseService.client
                 .from("personal_para_rules")
@@ -148,7 +156,7 @@ class PersonalRulesRepository: ObservableObject {
                 reasoning: correction.reasoning,
                 correctionType: correction.correctionType,
                 metadata: try JSONEncoder().encode(correction.metadata),
-                createdAt: correction.createdAt,
+                createdAt: ISO8601DateFormatter().string(from: correction.createdAt),
                 updatedAt: ISO8601DateFormatter().string(from: Date())
             )
             

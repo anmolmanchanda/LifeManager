@@ -973,7 +973,7 @@ enum DecisionOutcome: String {
 /// Cross-service optimization
 struct CrossServiceOptimization: Identifiable {
     let id: UUID
-    let type: OptimizationType
+    let type: UnifiedOptimizationType
     let involvedServices: [String]
     let description: String
     let expectedImprovement: String
@@ -981,13 +981,7 @@ struct CrossServiceOptimization: Identifiable {
     let priority: OptimizationPriority
 }
 
-/// Optimization types for orchestrator
-enum OptimizationType: String {
-    case responseTimeOptimization = "response_time_optimization"
-    case coordinationImprovement = "coordination_improvement"
-    case memoryOptimization = "memory_optimization"
-    case errorReduction = "error_reduction"
-}
+// OptimizationType moved to UnifiedOptimizationType in CoreModels.swift
 
 /// Optimization priority
 enum OptimizationPriority: Int {

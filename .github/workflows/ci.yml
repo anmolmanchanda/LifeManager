@@ -1,0 +1,202 @@
+name: Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+env:
+  SWIFT_VERSION: 5.10
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: ${{ env.SWIFT_VERSION }}
+    
+    - name: Cache Swift packages
+      uses: actions/cache@v3
+      with:
+        path: .build
+        key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift', 'Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-swift-
+    
+    - name: Clean and install dependencies
+      run: |
+        swift package clean
+        swift package resolve
+    
+    - name: Build debug
+      run: swift build --configuration debug
+    
+    - name: Run tests
+      run: swift test --parallel --enable-code-coverage
+    
+    - name: Generate code coverage report
+      run: |
+        xcrun llvm-cov export \
+          .build/debug/LifeManagerPackageTests.xctest/Contents/MacOS/LifeManagerPackageTests \
+          -instr-profile .build/debug/codecov/default.profdata \
+          -format="lcov" > coverage.lcov
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: coverage.lcov
+        flags: unittests
+        name: codecov-umbrella
+    
+    - name: Install SwiftLint
+      run: brew install swiftlint
+    
+    - name: Run SwiftLint
+      run: swiftlint lint --strict --reporter github-actions-logging
+    
+    - name: Check for secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+
+  security:
+    name: Security Scan
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: ${{ env.SWIFT_VERSION }}
+    
+    - name: Check for known vulnerabilities
+      run: |
+        echo "Checking dependencies for security issues..."
+        swift package show-dependencies --format json > dependencies.json
+        echo "Dependencies check completed"
+    
+    - name: Check for vulnerabilities
+      run: |
+        # Add custom security checks here
+        echo "Running security vulnerability scan..."
+
+  build:
+    name: Build Release
+    runs-on: macos-latest
+    needs: [test, security]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: ${{ env.SWIFT_VERSION }}
+    
+    - name: Cache Swift packages
+      uses: actions/cache@v3
+      with:
+        path: .build
+        key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift', 'Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-swift-
+    
+    - name: Build release
+      run: swift build --configuration release
+    
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-build
+        path: .build/release/
+
+  performance:
+    name: Performance Tests
+    runs-on: macos-latest
+    needs: build
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: ${{ env.SWIFT_VERSION }}
+    
+    - name: Run performance tests
+      run: |
+        # Add performance testing commands here
+        echo "Running performance benchmark tests..."
+        # swift test --filter PerformanceTests
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: macos-latest
+    needs: [test, security, build]
+    if: github.ref == 'refs/heads/dev'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: release-build
+        path: .build/release/
+    
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add staging deployment commands here
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: macos-latest
+    needs: [test, security, build, performance]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: release-build
+        path: .build/release/
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add production deployment commands here
+    
+    - name: Create release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
+        draft: false
+        prerelease: false

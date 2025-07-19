@@ -946,7 +946,7 @@ enum InsightType: String {
 /// User behavior pattern
 struct BehaviorPattern: Identifiable {
     let id: UUID
-    let type: PatternType
+    let type: UnifiedPatternType
     let description: String
     let confidence: Double
     let frequency: PatternFrequency
@@ -954,12 +954,7 @@ struct BehaviorPattern: Identifiable {
     let recommendations: [String]
 }
 
-/// Types of behavior patterns
-enum PatternType: String {
-    case temporal = "temporal"
-    case serviceUsage = "service_usage"
-    case decisionMaking = "decision_making"
-}
+// PatternType moved to UnifiedPatternType in CoreModels.swift
 
 /// Pattern frequency
 enum PatternFrequency: String {

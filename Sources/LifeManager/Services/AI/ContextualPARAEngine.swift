@@ -1773,6 +1773,19 @@ struct PARAClassification: Codable {
     var hasStrongIndicators: Bool {
         return confidence > 0.8
     }
+    
+    init(category: PARACategory, subcategory: String? = nil, suggestedProject: String? = nil, suggestedArea: String? = nil, priority: TaskPriority = .medium, dueDate: Date? = nil, tags: [String] = [], workPersonal: WorkPersonalType = .work, confidence: Float = 0.5, reasoning: String = "") {
+        self.category = category
+        self.subcategory = subcategory
+        self.suggestedProject = suggestedProject
+        self.suggestedArea = suggestedArea
+        self.priority = priority
+        self.dueDate = dueDate
+        self.tags = tags
+        self.workPersonal = workPersonal
+        self.confidence = confidence
+        self.reasoning = reasoning
+    }
 }
 
 
