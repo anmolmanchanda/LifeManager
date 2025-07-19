@@ -247,9 +247,7 @@ struct Pattern {
     let examples: [String]
 }
 
-enum PatternType {
-    case recurring, temporal, contextual, behavioral, semantic
-}
+// PatternType moved to UnifiedPatternType in CoreModels.swift
 
 struct TemporalPattern {
     let timeframe: TemporalTimeframe

@@ -65,9 +65,9 @@ struct AutomationDashboardView: View {
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             }
             .navigationTitle("Automation Dashboard")
-            .navigationBarTitleDisplayMode(.large)
+            // navigationBarTitleDisplayMode is iOS-only
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button("Export Metrics") {
                             exportMetrics()

@@ -944,7 +944,7 @@ enum AlertSeverity: String {
 /// Performance optimization recommendation
 struct OptimizationRecommendation: Identifiable {
     let id = UUID()
-    let type: OptimizationType
+    let type: UnifiedOptimizationType
     let priority: RecommendationPriority
     let title: String
     let description: String
@@ -953,14 +953,7 @@ struct OptimizationRecommendation: Identifiable {
     let difficulty: DifficultyLevel
 }
 
-/// Optimization types
-enum OptimizationType: String {
-    case memoryOptimization = "memory_optimization"
-    case serviceOptimization = "service_optimization"
-    case databaseOptimization = "database_optimization"
-    case aiOptimization = "ai_optimization"
-    case cacheOptimization = "cache_optimization"
-}
+// OptimizationType moved to UnifiedOptimizationType in CoreModels.swift
 
 /// Recommendation priority levels
 enum RecommendationPriority: String {
