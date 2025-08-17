@@ -440,38 +440,77 @@ class ContextMemoryService: ObservableObject {
     private func adjustWindowSize() async {
         let averageDailyActivity = activityPatterns.averageDailyActivity
         let recentTrend = activityPatterns.recentActivityTrend
+        let oldWindowSize = currentWindowSize
         
         var newWindowSize = currentWindowSize
+        var adjustmentReason = ""
         
         // Base window size on activity level
         if averageDailyActivity < Double(ContextConfig.lowActivityThreshold) {
             // Low activity - smaller window for more focused context
             newWindowSize = ContextConfig.minSlidingWindowSize
+            adjustmentReason = "Low activity period"
         } else if averageDailyActivity > Double(ContextConfig.highActivityThreshold) {
             // High activity - larger window to maintain sufficient context
             newWindowSize = ContextConfig.maxSlidingWindowSize
+            adjustmentReason = "High activity period"
         } else {
             // Medium activity - proportional sizing
             let ratio = (averageDailyActivity - Double(ContextConfig.lowActivityThreshold)) / 
                        (Double(ContextConfig.highActivityThreshold) - Double(ContextConfig.lowActivityThreshold))
             newWindowSize = ContextConfig.minSlidingWindowSize + 
                            Int(ratio * Double(ContextConfig.maxSlidingWindowSize - ContextConfig.minSlidingWindowSize))
+            adjustmentReason = "Proportional to activity level"
         }
         
         // Adjust based on recent trend
         if recentTrend > 1.2 {
             // Increasing activity - expand window
             newWindowSize = min(newWindowSize + 10, ContextConfig.maxSlidingWindowSize)
+            adjustmentReason += " + trending up"
         } else if recentTrend < 0.8 {
             // Decreasing activity - contract window
             newWindowSize = max(newWindowSize - 10, ContextConfig.minSlidingWindowSize)
+            adjustmentReason += " + trending down"
         }
         
         // Update window size if changed
         if newWindowSize != currentWindowSize {
             currentWindowSize = newWindowSize
+            logWindowAdjustment(from: oldWindowSize, to: newWindowSize, reason: adjustmentReason)
             logger.info("CONTEXT_MEMORY: Adjusted window size to \(currentWindowSize) (avg daily: \(String(format: "%.1f", averageDailyActivity)), trend: \(String(format: "%.2f", recentTrend)))")
         }
+    }
+    
+    private func logWindowAdjustment(from oldSize: Int, to newSize: Int, reason: String) {
+        let estimatedMemorySaved = (oldSize - newSize) * 1024 // Rough estimate: 1KB per item
+        
+        logger.info("""
+            📊 Context Window Adjusted:
+            - Previous Size: \(oldSize) items
+            - New Size: \(newSize) items
+            - Change: \(newSize - oldSize) items (\(newSize > oldSize ? "expanded" : "contracted"))
+            - Reason: \(reason)
+            - Estimated Memory Impact: \(estimatedMemorySaved > 0 ? "Saved" : "Added") \(abs(estimatedMemorySaved)) bytes
+            - Timestamp: \(Date())
+            """)
+        
+        // Track in UserDefaults for analysis
+        var adjustments = UserDefaults.standard.array(forKey: "context_window_adjustments") as? [[String: Any]] ?? []
+        adjustments.append([
+            "timestamp": Date().timeIntervalSince1970,
+            "old_size": oldSize,
+            "new_size": newSize,
+            "reason": reason,
+            "memory_impact": estimatedMemorySaved
+        ])
+        
+        // Keep only last 100 adjustments
+        if adjustments.count > 100 {
+            adjustments = Array(adjustments.suffix(100))
+        }
+        
+        UserDefaults.standard.set(adjustments, forKey: "context_window_adjustments")
     }
     
     // MARK: - Persistence

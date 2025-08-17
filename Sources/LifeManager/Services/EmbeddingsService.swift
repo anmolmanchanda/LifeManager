@@ -10,6 +10,14 @@
 
 import Foundation
 
+/// Similarity level based on thresholds
+enum SimilarityLevel {
+    case high    // >= 0.85
+    case medium  // >= 0.70
+    case low     // >= 0.55
+    case none    // < 0.55
+}
+
 /// Service for generating and managing text embeddings for semantic similarity
 /// Enables contextual PARA matching based on meaning rather than keywords
 class EmbeddingsService: ObservableObject {
@@ -24,6 +32,19 @@ class EmbeddingsService: ObservableObject {
         static let maxTokens = 8192
         static let cacheExpirationDays = 30
         static let batchSize = 100
+        
+        // Domain-specific similarity thresholds
+        static let highSimilarityThreshold: Float = 0.85
+        static let mediumSimilarityThreshold: Float = 0.7
+        static let lowSimilarityThreshold: Float = 0.55
+        
+        // PARA category weights for enhanced matching
+        static let categoryWeights: [PARACategory: Float] = [
+            .project: 1.2,  // Projects get higher weight for task-related content
+            .area: 1.0,     // Areas are baseline
+            .resource: 0.9, // Resources slightly lower for general reference
+            .archive: 0.7   // Archives lower priority in active matching
+        ]
     }
     
     // MARK: - Cache Management
@@ -92,6 +113,30 @@ class EmbeddingsService: ObservableObject {
         guard magnitude1 > 0 && magnitude2 > 0 else { return 0.0 }
         
         return dotProduct / (magnitude1 * magnitude2)
+    }
+    
+    /// Calculate weighted similarity based on PARA category
+    func calculateWeightedSimilarity(
+        embedding1: [Float],
+        embedding2: [Float],
+        category: PARACategory
+    ) -> Float {
+        let baseSimilarity = calculateSimilarity(embedding1: embedding1, embedding2: embedding2)
+        let weight = EmbeddingsConfig.categoryWeights[category] ?? 1.0
+        return baseSimilarity * weight
+    }
+    
+    /// Determine similarity level based on thresholds
+    func getSimilarityLevel(_ similarity: Float) -> SimilarityLevel {
+        if similarity >= EmbeddingsConfig.highSimilarityThreshold {
+            return .high
+        } else if similarity >= EmbeddingsConfig.mediumSimilarityThreshold {
+            return .medium
+        } else if similarity >= EmbeddingsConfig.lowSimilarityThreshold {
+            return .low
+        } else {
+            return .none
+        }
     }
     
     /// Find most similar items from a collection
