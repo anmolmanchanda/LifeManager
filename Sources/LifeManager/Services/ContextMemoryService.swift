@@ -19,11 +19,15 @@ class ContextMemoryService: ObservableObject {
     // MARK: - Configuration
     
     private struct ContextConfig {
-        static let slidingWindowSize = 100
+        static let minSlidingWindowSize = 50
+        static let maxSlidingWindowSize = 200
+        static let defaultSlidingWindowSize = 100
         static let dailySummaryRetentionDays = 30
         static let weeklySummaryRetentionWeeks = 12
         static let monthlySummaryRetentionMonths = 6
         static let contextUpdateInterval: TimeInterval = 300 // 5 minutes
+        static let lowActivityThreshold = 10 // items per day
+        static let highActivityThreshold = 30 // items per day
     }
     
     // MARK: - Published State
@@ -38,11 +42,14 @@ class ContextMemoryService: ObservableObject {
     
     private let supabaseService = SupabaseService.shared
     private let llmService = LLMService.shared
+    private let logger = Logger.shared
     
     // MARK: - Internal State
     
     private var contextUpdateTimer: Timer?
     private let contextQueue = DispatchQueue(label: "context.memory", qos: .utility)
+    private var currentWindowSize: Int = ContextConfig.defaultSlidingWindowSize
+    private var activityPatterns: ActivityPatterns = ActivityPatterns()
     
     // MARK: - Initialization
     
@@ -59,16 +66,20 @@ class ContextMemoryService: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Add new items to active context window
+    /// Add new items to active context window with dynamic sizing
     func addToContext(_ items: [PARAItem]) async {
         let contextItems = items.map { ContextItem(from: $0) }
+        
+        // Update activity patterns and adjust window size
+        await updateActivityPatterns(with: contextItems)
+        await adjustWindowSize()
         
         await MainActor.run {
             activeContextWindow.append(contentsOf: contextItems)
             
-            // Maintain window size
-            if activeContextWindow.count > ContextConfig.slidingWindowSize {
-                let excess = activeContextWindow.count - ContextConfig.slidingWindowSize
+            // Maintain dynamic window size
+            if activeContextWindow.count > currentWindowSize {
+                let excess = activeContextWindow.count - currentWindowSize
                 activeContextWindow.removeFirst(excess)
             }
             
@@ -78,6 +89,8 @@ class ContextMemoryService: ObservableObject {
         // Update summaries asynchronously
         await updateDailySummary(with: contextItems)
         await persistContextWindow()
+        
+        logger.debug("CONTEXT_MEMORY: Added \(contextItems.count) items, window size: \(currentWindowSize)")
     }
     
     /// Get current context for PARA processing
@@ -391,6 +404,76 @@ class ContextMemoryService: ObservableObject {
         return getAverageItemsPerDay()
     }
     
+    // MARK: - Dynamic Window Sizing
+    
+    private func updateActivityPatterns(with items: [ContextItem]) async {
+        let now = Date()
+        let today = Calendar.current.startOfDay(for: now)
+        
+        // Update daily activity count
+        if let lastUpdateDay = activityPatterns.lastUpdateDate,
+           Calendar.current.isDate(lastUpdateDay, inSameDayAs: today) {
+            activityPatterns.todayItemCount += items.count
+        } else {
+            // New day - archive yesterday's count and start fresh
+            if activityPatterns.todayItemCount > 0 {
+                activityPatterns.dailyActivityHistory.append(activityPatterns.todayItemCount)
+                if activityPatterns.dailyActivityHistory.count > 14 {
+                    activityPatterns.dailyActivityHistory.removeFirst()
+                }
+            }
+            activityPatterns.todayItemCount = items.count
+        }
+        
+        activityPatterns.lastUpdateDate = now
+        
+        // Update peak activity hours
+        let currentHour = Calendar.current.component(.hour, from: now)
+        activityPatterns.hourlyActivity[currentHour, default: 0] += items.count
+        
+        // Update category distribution
+        for item in items {
+            activityPatterns.categoryDistribution[item.category, default: 0] += 1
+        }
+    }
+    
+    private func adjustWindowSize() async {
+        let averageDailyActivity = activityPatterns.averageDailyActivity
+        let recentTrend = activityPatterns.recentActivityTrend
+        
+        var newWindowSize = currentWindowSize
+        
+        // Base window size on activity level
+        if averageDailyActivity < Double(ContextConfig.lowActivityThreshold) {
+            // Low activity - smaller window for more focused context
+            newWindowSize = ContextConfig.minSlidingWindowSize
+        } else if averageDailyActivity > Double(ContextConfig.highActivityThreshold) {
+            // High activity - larger window to maintain sufficient context
+            newWindowSize = ContextConfig.maxSlidingWindowSize
+        } else {
+            // Medium activity - proportional sizing
+            let ratio = (averageDailyActivity - Double(ContextConfig.lowActivityThreshold)) / 
+                       (Double(ContextConfig.highActivityThreshold) - Double(ContextConfig.lowActivityThreshold))
+            newWindowSize = ContextConfig.minSlidingWindowSize + 
+                           Int(ratio * Double(ContextConfig.maxSlidingWindowSize - ContextConfig.minSlidingWindowSize))
+        }
+        
+        // Adjust based on recent trend
+        if recentTrend > 1.2 {
+            // Increasing activity - expand window
+            newWindowSize = min(newWindowSize + 10, ContextConfig.maxSlidingWindowSize)
+        } else if recentTrend < 0.8 {
+            // Decreasing activity - contract window
+            newWindowSize = max(newWindowSize - 10, ContextConfig.minSlidingWindowSize)
+        }
+        
+        // Update window size if changed
+        if newWindowSize != currentWindowSize {
+            currentWindowSize = newWindowSize
+            logger.info("CONTEXT_MEMORY: Adjusted window size to \(currentWindowSize) (avg daily: \(String(format: "%.1f", averageDailyActivity)), trend: \(String(format: "%.2f", recentTrend)))")
+        }
+    }
+    
     // MARK: - Persistence
     
     private func loadContextMemory() async {
@@ -673,6 +756,47 @@ enum ContextTimeframe {
 // Priority is defined as TaskPriority in CoreModels.swift
 
 // MARK: - Extensions
+
+// MARK: - Activity Patterns for Dynamic Window Sizing
+
+struct ActivityPatterns {
+    var todayItemCount: Int = 0
+    var lastUpdateDate: Date? = nil
+    var dailyActivityHistory: [Int] = []
+    var hourlyActivity: [Int: Int] = [:]
+    var categoryDistribution: [PARACategory: Int] = [:]
+    
+    var averageDailyActivity: Double {
+        guard !dailyActivityHistory.isEmpty else { return Double(todayItemCount) }
+        let total = dailyActivityHistory.reduce(0, +) + todayItemCount
+        return Double(total) / Double(dailyActivityHistory.count + 1)
+    }
+    
+    var recentActivityTrend: Double {
+        guard dailyActivityHistory.count >= 3 else { return 1.0 }
+        
+        let recent = Array(dailyActivityHistory.suffix(3))
+        let older = Array(dailyActivityHistory.prefix(max(0, dailyActivityHistory.count - 3)))
+        
+        let recentAvg = Double(recent.reduce(0, +)) / Double(recent.count)
+        let olderAvg = older.isEmpty ? recentAvg : Double(older.reduce(0, +)) / Double(older.count)
+        
+        return olderAvg > 0 ? recentAvg / olderAvg : 1.0
+    }
+    
+    var peakActivityHours: [Int] {
+        return hourlyActivity
+            .sorted { $0.value > $1.value }
+            .prefix(3)
+            .map { $0.key }
+    }
+    
+    var dominantCategory: PARACategory {
+        return categoryDistribution
+            .max { $0.value < $1.value }?
+            .key ?? .project
+    }
+}
 
 extension Array where Element: Hashable {
     func uniqued() -> [Element] {
