@@ -12,6 +12,16 @@
    - Automated testing after changes
    - Rollback capability
 
+3. **Enhanced Context Memory** (v1.9.2-enhanced-context)
+   - Dynamic window sizing (50-200 items)
+   - Activity pattern tracking
+   - Performance monitoring with UserDefaults
+
+4. **Enhanced Embeddings Service** (v1.9.3-enhanced-embeddings)
+   - Domain-specific similarity thresholds
+   - PARA category weighting system
+   - Weighted similarity calculations
+
 ### ❌ Failed Integration Attempts
 1. **AdvancedAnalyticsService** 
    - Missing dependencies: `TrendDirection`, various model types

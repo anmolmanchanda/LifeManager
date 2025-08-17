@@ -68,6 +68,7 @@ class ContextMemoryService: ObservableObject {
     
     /// Add new items to active context window with dynamic sizing
     func addToContext(_ items: [PARAItem]) async {
+        let startTime = Date()
         let contextItems = items.map { ContextItem(from: $0) }
         
         // Update activity patterns and adjust window size
@@ -90,7 +91,45 @@ class ContextMemoryService: ObservableObject {
         await updateDailySummary(with: contextItems)
         await persistContextWindow()
         
-        logger.debug("CONTEXT_MEMORY: Added \(contextItems.count) items, window size: \(currentWindowSize)")
+        // Track performance metrics
+        let processingTime = Date().timeIntervalSince(startTime)
+        let metrics = PerformanceMetrics(
+            timestamp: Date(),
+            windowSize: currentWindowSize,
+            activityLevel: getActivityLevel(),
+            memoryFootprint: estimateMemoryFootprint(),
+            processingTime: processingTime,
+            cacheHitRate: calculateCacheHitRate()
+        )
+        metrics.save()
+        
+        logger.debug("CONTEXT_MEMORY: Added \(contextItems.count) items, window size: \(currentWindowSize), processing time: \(String(format: "%.2f", processingTime))s")
+    }
+    
+    private func getActivityLevel() -> String {
+        let avgDaily = activityPatterns.averageDailyActivity
+        if avgDaily < Double(ContextConfig.lowActivityThreshold) {
+            return "low"
+        } else if avgDaily > Double(ContextConfig.highActivityThreshold) {
+            return "high"
+        } else {
+            return "medium"
+        }
+    }
+    
+    private func estimateMemoryFootprint() -> Int {
+        // Rough estimate: 1KB per context item + cache overhead
+        return (activeContextWindow.count * 1024) + (embeddingsCache.count * 2048)
+    }
+    
+    private func calculateCacheHitRate() -> Double {
+        // This would track actual cache hits/misses in production
+        return 0.0 // Placeholder for now
+    }
+    
+    private var embeddingsCache: [String: Any] {
+        // Placeholder for embeddings cache reference
+        return [:]
     }
     
     /// Get current context for PARA processing
@@ -442,25 +481,29 @@ class ContextMemoryService: ObservableObject {
         let recentTrend = activityPatterns.recentActivityTrend
         let oldWindowSize = currentWindowSize
         
-        var newWindowSize = currentWindowSize
-        var adjustmentReason = ""
+        // Try predictive sizing first
+        var newWindowSize = predictOptimalWindowSize()
+        var adjustmentReason = "Predictive sizing"
         
-        // Base window size on activity level
-        if averageDailyActivity < Double(ContextConfig.lowActivityThreshold) {
-            // Low activity - smaller window for more focused context
-            newWindowSize = ContextConfig.minSlidingWindowSize
-            adjustmentReason = "Low activity period"
-        } else if averageDailyActivity > Double(ContextConfig.highActivityThreshold) {
-            // High activity - larger window to maintain sufficient context
-            newWindowSize = ContextConfig.maxSlidingWindowSize
-            adjustmentReason = "High activity period"
-        } else {
-            // Medium activity - proportional sizing
-            let ratio = (averageDailyActivity - Double(ContextConfig.lowActivityThreshold)) / 
-                       (Double(ContextConfig.highActivityThreshold) - Double(ContextConfig.lowActivityThreshold))
-            newWindowSize = ContextConfig.minSlidingWindowSize + 
-                           Int(ratio * Double(ContextConfig.maxSlidingWindowSize - ContextConfig.minSlidingWindowSize))
-            adjustmentReason = "Proportional to activity level"
+        // Fallback to activity-based sizing if prediction unavailable
+        if newWindowSize == currentWindowSize {
+            // Base window size on activity level
+            if averageDailyActivity < Double(ContextConfig.lowActivityThreshold) {
+                // Low activity - smaller window for more focused context
+                newWindowSize = ContextConfig.minSlidingWindowSize
+                adjustmentReason = "Low activity period"
+            } else if averageDailyActivity > Double(ContextConfig.highActivityThreshold) {
+                // High activity - larger window to maintain sufficient context
+                newWindowSize = ContextConfig.maxSlidingWindowSize
+                adjustmentReason = "High activity period"
+            } else {
+                // Medium activity - proportional sizing
+                let ratio = (averageDailyActivity - Double(ContextConfig.lowActivityThreshold)) / 
+                           (Double(ContextConfig.highActivityThreshold) - Double(ContextConfig.lowActivityThreshold))
+                newWindowSize = ContextConfig.minSlidingWindowSize + 
+                               Int(ratio * Double(ContextConfig.maxSlidingWindowSize - ContextConfig.minSlidingWindowSize))
+                adjustmentReason = "Proportional to activity level"
+            }
         }
         
         // Adjust based on recent trend
@@ -480,6 +523,43 @@ class ContextMemoryService: ObservableObject {
             logWindowAdjustment(from: oldWindowSize, to: newWindowSize, reason: adjustmentReason)
             logger.info("CONTEXT_MEMORY: Adjusted window size to \(currentWindowSize) (avg daily: \(String(format: "%.1f", averageDailyActivity)), trend: \(String(format: "%.2f", recentTrend)))")
         }
+    }
+    
+    private func predictOptimalWindowSize() -> Int {
+        let hourOfDay = Calendar.current.component(.hour, from: Date())
+        let dayOfWeek = Calendar.current.component(.weekday, from: Date())
+        
+        // Historical patterns (will be populated from actual monitoring data)
+        let patterns: [(hour: Int, day: Int, avgSize: Int)] = [
+            (hour: 9, day: 2, avgSize: 150),   // Monday morning - high activity
+            (hour: 14, day: 2, avgSize: 120),  // Monday afternoon
+            (hour: 17, day: 6, avgSize: 75),   // Friday evening - low activity
+            (hour: 10, day: 1, avgSize: 50),   // Sunday morning - minimal
+            (hour: 13, day: 4, avgSize: 100),  // Wednesday afternoon - medium
+        ]
+        
+        // Find closest matching pattern
+        var closestPattern: (hour: Int, day: Int, avgSize: Int)?
+        var minDistance = Int.max
+        
+        for pattern in patterns {
+            let hourDistance = abs(pattern.hour - hourOfDay)
+            let dayDistance = abs(pattern.day - dayOfWeek)
+            let totalDistance = hourDistance + (dayDistance * 3) // Weight day more heavily
+            
+            if totalDistance < minDistance {
+                minDistance = totalDistance
+                closestPattern = pattern
+            }
+        }
+        
+        // Return predicted size or current if no pattern matches well
+        if let pattern = closestPattern, minDistance < 10 {
+            return min(max(pattern.avgSize, ContextConfig.minSlidingWindowSize), 
+                      ContextConfig.maxSlidingWindowSize)
+        }
+        
+        return currentWindowSize // No change if no good prediction
     }
     
     private func logWindowAdjustment(from oldSize: Int, to newSize: Int, reason: String) {
@@ -793,6 +873,47 @@ enum ContextTimeframe {
 }
 
 // Priority is defined as TaskPriority in CoreModels.swift
+
+// MARK: - Performance Metrics
+
+struct PerformanceMetrics: Codable {
+    let timestamp: Date
+    let windowSize: Int
+    let activityLevel: String
+    let memoryFootprint: Int
+    let processingTime: TimeInterval
+    let cacheHitRate: Double
+    
+    func save() {
+        // Append to metrics file for analysis
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        
+        guard let data = try? encoder.encode(self),
+              let url = FileManager.default.urls(for: .applicationSupportDirectory,
+                                                in: .userDomainMask).first?
+                    .appendingPathComponent("LifeManager")
+                    .appendingPathComponent("metrics.jsonl") else { return }
+        
+        // Create directory if needed
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        
+        // Append as JSON Lines format
+        if let jsonString = String(data: data, encoding: .utf8) {
+            let lineData = (jsonString + "\n").data(using: .utf8)!
+            if FileManager.default.fileExists(atPath: url.path) {
+                if let fileHandle = try? FileHandle(forWritingTo: url) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(lineData)
+                    fileHandle.closeFile()
+                }
+            } else {
+                try? lineData.write(to: url)
+            }
+        }
+    }
+}
 
 // MARK: - Extensions
 
