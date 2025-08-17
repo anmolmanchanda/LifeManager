@@ -4,6 +4,8 @@
 
 *Organize your chaos, reclaim your time, and never lose a thought again.*
 
+**Current Version:** v1.9.1-stable | **Status:** ✅ Core Features Working | **Next:** v2.0 Integration in Progress
+
 ---
 
 ## 🎯 What is LifeManager?
