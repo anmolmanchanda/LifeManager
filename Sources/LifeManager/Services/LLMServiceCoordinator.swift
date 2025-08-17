@@ -62,6 +62,18 @@ class LLMServiceCoordinator: ObservableObject {
     // MARK: - High-Level Processing Methods (Backward Compatible)
     
     /// Process natural language input for PARA categorization
+    func processMessage(
+        _ message: String,
+        prompt: LLMPromptTemplate? = nil,
+        temperature: Double = 0.7
+    ) async throws -> String {
+        return try await processingService.processNaturalLanguage(
+            message,
+            prompt: prompt,
+            temperature: temperature
+        )
+    }
+    
     func processNaturalLanguage(
         input: String,
         availableAreas: [String] = [],

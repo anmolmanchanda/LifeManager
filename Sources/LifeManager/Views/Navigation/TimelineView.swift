@@ -291,16 +291,7 @@ struct LoadingStateView: View {
 
 // MARK: - Priority Extension
 
-extension GoalPriority {
-    var sortOrder: Int {
-        switch self {
-        case .urgent: return 0
-        case .high: return 1
-        case .medium: return 2
-        case .low: return 3
-        }
-    }
-}
+// sortOrder is already defined in TimelineViewModels.swift
 
 /* #Preview // DISABLED FOR STABILIZATION
 TimelineView()

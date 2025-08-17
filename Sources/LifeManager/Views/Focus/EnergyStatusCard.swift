@@ -266,9 +266,11 @@ struct EnergyStatusDetailView: View {
                 .padding()
             }
             .navigationTitle("Energy Status")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Button("Done") {
                         dismiss()
                     }

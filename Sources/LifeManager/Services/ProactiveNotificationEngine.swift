@@ -8,6 +8,8 @@ import UserNotifications
 @MainActor
 class ProactiveNotificationEngine: ObservableObject {
     
+    static let shared = ProactiveNotificationEngine()
+    
     // MARK: - Dependencies
     
     private let contextMemory = ContextMemoryService.shared
@@ -784,6 +786,7 @@ struct NotificationStatistics {
 
 /// Notification optimizer for timing and delivery
 class NotificationOptimizer {
+    var notificationStats = NotificationStatistics()
     
     /// Optimize notification timing and delivery
     func optimizeNotifications(

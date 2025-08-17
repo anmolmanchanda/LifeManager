@@ -1005,4 +1005,98 @@ class TimelineViewService: ObservableObject {
     func getInsights(category: TimelineInsightCategory) -> [TimelineInsight] {
         return timelineInsights.filter { $0.category == category }
     }
+    
+    /// Get timeline items filtered by time range and filter
+    func getTimelineItems(for timeRange: TimeRange, filter: TimelineFilter) -> [TimelineItem] {
+        var items: [TimelineItem] = []
+        
+        // Convert timeline events to timeline items based on filter
+        for event in timelineEvents {
+            // Check if event is within time range
+            guard isWithinTimeRange(event.date, timeRange: timeRange) else { continue }
+            
+            // Apply filter
+            switch filter {
+            case .all:
+                break
+            case .projects:
+                guard event.type == .milestone || event.type == .progress else { continue }
+            case .areas:
+                guard event.type == .areaUpdate else { continue }
+            case .automated:
+                guard event.isAutomated else { continue }
+            case .dependencies:
+                guard !event.dependencyIds.isEmpty else { continue }
+            }
+            
+            // Create timeline item from event
+            let item = TimelineItem(
+                id: event.id,
+                title: event.title,
+                description: event.description,
+                dueDate: event.date,
+                category: event.type.rawValue,
+                status: mapEventStatusToTimelineStatus(event.status),
+                isAIEnhanced: event.hasAIInsight,
+                aiConfidence: event.aiConfidence,
+                aiInsight: event.aiInsight,
+                dependencies: event.dependencyIds,
+                isAutomated: event.isAutomated,
+                canBeRescheduled: event.canBeRescheduled
+            )
+            items.append(item)
+        }
+        
+        return items.sorted { ($0.dueDate ?? Date.distantFuture) < ($1.dueDate ?? Date.distantFuture) }
+    }
+    
+    /// Check if date is within time range
+    private func isWithinTimeRange(_ date: Date, timeRange: TimeRange) -> Bool {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        switch timeRange {
+        case .oneWeek:
+            let startDate = calendar.date(byAdding: .day, value: -7, to: now) ?? now
+            return date >= startDate && date <= now
+        case .twoWeeks:
+            let startDate = calendar.date(byAdding: .day, value: -14, to: now) ?? now
+            return date >= startDate && date <= now
+        case .oneMonth:
+            let startDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+            return date >= startDate && date <= now
+        case .threeMonths:
+            let startDate = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+            return date >= startDate && date <= now
+        case .sixMonths:
+            let startDate = calendar.date(byAdding: .month, value: -6, to: now) ?? now
+            return date >= startDate && date <= now
+        case .oneYear:
+            let startDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
+            return date >= startDate && date <= now
+        case .all:
+            return true
+        }
+    }
+    
+    /// Map event status to timeline item status
+    private func mapEventStatusToTimelineStatus(_ status: TimelineEventStatus) -> TimelineItemStatus {
+        switch status {
+        case .completed:
+            return .completed
+        case .inProgress:
+            return .inProgress
+        case .pending:
+            return .pending
+        case .overdue:
+            return .overdue
+        case .automated:
+            return .automated
+        }
+    }
+    
+    /// Refresh timeline data
+    func refreshData() async {
+        await loadInitialData()
+    }
 }

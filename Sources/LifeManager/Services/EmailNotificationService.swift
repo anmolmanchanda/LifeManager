@@ -116,12 +116,12 @@ class EmailNotificationService: ObservableObject {
         do {
             let success = try await sendEmailViaSMTP(content: emailContent, settings: settings)
             if success {
-                print("📧 EMAIL: ✅ Backup email sent successfully for: \(emailNotification.subject)")
+                Logger.shared.success("EMAIL: Backup email sent successfully for: \(emailNotification.subject)")
             } else {
-                print("📧 EMAIL: ❌ Failed to send backup email for: \(emailNotification.subject)")
+                Logger.shared.error("EMAIL: Failed to send backup email for: \(emailNotification.subject)")
             }
         } catch {
-            print("📧 EMAIL: ❌ Error sending backup email: \(error.localizedDescription)")
+            Logger.shared.error("EMAIL: Error sending backup email: \(error.localizedDescription)")
         }
     }
     
@@ -242,18 +242,4 @@ struct AppNotification {
     let priority: NotificationPriority
 }
 
-enum NotificationPriority: String, CaseIterable, Codable {
-    case low = "low"
-    case medium = "medium"
-    case high = "high"
-    case urgent = "urgent"
-    
-    var displayName: String {
-        switch self {
-        case .low: return "Low"
-        case .medium: return "Medium"
-        case .high: return "High"
-        case .urgent: return "Urgent"
-        }
-    }
-} 
+// NotificationPriority is now defined in IntelligentSchedulingModels.swift 

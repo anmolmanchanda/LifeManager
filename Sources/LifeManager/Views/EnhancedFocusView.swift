@@ -79,9 +79,11 @@ struct EnhancedFocusView: View {
                 }
             }
             .navigationTitle("Enhanced Focus")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Menu {
                         Button("Automation Dashboard") {
                             // Navigate to automation dashboard
@@ -998,9 +1000,11 @@ struct AutomationControlPanel: View {
                 .padding()
             }
             .navigationTitle("Automation Control")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Button("Done") {
                         presentationMode.wrappedValue.dismiss()
                     }

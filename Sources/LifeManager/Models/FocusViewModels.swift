@@ -271,7 +271,7 @@ enum ComplexityLevel: String, Codable, CaseIterable {
 // MARK: - Smart Filters
 
 /// Filter configuration for Focus View
-struct FocusFilter: Identifiable, Codable {
+struct FocusFilter: Identifiable, Codable, Hashable {
     let id = UUID()
     let name: String
     let icon: String

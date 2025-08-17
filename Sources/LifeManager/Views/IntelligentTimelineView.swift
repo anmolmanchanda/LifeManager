@@ -87,7 +87,7 @@ struct IntelligentTimelineView: View {
             }
             .navigationTitle("Intelligent Timeline")
             .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .automatic) {
                     Button(action: { showingAIInsights.toggle() }) {
                         Image(systemName: showingAIInsights ? "brain.head.profile.fill" : "brain.head.profile")
                             .foregroundColor(.blue)
@@ -154,7 +154,7 @@ struct IntelligentTimelineView: View {
     }
     
     private func analyzeTimelinePatterns() async {
-        await aiLearning.aiLearning.startContinuousLearning()
+        await aiLearning.startContinuousLearning()
     }
     
     private func optimizeSchedule() async {

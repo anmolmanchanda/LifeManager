@@ -111,6 +111,10 @@ struct Milestone: Identifiable, Codable, Hashable {
     let createdAt: Date
     let updatedAt: Date
     
+    var isCompleted: Bool {
+        return status == .completed || completedDate != nil
+    }
+    
     init(
         goalId: UUID,
         name: String,
@@ -437,6 +441,7 @@ struct ProgressSummary: Identifiable, Codable {
 
 enum GoalStatus: String, Codable, CaseIterable {
     case planning = "planning"
+    case inProgress = "in_progress"
     case active = "active"
     case onHold = "on_hold"
     case completed = "completed"
@@ -446,6 +451,7 @@ enum GoalStatus: String, Codable, CaseIterable {
     var displayName: String {
         switch self {
         case .planning: return "Planning"
+        case .inProgress: return "In Progress"
         case .active: return "Active"
         case .onHold: return "On Hold"
         case .completed: return "Completed"
@@ -457,6 +463,7 @@ enum GoalStatus: String, Codable, CaseIterable {
     var color: Color {
         switch self {
         case .planning: return .orange
+        case .inProgress: return .indigo
         case .active: return .blue
         case .onHold: return .yellow
         case .completed: return .green
@@ -468,6 +475,7 @@ enum GoalStatus: String, Codable, CaseIterable {
     var icon: String {
         switch self {
         case .planning: return "lightbulb"
+        case .inProgress: return "arrow.triangle.2.circlepath"
         case .active: return "play.circle"
         case .onHold: return "pause.circle"
         case .completed: return "checkmark.circle.fill"
@@ -478,6 +486,7 @@ enum GoalStatus: String, Codable, CaseIterable {
 }
 
 enum GoalPriority: String, Codable, CaseIterable {
+    case urgent = "urgent"
     case critical = "critical"
     case high = "high"
     case medium = "medium"
@@ -485,6 +494,7 @@ enum GoalPriority: String, Codable, CaseIterable {
     
     var displayName: String {
         switch self {
+        case .urgent: return "Urgent"
         case .critical: return "Critical"
         case .high: return "High"
         case .medium: return "Medium"
@@ -494,6 +504,7 @@ enum GoalPriority: String, Codable, CaseIterable {
     
     var color: Color {
         switch self {
+        case .urgent: return .purple
         case .critical: return .red
         case .high: return .orange
         case .medium: return .blue
@@ -503,10 +514,11 @@ enum GoalPriority: String, Codable, CaseIterable {
     
     var sortOrder: Int {
         switch self {
-        case .critical: return 0
-        case .high: return 1
-        case .medium: return 2
-        case .low: return 3
+        case .urgent: return 0
+        case .critical: return 1
+        case .high: return 2
+        case .medium: return 3
+        case .low: return 4
         }
     }
 }

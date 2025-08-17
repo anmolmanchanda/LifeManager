@@ -158,15 +158,17 @@ struct FocusSettingsView: View {
                 }
             }
             .navigationTitle("Focus Settings")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .automatic) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Button("Save") {
                         saveSettings()
                         dismiss()
@@ -236,7 +238,9 @@ struct RecommendationTypesView: View {
             }
         }
         .navigationTitle("Recommendations")
-        .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
     }
     
     private func typeDescription(_ type: RecommendationType) -> String {
@@ -272,7 +276,9 @@ struct AIFeedbackHistoryView: View {
             }
         }
         .navigationTitle("AI Feedback")
-        .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
     }
 }
 
@@ -287,7 +293,9 @@ struct FilterPreferencesView: View {
             }
         }
         .navigationTitle("Filter Preferences")
-        .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
     }
 }
 
@@ -331,7 +339,9 @@ struct DataPrivacyView: View {
             .padding()
         }
         .navigationTitle("Data & Privacy")
-        .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
     }
 }
 
@@ -365,7 +375,9 @@ struct ExportDataView: View {
             }
         }
         .navigationTitle("Export Data")
-        .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
         .confirmationDialog("Export Format", isPresented: $showingExportOptions) {
             Button("JSON Format") {
                 // TODO: Export as JSON
@@ -422,7 +434,9 @@ struct AboutFocusView: View {
             .padding()
         }
         .navigationTitle("About")
-        .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
     }
 }
 

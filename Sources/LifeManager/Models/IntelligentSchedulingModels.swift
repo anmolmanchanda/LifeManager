@@ -14,6 +14,13 @@ struct TaskDependency: Codable, Identifiable {
     let createdAt: String
     let updatedAt: String
     
+    // Additional properties for compatibility with TaskDependencyService
+    var title: String = ""
+    var dependentTaskId: UUID { dependsOnTaskId }
+    var isCompleted: Bool = false
+    var scheduledDate: Date = Date()
+    var mustCompleteBy: Date = Date()
+    
     enum CodingKeys: String, CodingKey {
         case id
         case taskId = "task_id"
@@ -22,6 +29,10 @@ struct TaskDependency: Codable, Identifiable {
         case isBlocking = "is_blocking"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case title
+        case isCompleted = "is_completed"
+        case scheduledDate = "scheduled_date"
+        case mustCompleteBy = "must_complete_by"
     }
     
     init(
@@ -31,15 +42,24 @@ struct TaskDependency: Codable, Identifiable {
         dependencyType: DependencyType = .sequential,
         isBlocking: Bool = true,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        title: String = "",
+        dependentTaskId: UUID? = nil,
+        isCompleted: Bool = false,
+        scheduledDate: Date = Date(),
+        mustCompleteBy: Date = Date()
     ) {
         self.id = id
         self.taskId = taskId
-        self.dependsOnTaskId = dependsOnTaskId
+        self.dependsOnTaskId = dependentTaskId ?? dependsOnTaskId
         self.dependencyType = dependencyType
         self.isBlocking = isBlocking
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.title = title
+        self.isCompleted = isCompleted
+        self.scheduledDate = scheduledDate
+        self.mustCompleteBy = mustCompleteBy
     }
 }
 
@@ -349,6 +369,9 @@ enum NotificationType: String, CaseIterable, Codable {
     case contextualSuggestion = "contextual_suggestion"
     case achievementCelebration = "achievement_celebration"
     case planningReminder = "planning_reminder"
+    case workLifeBalance = "work_life_balance"
+    case stagnantTask = "stagnant_task"
+    case procrastinationPattern = "procrastination_pattern"
     
     var displayName: String {
         switch self {
@@ -362,6 +385,9 @@ enum NotificationType: String, CaseIterable, Codable {
         case .contextualSuggestion: return "Contextual Suggestions"
         case .achievementCelebration: return "Achievement Celebrations"
         case .planningReminder: return "Planning Reminders"
+        case .workLifeBalance: return "Work-Life Balance"
+        case .stagnantTask: return "Stagnant Task Alert"
+        case .procrastinationPattern: return "Procrastination Pattern"
         }
     }
 }
@@ -389,6 +415,25 @@ enum NotificationFrequency: String, CaseIterable, Codable {
     }
 }
 
+/// Notification priority levels
+enum NotificationPriority: String, CaseIterable, Codable {
+    case low = "low"
+    case medium = "medium"
+    case high = "high"
+    case urgent = "urgent"
+    case critical = "critical"
+    
+    var displayName: String {
+        switch self {
+        case .low: return "Low"
+        case .medium: return "Medium"
+        case .high: return "High"
+        case .urgent: return "Urgent"
+        case .critical: return "Critical"
+        }
+    }
+}
+
 /// Proactive notification tracking
 struct ProactiveNotification: Codable, Identifiable {
     let id: UUID
@@ -404,6 +449,9 @@ struct ProactiveNotification: Codable, Identifiable {
     let userResponse: String?
     let effectiveness: Double?
     let createdAt: String
+    let type: NotificationType  // Alias for notificationType
+    let priority: NotificationPriority
+    let confidence: Double
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -419,6 +467,9 @@ struct ProactiveNotification: Codable, Identifiable {
         case userResponse = "user_response"
         case effectiveness
         case createdAt = "created_at"
+        case type = "notification_type"  // Maps to same field as notificationType
+        case priority
+        case confidence
     }
     
     init(
@@ -451,6 +502,9 @@ struct ProactiveNotification: Codable, Identifiable {
         self.createdAt = createdAt
     }
 }
+
+// Type alias for backward compatibility
+typealias ReschedulingEvent = ReschedulingHistoryEntry
 
 // MARK: - Enhanced Calendar Event with Intelligence
 

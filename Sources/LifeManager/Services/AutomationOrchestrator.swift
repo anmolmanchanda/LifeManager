@@ -549,6 +549,10 @@ class AutomationOrchestrator: ObservableObject {
             await optimizeMemoryUsage(request.optimization)
         case .errorReduction:
             await reduceErrors(request.optimization)
+        case .serviceOptimization:
+            await optimizeServices(request.optimization)
+        case .databaseOptimization:
+            await optimizeDatabaseQueries(request.optimization)
         }
         
         // Update request status
@@ -856,6 +860,16 @@ class AutomationOrchestrator: ObservableObject {
     private func reduceErrors(_ optimization: CrossServiceOptimization) async {
         logger.info("AUTOMATION_ORCHESTRATOR: Reducing system errors")
         // Implementation would address error sources
+    }
+    
+    private func optimizeServices(_ optimization: CrossServiceOptimization) async {
+        logger.info("AUTOMATION_ORCHESTRATOR: Optimizing services")
+        // Implementation would optimize individual service performance
+    }
+    
+    private func optimizeDatabaseQueries(_ optimization: CrossServiceOptimization) async {
+        logger.info("AUTOMATION_ORCHESTRATOR: Optimizing database queries")
+        // Implementation would optimize database access patterns
     }
     
     // MARK: - Health Issue Handlers

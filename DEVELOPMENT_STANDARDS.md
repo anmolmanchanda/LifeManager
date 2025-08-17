@@ -13,6 +13,7 @@
 - **MANDATORY** branch protection and review processes
 - **ENTERPRISE-GRADE** practices at all times
 - **PRODUCTION-FIRST** mindset in every decision
+- **NEVER WORK ON MAIN/DEV DIRECTLY** - Always create feature branches
 
 ---
 

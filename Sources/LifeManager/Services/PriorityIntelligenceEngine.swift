@@ -7,6 +7,8 @@ import SwiftUI
 @MainActor
 class PriorityIntelligenceEngine: ObservableObject {
     
+    static let shared = PriorityIntelligenceEngine()
+    
     // MARK: - Dependencies
     
     private let contextMemory = ContextMemoryService.shared
@@ -360,7 +362,7 @@ class PriorityIntelligenceEngine: ObservableObject {
             Return ONLY the numerical score (e.g., 0.75).
             """
             
-            let response = try await llmService.processText(prompt)
+            let response = try await llmService.processMessage(prompt)
             
             // Parse the numerical response
             let cleanedResponse = response.trimmingCharacters(in: .whitespacesAndNewlines)

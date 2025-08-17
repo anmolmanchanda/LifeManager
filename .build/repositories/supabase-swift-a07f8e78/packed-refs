@@ -1,7 +1,5 @@
 # pack-refs with: peeled fully-peeled sorted 
 a9f53e2e433a6281c9dc1e45aecd0efe03ebb27b refs/heads/guilherme/broadcast-changes-improvement
-0f2d85bd69a073770cdba77cc78a3a51cbeb57b7 refs/heads/guilherme/dont-send-non-jwts-in-authorization
-36c83e2ef4fd3372e601174878e596aec5bac59f refs/heads/guilherme/example-facebook
 b21c4883215373870f8e8d1f5cffcc2e71ce75cd refs/heads/guilherme/fix/functions-set-auth
 734e6df0aa895ecf36bd8a820fbbc84de816b759 refs/heads/macos-keychain-error
 09f047baa21750a8e59eba46439814c83ae25bcf refs/heads/main
@@ -10,7 +8,6 @@ f84ae8703f99548e66152ed4e7d93e8b37f9c633 refs/heads/resumable-upload
 7434e08ec62e1c3b220a50695489ddedff68ed87 refs/heads/sample-supadrive
 82784a670660fb9c3edfcb47b9cc27f237bb6530 refs/heads/tests/integration-tests
 4a98ee28e3d239fa57261bfd72fda033cac03e4b refs/heads/typed-postgrest
-30826673cbe5eb42028b78363082887743ab56fc refs/heads/update-deps
 656ae01bd9278bba03acd2dc5fcd7a99924d040c refs/heads/v3
 27ae8aa7fde9d240169a28e08bc2c4b6b8ca961a refs/pull/1/head
 402814ac6813d7e7f374288a921d78e29fbbc0b4 refs/pull/10/head
@@ -363,7 +360,6 @@ f54387c2336a0fba529d1fa9dbff4a22c921a758 refs/pull/578/head
 6acbc25841b84fd08a275623c083b5b4c0135cc7 refs/pull/581/head
 8d9e40034ee018b1f90240dca412d1dc98c8ac2e refs/pull/583/head
 0f2d85bd69a073770cdba77cc78a3a51cbeb57b7 refs/pull/584/head
-97c874b80930f2cf8b4ee84469279f584c381b29 refs/pull/584/merge
 676711816db2813f32d956ece21b312a26bf0574 refs/pull/585/head
 32a71be598f00997fd2477980f539c85ec3a5e56 refs/pull/586/head
 f030de9c8b94d74126a3335c1d7a12962d7d3132 refs/pull/587/head
@@ -482,10 +478,8 @@ a9f53e2e433a6281c9dc1e45aecd0efe03ebb27b refs/pull/723/head
 47653112fa61e06848d35522f936ae24dc975bda refs/pull/724/head
 36657650c1b7c730626e10243f0eb7176d851fe4 refs/pull/725/head
 30826673cbe5eb42028b78363082887743ab56fc refs/pull/726/head
-9db03d39d8e1917d01ae5152ffde1b61f821f844 refs/pull/726/merge
 94329ce2bf9170a7fbac6cdf6174c052fe63a4df refs/pull/728/head
 36c83e2ef4fd3372e601174878e596aec5bac59f refs/pull/729/head
-565b658a2e6c88aca5e2c2b720b03babc9264dbf refs/pull/729/merge
 70bceda3337cfee6f936f249e7e9514b63dcaf34 refs/pull/730/head
 6f43787f3a70b181fe2ed6a7032be43e0db52b90 refs/pull/731/head
 f5b6cf1de5607ac746f217bf3de228467ed29949 refs/pull/79/head
