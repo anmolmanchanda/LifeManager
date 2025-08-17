@@ -435,6 +435,19 @@ class TaskDependencyService: ObservableObject {
                 if depDate < baseFinish {
                     warnings.append("Dependent task starts before dependency finishes")
                 }
+            case .sequential:
+                // Sequential dependencies - check order
+                if depDate < baseDate {
+                    warnings.append("Sequential task is scheduled before its predecessor")
+                }
+            case .resource:
+                // Resource dependencies - no specific date validation needed
+                break
+            case .milestone:
+                // Milestone dependencies - check milestone completion
+                if depDate < baseDate {
+                    warnings.append("Task scheduled before milestone completion")
+                }
             }
         }
         
@@ -701,6 +714,15 @@ class TaskDependencyService: ObservableObject {
             // Must start before dependent task finishes
             let dependentDuration = TimeInterval((dependentTask.estimatedDuration ?? 60) * 60)
             return dependentDueDate.addingTimeInterval(dependentDuration).addingTimeInterval(-buffer)
+        case .sequential:
+            // Must complete before next sequential task
+            return dependentDueDate.addingTimeInterval(-buffer)
+        case .resource:
+            // Resource dependencies don't have strict timing
+            return dependentDueDate
+        case .milestone:
+            // Must complete before milestone
+            return dependentDueDate.addingTimeInterval(-buffer)
         }
     }
     
@@ -795,6 +817,15 @@ class TaskDependencyService: ObservableObject {
         case .startToFinish:
             let afterTaskFinish = afterTaskDate.addingTimeInterval(TimeInterval((afterTask.estimatedDuration ?? 60) * 60))
             return taskDate < afterTaskFinish
+        case .sequential:
+            // Sequential tasks must happen in order
+            return taskDate < afterTaskDate
+        case .resource:
+            // Resource constraints don't affect scheduling directly
+            return true
+        case .milestone:
+            // Task must be after milestone completion
+            return taskDate < afterTaskDate
         }
     }
 }
@@ -914,9 +945,9 @@ struct TaskDependencyRecord: Codable {
     let dependent_task_id: UUID
     let depends_on_task_id: UUID
     let dependency_type: String
-    let is_completed: Bool
+    var is_completed: Bool
     let created_at: String
-    let updated_at: String
+    var updated_at: String
     
     init(from dependency: TaskDependency) {
         self.id = dependency.id

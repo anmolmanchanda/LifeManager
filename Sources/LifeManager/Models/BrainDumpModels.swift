@@ -204,24 +204,24 @@ struct UncertaintyAnalysis {
 // MARK: - Actionability & Execution
 
 struct SuggestedAction {
-    let type: ActionType
+    let type: BrainDumpActionType
     let description: String
     let priority: TaskPriority
     let estimatedTime: TimeInterval
     let dependencies: [String]
 }
 
-enum ActionType {
+enum BrainDumpActionType {
     case immediate, scheduled, delegated, deferred, clarificationNeeded
 }
 
 struct EffortEstimate {
     let timeRequired: TimeInterval // in seconds
-    let complexity: ComplexityLevel
+    let complexity: BrainDumpComplexityLevel
     let confidence: Double
 }
 
-enum ComplexityLevel {
+enum BrainDumpComplexityLevel {
     case trivial, low, medium, high, expert
 }
 
@@ -240,7 +240,7 @@ struct PatternAnalysis {
 }
 
 struct Pattern {
-    let type: PatternType
+    let type: UnifiedPatternType
     let description: String
     let frequency: Int
     let confidence: Double

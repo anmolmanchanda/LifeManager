@@ -79,9 +79,11 @@ struct EnhancedFocusView: View {
                 }
             }
             .navigationTitle("Enhanced Focus")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Menu {
                         Button("Automation Dashboard") {
                             // Navigate to automation dashboard
@@ -998,9 +1000,11 @@ struct AutomationControlPanel: View {
                 .padding()
             }
             .navigationTitle("Automation Control")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Button("Done") {
                         presentationMode.wrappedValue.dismiss()
                     }
@@ -1079,38 +1083,8 @@ struct AdvancedSettingsSection: View {
 
 // MARK: - Supporting Types
 
-enum FocusFilter: String, CaseIterable {
-    case aiSuggested = "AI Suggested"
-    case urgentImportant = "Urgent & Important"
-    case quickWins = "Quick Wins"
-    case deepWork = "Deep Work"
-    case lowEnergy = "Low Energy"
-    
-    var title: String {
-        return self.rawValue
-    }
-}
 
-// Placeholder types that would be implemented in FocusViewService
-struct FocusItem: Identifiable {
-    let id: UUID
-    let title: String
-    let description: String?
-    let priority: TaskPriority
-    let aiConfidence: Double?
-    let aiRecommendation: String?
-    let canBeRescheduled: Bool
-    
-    init(id: UUID = UUID(), title: String, description: String? = nil, priority: TaskPriority = .medium, aiConfidence: Double? = nil, aiRecommendation: String? = nil, canBeRescheduled: Bool = true) {
-        self.id = id
-        self.title = title
-        self.description = description
-        self.priority = priority
-        self.aiConfidence = aiConfidence
-        self.aiRecommendation = aiRecommendation
-        self.canBeRescheduled = canBeRescheduled
-    }
-}
+// Note: FocusItem is defined in Models/FocusViewModels.swift
 
 // TaskPriority is defined in CoreModels.swift
 

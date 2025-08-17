@@ -17,7 +17,7 @@ struct IntelligentTimelineView: View {
     @StateObject private var intelligentRescheduling = IntelligentReschedulingService.shared
     @StateObject private var taskDependencies = TaskDependencyService.shared
     
-    @State private var selectedTimeRange: TimeRange = .week
+    @State private var selectedTimeRange: TimeRange = .oneMonth
     @State private var selectedFilter: TimelineFilter = .all
     @State private var showingAutomationPanel = false
     @State private var showingAIInsights = false
@@ -86,9 +86,8 @@ struct IntelligentTimelineView: View {
                 }
             }
             .navigationTitle("Intelligent Timeline")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .automatic) {
                     Button(action: { showingAIInsights.toggle() }) {
                         Image(systemName: showingAIInsights ? "brain.head.profile.fill" : "brain.head.profile")
                             .foregroundColor(.blue)
@@ -155,7 +154,7 @@ struct IntelligentTimelineView: View {
     }
     
     private func analyzeTimelinePatterns() async {
-        await aiLearning.aiLearning.startContinuousLearning()
+        await aiLearning.startContinuousLearning()
     }
     
     private func optimizeSchedule() async {
@@ -224,7 +223,7 @@ struct TimeRangePicker: View {
     var body: some View {
         Picker("Time Range", selection: $selectedRange) {
             ForEach(TimeRange.allCases, id: \.self) { range in
-                Text(range.title).tag(range)
+                Text(range.displayName).tag(range)
             }
         }
         .pickerStyle(.segmented)
@@ -370,7 +369,7 @@ struct TimelineSummaryCard: View {
                             .font(.headline)
                             .fontWeight(.semibold)
                         
-                        Text("AI-enhanced \(timeRange.title.lowercased()) view")
+                        Text("AI-enhanced \(timeRange.displayName.lowercased()) view")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -1135,9 +1134,8 @@ struct TimelineAutomationPanel: View {
                 .padding()
             }
             .navigationTitle("Timeline Automation")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .trailing) {
                     Button("Done") {
                         presentationMode.wrappedValue.dismiss()
                     }
@@ -1234,17 +1232,6 @@ struct TimelineSettingsCard: View {
 }
 
 // MARK: - Supporting Types
-
-enum TimeRange: String, CaseIterable {
-    case day = "Day"
-    case week = "Week"
-    case month = "Month"
-    case quarter = "Quarter"
-    
-    var title: String {
-        return self.rawValue
-    }
-}
 
 enum TimelineFilter: String, CaseIterable {
     case all = "All"

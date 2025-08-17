@@ -143,8 +143,10 @@ class ContextMemoryService: ObservableObject {
     func getCurrentContext() async -> ProcessingContext {
         let calendarContext = await getCalendarContext()
         
+        let recentItemsList = Array(activeContextWindow.suffix(currentWindowSize)).map { ContextItem(from: $0) }
         return ProcessingContext(
-            recentItems: Array(activeContextWindow.suffix(currentWindowSize)).map { ContextItem(from: $0) }, // Dynamic window size
+            recentItems: recentItemsList, // Dynamic window size
+            recentActivityItems: recentItemsList, // Same data for compatibility
             dailySummaries: Array(dailySummaries.prefix(7)), // Last 7 days
             weeklySummaries: Array(weeklySummaries.prefix(4)), // Last 4 weeks
             monthlySummaries: Array(monthlySummaries.prefix(3)), // Last 3 months
@@ -1417,12 +1419,18 @@ struct ContextStats {
 
 struct ProcessingContext {
     let recentItems: [ContextItem]
+    let recentActivityItems: [ContextItem]  // Added for compatibility
     let dailySummaries: [DailySummary]
     let weeklySummaries: [WeeklySummary]
     let monthlySummaries: [MonthlySummary]
     let contextStats: ContextStats
     let calendarContext: CalendarContext
     let timestamp: Date
+    
+    // Computed property for backward compatibility
+    var activityItems: [ContextItem] {
+        return recentActivityItems.isEmpty ? recentItems : recentActivityItems
+    }
 }
 
 struct CalendarContext {

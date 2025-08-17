@@ -14,6 +14,13 @@ struct TaskDependency: Codable, Identifiable {
     let createdAt: String
     let updatedAt: String
     
+    // Additional properties for compatibility with TaskDependencyService
+    var title: String = ""
+    var dependentTaskId: UUID { dependsOnTaskId }
+    var isCompleted: Bool = false
+    var scheduledDate: Date = Date()
+    var mustCompleteBy: Date = Date()
+    
     enum CodingKeys: String, CodingKey {
         case id
         case taskId = "task_id"
@@ -22,6 +29,10 @@ struct TaskDependency: Codable, Identifiable {
         case isBlocking = "is_blocking"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case title
+        case isCompleted = "is_completed"
+        case scheduledDate = "scheduled_date"
+        case mustCompleteBy = "must_complete_by"
     }
     
     init(
@@ -31,24 +42,37 @@ struct TaskDependency: Codable, Identifiable {
         dependencyType: DependencyType = .sequential,
         isBlocking: Bool = true,
         createdAt: String = ISO8601DateFormatter().string(from: Date()),
-        updatedAt: String = ISO8601DateFormatter().string(from: Date())
+        updatedAt: String = ISO8601DateFormatter().string(from: Date()),
+        title: String = "",
+        dependentTaskId: UUID? = nil,
+        isCompleted: Bool = false,
+        scheduledDate: Date = Date(),
+        mustCompleteBy: Date = Date()
     ) {
         self.id = id
         self.taskId = taskId
-        self.dependsOnTaskId = dependsOnTaskId
+        self.dependsOnTaskId = dependentTaskId ?? dependsOnTaskId
         self.dependencyType = dependencyType
         self.isBlocking = isBlocking
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.title = title
+        self.isCompleted = isCompleted
+        self.scheduledDate = scheduledDate
+        self.mustCompleteBy = mustCompleteBy
     }
 }
 
 /// Task dependency types
 enum DependencyType: String, CaseIterable, Codable {
-    case sequential = "sequential"      // Must complete first task before starting second
-    case resource = "resource"          // Shared resource or person requirement
-    case milestone = "milestone"        // Project milestone dependency
-    case preference = "preference"      // Preferred ordering (non-blocking)
+    case sequential = "sequential"            // Must complete first task before starting second
+    case resource = "resource"                // Shared resource or person requirement
+    case milestone = "milestone"              // Project milestone dependency
+    case preference = "preference"            // Preferred ordering (non-blocking)
+    case finishToStart = "finish_to_start"    // Prerequisite must finish before this can start
+    case startToStart = "start_to_start"      // Both can start at same time, but prerequisite must start first
+    case finishToFinish = "finish_to_finish"  // Both must finish at same time
+    case startToFinish = "start_to_finish"    // This must finish when prerequisite starts (rare)
     
     var displayName: String {
         switch self {
@@ -56,6 +80,10 @@ enum DependencyType: String, CaseIterable, Codable {
         case .resource: return "Resource"
         case .milestone: return "Milestone"
         case .preference: return "Preference"
+        case .finishToStart: return "Finish-to-Start"
+        case .startToStart: return "Start-to-Start"
+        case .finishToFinish: return "Finish-to-Finish"
+        case .startToFinish: return "Start-to-Finish"
         }
     }
 }
@@ -183,56 +211,6 @@ struct SchedulingTimeSlot: Codable, Equatable {
     static let lateEvening = SchedulingTimeSlot(startHour: 19, startMinute: 0, endHour: 21, endMinute: 0)
 }
 
-/// Task rescheduling history for learning
-struct ReschedulingEvent: Codable, Identifiable {
-    let id: UUID
-    let taskId: UUID
-    let originalDate: String
-    let newDate: String
-    let reason: ReschedulingReason
-    let wasAutomatic: Bool
-    let userOverrode: Bool
-    let overrideReason: String?
-    let confidence: Double
-    let createdAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case taskId = "task_id"
-        case originalDate = "original_date"
-        case newDate = "new_date"
-        case reason
-        case wasAutomatic = "was_automatic"
-        case userOverrode = "user_overrode"
-        case overrideReason = "override_reason"
-        case confidence
-        case createdAt = "created_at"
-    }
-    
-    init(
-        id: UUID = UUID(),
-        taskId: UUID,
-        originalDate: String,
-        newDate: String,
-        reason: ReschedulingReason,
-        wasAutomatic: Bool = true,
-        userOverrode: Bool = false,
-        overrideReason: String? = nil,
-        confidence: Double = 0.8,
-        createdAt: String = ISO8601DateFormatter().string(from: Date())
-    ) {
-        self.id = id
-        self.taskId = taskId
-        self.originalDate = originalDate
-        self.newDate = newDate
-        self.reason = reason
-        self.wasAutomatic = wasAutomatic
-        self.userOverrode = userOverrode
-        self.overrideReason = overrideReason
-        self.confidence = confidence
-        self.createdAt = createdAt
-    }
-}
 
 /// Reasons for task rescheduling
 enum ReschedulingReason: String, CaseIterable, Codable {
@@ -391,6 +369,9 @@ enum NotificationType: String, CaseIterable, Codable {
     case contextualSuggestion = "contextual_suggestion"
     case achievementCelebration = "achievement_celebration"
     case planningReminder = "planning_reminder"
+    case workLifeBalance = "work_life_balance"
+    case stagnantTask = "stagnant_task"
+    case procrastinationPattern = "procrastination_pattern"
     
     var displayName: String {
         switch self {
@@ -404,6 +385,9 @@ enum NotificationType: String, CaseIterable, Codable {
         case .contextualSuggestion: return "Contextual Suggestions"
         case .achievementCelebration: return "Achievement Celebrations"
         case .planningReminder: return "Planning Reminders"
+        case .workLifeBalance: return "Work-Life Balance"
+        case .stagnantTask: return "Stagnant Task Alert"
+        case .procrastinationPattern: return "Procrastination Pattern"
         }
     }
 }
@@ -431,6 +415,25 @@ enum NotificationFrequency: String, CaseIterable, Codable {
     }
 }
 
+/// Notification priority levels
+enum NotificationPriority: String, CaseIterable, Codable {
+    case low = "low"
+    case medium = "medium"
+    case high = "high"
+    case urgent = "urgent"
+    case critical = "critical"
+    
+    var displayName: String {
+        switch self {
+        case .low: return "Low"
+        case .medium: return "Medium"
+        case .high: return "High"
+        case .urgent: return "Urgent"
+        case .critical: return "Critical"
+        }
+    }
+}
+
 /// Proactive notification tracking
 struct ProactiveNotification: Codable, Identifiable {
     let id: UUID
@@ -446,6 +449,9 @@ struct ProactiveNotification: Codable, Identifiable {
     let userResponse: String?
     let effectiveness: Double?
     let createdAt: String
+    let type: NotificationType  // Alias for notificationType
+    let priority: NotificationPriority
+    let confidence: Double
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -461,6 +467,9 @@ struct ProactiveNotification: Codable, Identifiable {
         case userResponse = "user_response"
         case effectiveness
         case createdAt = "created_at"
+        case type = "notification_type"  // Maps to same field as notificationType
+        case priority
+        case confidence
     }
     
     init(
@@ -493,6 +502,9 @@ struct ProactiveNotification: Codable, Identifiable {
         self.createdAt = createdAt
     }
 }
+
+// Type alias for backward compatibility
+typealias ReschedulingEvent = ReschedulingHistoryEntry
 
 // MARK: - Enhanced Calendar Event with Intelligence
 
@@ -725,21 +737,6 @@ struct NotificationSettings: Codable {
 
 // MARK: - Task Dependencies
 
-/// Task dependency information
-struct TaskDependency: Identifiable, Codable {
-    let id = UUID()
-    let taskId: UUID
-    let dependsOnTaskId: UUID
-    let dependencyType: DependencyType
-    let createdAt: Date
-}
-
-enum DependencyType: String, Codable, CaseIterable {
-    case finishToStart = "finish_to_start"     // Prerequisite must finish before this can start
-    case startToStart = "start_to_start"       // Both can start at same time, but prerequisite must start first
-    case finishToFinish = "finish_to_finish"   // Both must finish at same time
-    case startToFinish = "start_to_finish"     // This must finish when prerequisite starts (rare)
-}
 
 /// Extended task information with dependency data
 struct TaskWithDependencies {

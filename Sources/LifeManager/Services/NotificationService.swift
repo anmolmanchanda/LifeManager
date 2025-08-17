@@ -392,7 +392,7 @@ enum NotificationCategory: String, CaseIterable {
     
     var sound: UNNotificationSound {
         switch self {
-        case .general, .eventParked, .eventRescheduled, .eventBumped:
+        case .general, .eventParked, .eventRescheduled, .eventBumped, .proactiveNotification:
             return .default
         case .bufferWarning, .staleEvents:
             return UNNotificationSound(named: UNNotificationSoundName("warning.caf"))

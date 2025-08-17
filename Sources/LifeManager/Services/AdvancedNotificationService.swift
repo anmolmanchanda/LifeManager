@@ -490,9 +490,9 @@ class AdvancedNotificationService: ObservableObject {
         
         switch notification.priority {
         case .low: deliveryStatistics.lowPrioritySent += 1
-        case .normal: deliveryStatistics.normalPrioritySent += 1
+        case .medium: deliveryStatistics.normalPrioritySent += 1
         case .high: deliveryStatistics.highPrioritySent += 1
-        case .critical: deliveryStatistics.criticalSent += 1
+        case .urgent: deliveryStatistics.criticalSent += 1
         }
     }
     
@@ -517,7 +517,7 @@ class AdvancedNotificationService: ObservableObject {
     
     private func getDefaultEscalationRules(for priority: NotificationPriority, category: AdvancedNotificationCategory) -> EscalationRules? {
         switch priority {
-        case .critical:
+        case .urgent:
             return EscalationRules(
                 channels: [.inApp, .push, .email, .sms],
                 delays: [0, 300, 600] // Immediate, 5min, 10min
@@ -527,7 +527,7 @@ class AdvancedNotificationService: ObservableObject {
                 channels: [.inApp, .push, .email],
                 delays: [0, 900, 1800] // Immediate, 15min, 30min
             )
-        case .normal:
+        case .medium:
             return category == .proactiveSuggestion ? nil : EscalationRules(
                 channels: [.inApp, .push],
                 delays: [0, 1800] // Immediate, 30min
@@ -537,12 +537,12 @@ class AdvancedNotificationService: ObservableObject {
         }
     }
     
-    private func createNotificationActions(for notification: AdvancedNotification, level: Int) -> [NotificationService.NotificationAction] {
-        var actions: [NotificationService.NotificationAction] = []
+    private func createNotificationActions(for notification: AdvancedNotification, level: Int) -> [NotificationAction] {
+        var actions: [NotificationAction] = []
         
         if let suggestions = notification.suggestions {
             for suggestion in suggestions.prefix(2) { // Limit to 2 actions
-                actions.append(NotificationService.NotificationAction(
+                actions.append(NotificationAction(
                     id: suggestion.id.uuidString,
                     title: suggestion.title,
                     isDestructive: false
@@ -553,7 +553,7 @@ class AdvancedNotificationService: ObservableObject {
         return actions
     }
     
-    private func mapToBasicCategory(_ category: AdvancedNotificationCategory) -> NotificationService.NotificationCategory {
+    private func mapToBasicCategory(_ category: AdvancedNotificationCategory) -> NotificationCategory {
         switch category {
         case .taskReminder: return .taskReminder
         case .scheduleChange: return .scheduleChange
@@ -605,20 +605,18 @@ struct AdvancedNotification: Identifiable {
     }
 }
 
-enum NotificationPriority: String, CaseIterable {
-    case low = "low"
-    case normal = "normal"
-    case high = "high"
-    case critical = "critical"
-    
-    var displayName: String {
-        switch self {
-        case .low: return "Low"
-        case .normal: return "Normal"
-        case .high: return "High"
-        case .critical: return "Critical"
-        }
-    }
+// Import NotificationPriority from EmailNotificationService
+
+extension NotificationPriority {
+    static var normal: NotificationPriority { .medium }
+    static var critical: NotificationPriority { .urgent }
+}
+
+// Define NotificationAction for compatibility
+struct NotificationAction {
+    let id: String
+    let title: String
+    let isDestructive: Bool
 }
 
 enum AdvancedNotificationCategory: String, CaseIterable {
@@ -732,9 +730,7 @@ extension DateFormatter {
 
 // Extension to NotificationService for integration
 extension NotificationService {
-    enum NotificationPriority {
-        case low, normal, high, critical
-    }
+    // NotificationPriority is now defined in IntelligentSchedulingModels.swift
     
     func showInAppNotification(
         title: String,

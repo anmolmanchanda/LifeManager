@@ -310,6 +310,28 @@ class SupabaseService: ObservableObject {
         return response.first
     }
     
+    /// Fetch records with custom query
+    func fetchWithQuery<T: Codable>(_ type: T.Type, from table: String, query: String) async throws -> [T] {
+        // Parse the query string for simple eq operations
+        // Format expected: "column.eq.value"
+        let parts = query.split(separator: ".")
+        guard parts.count == 3, parts[1] == "eq" else {
+            throw SupabaseError.general(message: "Invalid query format")
+        }
+        
+        let column = String(parts[0])
+        let value = String(parts[2])
+        
+        let response: [T] = try await client
+            .from(table)
+            .select()
+            .eq(column, value: value)
+            .execute()
+            .value
+        
+        return response
+    }
+    
     /// Filter records by work/personal type
     func fetchByWorkPersonal<T: Codable>(_ type: T.Type, from table: String, workPersonal: WorkPersonalType) async throws -> [T] {
         let response: [T] = try await client

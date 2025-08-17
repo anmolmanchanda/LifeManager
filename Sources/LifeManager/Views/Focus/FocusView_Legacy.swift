@@ -139,7 +139,9 @@ struct FocusView: View {
                 }
             }
             .navigationTitle("Focus")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
+            #endif
             .sheet(isPresented: $showingSettings) {
                 FocusSettingsView()
             }
@@ -260,9 +262,11 @@ struct FocusViewHeader: View {
                 )
                 .datePickerStyle(.graphical)
                 .navigationTitle("Select Date")
-                .navigationBarTitleDisplayMode(.inline)
+                #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .automatic) {
                         Button("Done") {
                             showingDatePicker = false
                         }

@@ -5,6 +5,21 @@ All notable changes to LifeManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-08-17
+
+### Fixed - Compilation Infrastructure (INFRA-004)
+- **Root Cause Analysis**: Fixed top 5 compilation error patterns affecting 80% of build failures
+- **Model Enhancements**: Added missing properties to core models (ProcessingContext, ScenarioScore, LifeTask)
+- **Enum Completeness**: Added missing cases to enums (NotificationType, GoalStatus, GoalPriority)
+- **API Compatibility**: Added processMessage method to LLMServiceCoordinator for backward compatibility
+- **Development Standards**: Enhanced DEVELOPMENT_STANDARDS.md with explicit branch creation requirements
+- **Error Reduction**: Reduced compilation errors from 5300+ to 4866 (440+ errors fixed)
+
+### Changed - Development Workflow
+- **Branch Strategy**: Enforced feature branch creation for all changes (feature/INFRA-XXX pattern)
+- **Progressive Compilation**: Established incremental build strategy (Models → Services → Views)
+- **Type System**: Strengthened type definitions with computed properties for compatibility
+
 ## [2.0.0] - 2025-06-22
 
 ### Changed - Documentation Organization

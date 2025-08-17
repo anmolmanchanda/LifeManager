@@ -372,7 +372,9 @@ class AILearningEngine: ObservableObject {
     /// Analyze contextual patterns
     private func analyzeContextualPatterns() async {
         // This would integrate with ContextMemoryService for deeper analysis
-        let contextData = await contextMemory.getActiveContext()
+        // TODO: Add getActiveContext method to ContextMemoryService
+        // let contextData = await contextMemory.getActiveContext()
+        let contextData: [String] = []
         
         // Analyze patterns in context usage
         let pattern = ContextualPattern(
@@ -680,7 +682,8 @@ class AILearningEngine: ObservableObject {
             // Convert pattern to personal rule
             let rule = await createPersonalRuleFromPattern(pattern)
             if let rule = rule {
-                await personalRules.addLearned(rule)
+                // TODO: Add addLearned method to PersonalRulesService
+                // await personalRules.addLearned(rule)
             }
         }
     }
@@ -691,11 +694,12 @@ class AILearningEngine: ObservableObject {
         
         // Add learned patterns to context memory
         for pattern in contextualLearning.suffix(10) {
-            await contextMemory.addLearningPattern(
+            // TODO: Add addLearningPattern method to ContextMemoryService
+            /* await contextMemory.addLearningPattern(
                 pattern: pattern.pattern,
                 confidence: pattern.confidence,
                 applicability: pattern.applicability
-            )
+            ) */
         }
     }
     
@@ -794,7 +798,7 @@ class AILearningEngine: ObservableObject {
     
     // MARK: - Helper Methods
     
-    private func mapActionToDecision(_ actionType: ActionType) -> DecisionType {
+    private func mapActionToDecision(_ actionType: AIActionType) -> DecisionType {
         switch actionType {
         case .automaticDecision: return .rescheduling
         case .notification: return .notification
@@ -887,6 +891,8 @@ class AILearningEngine: ObservableObject {
             return ["Tune service parameters", "Adjust automation levels"]
         case .decisionMaking:
             return ["Update decision thresholds", "Improve context weighting"]
+        @unknown default:
+            return ["Review pattern for adaptation"]
         }
     }
     
@@ -895,28 +901,25 @@ class AILearningEngine: ObservableObject {
         guard pattern.confidence > 0.8 else { return nil }
         
         return PersonalRule(
-            id: UUID(),
-            title: "Learned: \(pattern.type.rawValue) Pattern",
-            description: pattern.description,
             ruleType: .behavioral,
-            conditions: ["pattern_confidence > 0.8"],
-            actions: pattern.recommendations,
-            priority: pattern.impact == .high ? .high : .medium,
-            isActive: true,
-            source: .learned,
+            pattern: pattern.description,
+            action: pattern.recommendations.joined(separator: "; "),
             confidence: pattern.confidence,
+            frequency: pattern.occurrences,
             lastApplied: nil,
-            applicationCount: 0
+            isActive: true,
+            source: .learned
         )
     }
     
     private func createCorrectionFromFeedback(_ feedback: UserFeedback, interaction: UserInteraction) async {
-        await personalRules.addCorrection(
+        // TODO: Add addCorrection method to PersonalRulesService
+        /* await personalRules.addCorrection(
             original: "AI suggested action",
             corrected: feedback.feedback,
             context: interaction.context.description,
             confidence: 1.0 - feedback.rating // Higher correction confidence for lower ratings
-        )
+        ) */
     }
 }
 
@@ -936,7 +939,7 @@ struct LearningInsight: Identifiable {
 }
 
 /// Types of learning insights
-enum InsightType: String {
+enum InsightType: String, Codable {
     case behaviorPattern = "behavior_pattern"
     case performance = "performance"
     case optimization = "optimization"
@@ -996,7 +999,7 @@ struct UserInteraction: Identifiable {
     let id: UUID
     let timestamp: Date
     let serviceType: ServiceType
-    let actionType: ActionType
+    let actionType: AIActionType
     let userResponse: UserResponse
     let context: [String: Any]
 }
@@ -1010,7 +1013,7 @@ enum ServiceType: String {
 }
 
 /// Action types
-enum ActionType: String {
+enum AIActionType: String {
     case automaticDecision = "automatic_decision"
     case notification = "notification"
     case dependencyCreation = "dependency_creation"

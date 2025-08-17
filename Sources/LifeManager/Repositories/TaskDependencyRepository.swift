@@ -85,15 +85,27 @@ class TaskDependencyRepository {
     func updateDependencyCompletion(dependencyId: UUID, isCompleted: Bool) async throws {
         logger.debug("TASK_DEPENDENCY_REPO: Updating dependency completion \(dependencyId)")
         
-        let updates = [
-            "is_completed": isCompleted,
-            "updated_at": ISO8601DateFormatter().string(from: Date())
-        ]
+        // Fetch the current record
+        let records: [TaskDependencyRecord] = try await supabaseService.fetchWithQuery(
+            TaskDependencyRecord.self,
+            from: "task_dependencies",
+            query: "id.eq.\(dependencyId.uuidString)"
+        )
+        
+        guard let record = records.first else {
+            throw DependencyError.taskNotFound
+        }
+        
+        // Update the record
+        var updatedRecord = record
+        updatedRecord.is_completed = isCompleted
+        updatedRecord.updated_at = ISO8601DateFormatter().string(from: Date())
         
         try await supabaseService.update(
-            table: "task_dependencies",
-            id: dependencyId.uuidString,
-            updates: updates
+            updatedRecord,
+            in: "task_dependencies",
+            matching: "id",
+            value: dependencyId.uuidString
         )
     }
     
@@ -373,31 +385,4 @@ struct DependencyStatistics {
     let averageDependenciesPerTask: Double
 }
 
-/// Extended TaskDependencyRecord with enhanced toTaskDependency conversion
-extension TaskDependencyRecord {
-    func toTaskDependency() -> TaskDependency {
-        return TaskDependency(
-            id: id,
-            title: "Task Dependency",
-            taskId: depends_on_task_id,
-            dependentTaskId: dependent_task_id,
-            dependencyType: DependencyType(rawValue: dependency_type) ?? .finishToStart,
-            isCompleted: is_completed,
-            scheduledDate: ISO8601DateFormatter().date(from: created_at) ?? Date(),
-            mustCompleteBy: ISO8601DateFormatter().date(from: updated_at) ?? Date()
-        )
-    }
-}
-
-/// Enhanced TaskDependencyRecord with proper initialization
-extension TaskDependencyRecord {
-    init(from dependency: TaskDependency) {
-        self.id = dependency.id
-        self.dependent_task_id = dependency.dependentTaskId
-        self.depends_on_task_id = dependency.taskId
-        self.dependency_type = dependency.dependencyType.rawValue
-        self.is_completed = dependency.isCompleted
-        self.created_at = ISO8601DateFormatter().string(from: Date())
-        self.updated_at = ISO8601DateFormatter().string(from: Date())
-    }
-}
+// Note: TaskDependencyRecord extensions are defined in TaskDependencyService.swift

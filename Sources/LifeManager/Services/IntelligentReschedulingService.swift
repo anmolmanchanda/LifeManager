@@ -42,7 +42,7 @@ class IntelligentReschedulingService: ObservableObject {
         workingHours: .default,
         focusBlocks: [],
         reschedulingSettings: .default,
-        notificationSettings: NotificationSettings()
+        notificationSettings: .default
     )
     
     // MARK: - Configuration
@@ -54,9 +54,13 @@ class IntelligentReschedulingService: ObservableObject {
     private let complexDecisionThreshold = 0.6 // Require user input below this
     private let learningDecayFactor = 0.95 // Learning weight decay over time
     
+    // MARK: - Singleton
+    
+    static let shared = IntelligentReschedulingService()
+    
     // MARK: - Initialization
     
-    init() {
+    private init() {
         logger.info("INTELLIGENT_RESCHEDULING: Service initialized")
         loadUserPreferences()
         startOverdueMonitoring()
@@ -352,7 +356,7 @@ class IntelligentReschedulingService: ObservableObject {
             Return only a number between 0.0 and 1.0.
             """
             
-            let response = try await llmService.processText(prompt)
+            let response = try await llmService.processMessage(prompt)
             
             // Parse the numerical response
             let cleanedResponse = response.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1425,7 +1429,7 @@ extension IntelligentReschedulingService {
             Keep response under 200 words.
             """
             
-            let response = try await llmService.processText(prompt)
+            let response = try await llmService.processMessage(prompt)
             return response.trimmingCharacters(in: .whitespacesAndNewlines)
             
         } catch {
@@ -1451,7 +1455,7 @@ extension IntelligentReschedulingService {
                 constraints: constraints
             )
             
-            let response = try await llmService.processText(prompt)
+            let response = try await llmService.processMessage(prompt)
             
             // Parse AI response into structured decision
             let decision = await parseAIDecisionResponse(
