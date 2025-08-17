@@ -5,7 +5,7 @@ import SwiftUI
 // Missing model definitions for the intelligent rescheduling system
 
 /// Represents a potential rescheduling scenario
-struct ReschedulingScenario: Identifiable, Codable {
+struct ReschedulingScenario: Identifiable, Codable, Hashable {
     let id = UUID()
     let taskId: UUID
     let originalDate: Date
