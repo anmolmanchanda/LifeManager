@@ -689,7 +689,6 @@ struct PARAItem: Codable, Identifiable {
     let createdAt: Date
     let tags: [String]
     let isCompleted: Bool
-    let category: PARACategory // Alias for paraCategory for compatibility
     
     init(id: UUID = UUID(), title: String, content: String, contentType: ContentType, paraCategory: PARACategory, workPersonal: WorkPersonalType, priority: TaskPriority, createdAt: Date = Date(), tags: [String] = [], isCompleted: Bool = false) {
         self.id = id
@@ -697,12 +696,16 @@ struct PARAItem: Codable, Identifiable {
         self.content = content
         self.contentType = contentType
         self.paraCategory = paraCategory
-        self.category = paraCategory // Set alias
         self.workPersonal = workPersonal
         self.priority = priority
         self.createdAt = createdAt
         self.tags = tags
         self.isCompleted = isCompleted
+    }
+    
+    // Provide category as a computed property for compatibility
+    var category: PARACategory {
+        return paraCategory
     }
 }
 
