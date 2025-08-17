@@ -1286,9 +1286,9 @@ struct ReschedulingStatistics {
 
 // MARK: - Notification Categories Extension
 
-extension NotificationService.NotificationCategory {
-    static let reschedulingUpdate = NotificationService.NotificationCategory(rawValue: "rescheduling_update")
-    static let intelligentSuggestion = NotificationService.NotificationCategory(rawValue: "intelligent_suggestion")
+extension NotificationCategory {
+    static let reschedulingUpdate = NotificationCategory(rawValue: "rescheduling_update") ?? .general
+    static let intelligentSuggestion = NotificationCategory(rawValue: "intelligent_suggestion") ?? .general
 }
 
 // MARK: - Phase 2: Enhanced AI Decision Engine

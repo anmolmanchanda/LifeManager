@@ -5,6 +5,9 @@ import SwiftUI
 @MainActor
 class CalendarOrchestrationService: ObservableObject {
     
+    // MARK: - Singleton
+    static let shared = CalendarOrchestrationService()
+    
     // MARK: - Published Properties
     
     @Published var isProcessing: Bool = false

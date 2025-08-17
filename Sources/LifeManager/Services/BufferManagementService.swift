@@ -5,6 +5,9 @@ import SwiftUI
 @MainActor
 class BufferManagementService: ObservableObject {
     
+    // MARK: - Singleton
+    static let shared = BufferManagementService()
+    
     // MARK: - Properties
     
     @Published var bufferMinutesPerHour: Int = 5
@@ -13,6 +16,7 @@ class BufferManagementService: ObservableObject {
     @Published var bufferWarningShown: Bool = false
     
     private let calendar = Calendar.current
+    private let logger = Logger.shared
     
     // MARK: - Buffer Calculations
     
@@ -197,9 +201,9 @@ class BufferManagementService: ObservableObject {
                 
                 updatedEvents.append(rescheduledEvent)
                 
-                print("🔧 BUFFER: ✅ Bumped '\(bumpedEvent.title)' by \(rescheduledEvent.bumpedByMinutes) minutes")
+                Logger.shared.success("BUFFER: Bumped '\(bumpedEvent.title)' by \(rescheduledEvent.bumpedByMinutes) minutes")
             } else {
-                print("🔧 BUFFER: ⚠️ Could not reschedule '\(bumpedEvent.title)' - may need to park or move to next day")
+                Logger.shared.warning("BUFFER: Could not reschedule '\(bumpedEvent.title)' - may need to park or move to next day")
                 // This event will need to be handled by parking lot logic
             }
         }
@@ -233,7 +237,7 @@ class BufferManagementService: ObservableObject {
     private func triggerBufferWarning() {
         bufferWarningShown = true
         
-        print("🔧 BUFFER: ⚠️ Day is overbooked! No buffer remaining.")
+        Logger.shared.warning("BUFFER: Day is overbooked! No buffer remaining.")
         
         // Send immediate notification
         NotificationService.shared.scheduleBufferWarning()
@@ -248,7 +252,7 @@ class BufferManagementService: ObservableObject {
     
     /// Trigger escalated warning (SMS/Email)
     private func triggerEscalatedWarning() {
-        print("🔧 BUFFER: 🚨 Escalated warning - user has not responded to overbooking notification")
+        Logger.shared.error("BUFFER: Escalated warning - user has not responded to overbooking notification")
         NotificationService.shared.scheduleEscalatedWarning()
     }
     
@@ -262,7 +266,7 @@ class BufferManagementService: ObservableObject {
     /// Update buffer minutes per hour
     func updateBufferConfiguration(minutesPerHour: Int) {
         bufferMinutesPerHour = max(0, min(30, minutesPerHour)) // Limit between 0-30 minutes
-        print("🔧 BUFFER: Updated buffer to \(bufferMinutesPerHour) minutes per hour")
+        Logger.shared.info("BUFFER: Updated buffer to \(bufferMinutesPerHour) minutes per hour")
     }
 }
 
