@@ -25,11 +25,29 @@ class SupabaseService: ObservableObject {
     // MARK: - Initialization
     
     private init() {
-        // Initialize Supabase client with configuration
-        self.client = SupabaseClient(
-            supabaseURL: URL(string: SupabaseConfig.url)!,
-            supabaseKey: SupabaseConfig.anonKey
-        )
+        // Initialize Supabase client with custom storage to avoid keychain issues
+        let localStorage = ProcessInfo.processInfo.environment["SUPABASE_DISABLE_KEYCHAIN"] != nil 
+            ? SupabaseLocalStorage() 
+            : nil
+        
+        if localStorage != nil {
+            self.client = SupabaseClient(
+                supabaseURL: URL(string: SupabaseConfig.url)!,
+                supabaseKey: SupabaseConfig.anonKey,
+                options: SupabaseClientOptions(
+                    auth: AuthClientOptions(
+                        localStorage: localStorage,
+                        autoRefreshToken: false
+                    )
+                )
+            )
+        } else {
+            // Default initialization
+            self.client = SupabaseClient(
+                supabaseURL: URL(string: SupabaseConfig.url)!,
+                supabaseKey: SupabaseConfig.anonKey
+            )
+        }
         
         // Check initial authentication state
         Task {
