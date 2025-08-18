@@ -105,7 +105,7 @@ struct AIInsightsPanel: View {
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(InsightCategory.allCases, id: \\.self) { category in
+                ForEach(InsightCategory.allCases, id: \.self) { category in
                     categoryButton(for: category)
                 }
             }
@@ -151,7 +151,7 @@ struct AIInsightsPanel: View {
             if filteredInsights.isEmpty {
                 emptyStateView
             } else {
-                ForEach(filteredInsights.prefix(5), id: \\.id) { insight in
+                ForEach(filteredInsights.prefix(5), id: \.id) { insight in
                     InsightCard(insight: insight)
                 }
                 
@@ -252,7 +252,7 @@ struct InsightCard: View {
             // Expanded Details
             if isExpanded && !insight.details.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(insight.details, id: \\.self) { detail in
+                    ForEach(insight.details, id: \.self) { detail in
                         HStack(spacing: 8) {
                             Circle()
                                 .fill(insight.category.color)
