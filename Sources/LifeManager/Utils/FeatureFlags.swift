@@ -88,6 +88,35 @@ struct FeatureFlags {
         return random < rolloutPercentage
     }
     
+    // MARK: - Calendar Integration Features
+    
+    /// Calendar orchestration with advanced scheduling
+    static var calendarOrchestration: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["ENABLE_CALENDAR_ORCHESTRATION"] == "1"
+        #else
+        return true // Calendar features are stable in production
+        #endif
+    }
+    
+    /// Buffer management for preventing overbooking
+    static var bufferManagement: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["ENABLE_BUFFER_MANAGEMENT"] == "1"
+        #else
+        return true // Buffer management is stable in production
+        #endif
+    }
+    
+    /// Conflict detection for calendar events
+    static var conflictDetection: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["ENABLE_CONFLICT_DETECTION"] == "1"
+        #else
+        return true // Conflict detection is stable in production
+        #endif
+    }
+    
     // MARK: - Experimental Features
     
     /// MCP integration with 9 servers
@@ -121,6 +150,9 @@ struct FeatureFlags {
         if enhancedEmbeddings { features.append("Enhanced Embeddings") }
         if proactiveNotifications { features.append("Proactive Notifications") }
         if enhancedLLMProcessing { features.append("Enhanced LLM Processor (v2)") }
+        if calendarOrchestration { features.append("Calendar Orchestration") }
+        if bufferManagement { features.append("Buffer Management") }
+        if conflictDetection { features.append("Conflict Detection") }
         if mcpIntegration { features.append("MCP Integration") }
         if timelineView { features.append("Timeline View") }
         
