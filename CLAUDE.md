@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL: COMMIT MESSAGE REQUIREMENTS
+
+**ABSOLUTELY FORBIDDEN IN COMMITS:**
+- Never use "Claude" or "Anthropic" in commit messages
+- Never use emojis in commit messages  
+- Never reference AI assistance in commits
+- Keep commits professional and technical only
+- Use conventional commit format without decorations
+
 ## Development Commands
 
 ### Building and Running
