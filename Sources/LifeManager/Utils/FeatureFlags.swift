@@ -58,6 +58,36 @@ struct FeatureFlags {
         #endif
     }
     
+    /// Enhanced LLM Brain Dump Processor v2
+    static var enhancedLLMProcessing: Bool {
+        #if DEBUG
+        let enabled = ProcessInfo.processInfo.environment["ENABLE_LLM_PROCESSOR_V2"] == "1"
+        if enabled && shouldEnableFeature() {
+            return true
+        }
+        return false
+        #else
+        return false
+        #endif
+    }
+    
+    // MARK: - Progressive Rollout
+    
+    /// Rollout percentage for gradual feature deployment
+    static var rolloutPercentage: Int {
+        guard let percentStr = ProcessInfo.processInfo.environment["ROLLOUT_PERCENTAGE"],
+              let percent = Int(percentStr) else {
+            return 100 // Default to full rollout if specified
+        }
+        return min(100, max(0, percent))
+    }
+    
+    /// Determine if feature should be enabled based on rollout percentage
+    static func shouldEnableFeature() -> Bool {
+        let random = Int.random(in: 0..<100)
+        return random < rolloutPercentage
+    }
+    
     // MARK: - Experimental Features
     
     /// MCP integration with 9 servers
@@ -90,8 +120,13 @@ struct FeatureFlags {
         if advancedAnalytics { features.append("Advanced Analytics") }
         if enhancedEmbeddings { features.append("Enhanced Embeddings") }
         if proactiveNotifications { features.append("Proactive Notifications") }
+        if enhancedLLMProcessing { features.append("Enhanced LLM Processor (v2)") }
         if mcpIntegration { features.append("MCP Integration") }
         if timelineView { features.append("Timeline View") }
+        
+        if rolloutPercentage < 100 {
+            features.append("Rollout: \(rolloutPercentage)%")
+        }
         
         return features
     }

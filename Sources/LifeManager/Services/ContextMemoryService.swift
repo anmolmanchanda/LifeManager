@@ -481,9 +481,17 @@ class ContextMemoryService: ObservableObject {
         let recentTrend = activityPatterns.recentActivityTrend
         let oldWindowSize = currentWindowSize
         
-        // Try predictive sizing first
-        var newWindowSize = predictOptimalWindowSize()
-        var adjustmentReason = "Predictive sizing"
+        // Try ML-based predictive sizing first
+        let context = PredictionContext(
+            hourOfDay: Calendar.current.component(.hour, from: Date()),
+            dayOfWeek: Calendar.current.component(.weekday, from: Date()),
+            activityLevel: getActivityLevel(),
+            recentTrend: recentTrend,
+            memoryPressure: Double(estimateMemoryFootprint()) / 500_000_000 // Normalize to 0-1
+        )
+        
+        var newWindowSize = PredictiveModelService.shared.predictWindowSize(for: context)
+        var adjustmentReason = "ML Predictive sizing"
         
         // Fallback to activity-based sizing if prediction unavailable
         if newWindowSize == currentWindowSize {
@@ -519,9 +527,24 @@ class ContextMemoryService: ObservableObject {
         
         // Update window size if changed
         if newWindowSize != currentWindowSize {
+            let previousSize = currentWindowSize
             currentWindowSize = newWindowSize
             logWindowAdjustment(from: oldWindowSize, to: newWindowSize, reason: adjustmentReason)
             logger.info("CONTEXT_MEMORY: Adjusted window size to \(currentWindowSize) (avg daily: \(String(format: "%.1f", averageDailyActivity)), trend: \(String(format: "%.2f", recentTrend)))")
+            
+            // Record feedback for learning
+            if adjustmentReason.contains("ML Predictive") {
+                // After some time, record the actual optimal size
+                Task {
+                    await Task.sleep(3600_000_000_000) // Wait 1 hour
+                    let actualOptimal = self.currentWindowSize // What it actually ended up being
+                    PredictiveModelService.shared.updatePredictiveModel(
+                        actual: actualOptimal,
+                        predicted: previousSize,
+                        context: context
+                    )
+                }
+            }
         }
     }
     
