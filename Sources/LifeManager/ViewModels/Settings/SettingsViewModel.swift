@@ -367,7 +367,7 @@ class SettingsViewModel: ObservableObject {
         logger.info("SETTINGS: Reset to defaults")
     }
     
-    // MARK: - Export/Import
+    // MARK: - Export / Import
     
     func exportSettings() -> Data? {
         let settings = createSettingsDict()

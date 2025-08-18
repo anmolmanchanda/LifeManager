@@ -2,9 +2,8 @@
 // PARADataViewModel.swift
 // LifeManager
 //
-// Implements: v2.0 "Architecture Modularization" - PARA Data Management
-// Extracted from MainViewModel as part of Phase 2A decomposition
-// Manages all PARA framework data: Projects, Areas, Resources, Archives, and their associated content
+// Created by AI Assistant on 2025-08-18
+// Copyright © 2025 LifeManager. All rights reserved.
 //
 
 import Foundation
@@ -29,7 +28,7 @@ class PARADataViewModel: ObservableObject {
     
     @Published var projectBlobs: [UUID: [Blob]] = [:] // projectId -> blobs
     @Published var areaBlobs: [UUID: [Blob]] = [:] // areaId -> blobs
-    @Published var resourceBlobs: [Blob] = [] // All resource-categorized blobs
+    @Published var resourceBlobs: [Blob] = []  // All resource-categorized blobs
     @Published var archivedBlobs: [Blob] = [] // All archived blobs
     
     // MARK: - PARA Tasks (Tasks assigned to categories)
@@ -80,7 +79,7 @@ class PARADataViewModel: ObservableObject {
             lastDataRefresh = Date()
         }
         
-        logger.success("📊 PARA: All data loaded successfully")
+        logger.success("📊 PARA: Data loaded")
     }
     
     /// Load areas from database
@@ -95,7 +94,7 @@ class PARADataViewModel: ObservableObject {
             logger.info("📊 PARA: Loaded \(loadedAreas.count) areas")
             
         } catch {
-            logger.error("📊 PARA: Failed to load areas - \(error)")
+            logger.error("📊 PARA: Load failed - \(error)")
         }
     }
     
@@ -111,7 +110,7 @@ class PARADataViewModel: ObservableObject {
             logger.info("📊 PARA: Loaded \(loadedProjects.count) projects")
             
         } catch {
-            logger.error("📊 PARA: Failed to load projects - \(error)")
+            logger.error("📊 PARA: Load failed - \(error)")
         }
     }
     
@@ -127,7 +126,7 @@ class PARADataViewModel: ObservableObject {
             logger.info("📊 PARA: Loaded \(loadedResources.count) resources")
             
         } catch {
-            logger.error("📊 PARA: Failed to load resources - \(error)")
+            logger.error("📊 PARA: Load failed - \(error)")
         }
     }
     
@@ -143,7 +142,7 @@ class PARADataViewModel: ObservableObject {
             logger.info("📊 PARA: Loaded \(loadedArchives.count) archives")
             
         } catch {
-            logger.error("📊 PARA: Failed to load archives - \(error)")
+            logger.error("📊 PARA: Load failed - \(error)")
         }
     }
     
