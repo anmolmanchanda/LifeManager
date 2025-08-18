@@ -15,7 +15,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Default values
-LOG_DIR="$HOME/Documents/LifeManager/Logs"
+LOG_DIR="$HOME/Library/Application Support/LifeManager/Logs"
 LINES=50
 FOLLOW=false
 FILTER=""

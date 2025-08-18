@@ -1,0 +1,19 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "c85cc1469ed49ecd4afac45aa87d93b30098ce510082552934b74f7420e1b092"
+build_start_time: [1750253428, 419117000]
+build_end_time: [1750253430, 613613000]
+inputs:
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/BucketOptions.swift": [1750253412, 294907149]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/Codable.swift": [1750253412, 294996024]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/Deprecated.swift": [1750253412, 295106191]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/Exports.swift": [1750253412, 295185274]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/Helpers.swift": [1750253412, 295279233]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/MultipartFormData.swift": [1750253412, 295384900]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/StorageApi.swift": [1750253412, 295481817]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/StorageBucketApi.swift": [1750253412, 295569275]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/StorageError.swift": [1750253412, 295648942]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/StorageFileApi.swift": [1750253412, 295749484]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/StorageHTTPClient.swift": [1750253412, 295847942]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/SupabaseStorage.swift": [1750253412, 295942901]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/TransformOptions.swift": [1750253412, 296037234]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Storage/Types.swift": [1750253412, 296157610]

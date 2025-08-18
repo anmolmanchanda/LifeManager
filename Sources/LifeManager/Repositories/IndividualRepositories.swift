@@ -92,6 +92,32 @@ class ProjectRepository {
     func deleteProject(id: UUID) async throws {
         try await supabaseService.delete(from: SupabaseService.TableName.projects.rawValue, matching: "id", value: id.uuidString)
     }
+    
+    // MARK: - Intelligent Scheduling Methods
+    
+    /// Fetch recently completed projects for analysis
+    func fetchRecentlyCompletedProjects(days: Int = 7) async throws -> [Project] {
+        return try await fetchProjectsCompletedBetween(start: Date().addingTimeInterval(-Double(days * 24 * 3600)), end: Date())
+    }
+    
+    /// Fetch projects completed between specific dates
+    func fetchProjectsCompletedBetween(start: Date, end: Date) async throws -> [Project] {
+        let isoFormatter = ISO8601DateFormatter()
+        let startDateString = isoFormatter.string(from: start)
+        let endDateString = isoFormatter.string(from: end)
+        
+        let response: [Project] = try await supabaseService.client
+            .from(SupabaseService.TableName.projects.rawValue)
+            .select()
+            .eq("status", value: "completed")
+            .gte("completed_at", value: startDateString)
+            .lte("completed_at", value: endDateString)
+            .order("completed_at", ascending: false)
+            .execute()
+            .value
+        
+        return response
+    }
 }
 
 /// Repository for managing Resources data

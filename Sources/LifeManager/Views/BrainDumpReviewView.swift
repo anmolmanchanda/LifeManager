@@ -3,7 +3,7 @@ import SwiftUI
 /// Review UI for brain dump analysis results before saving to database
 struct BrainDumpReviewView: View {
     let result: BrainDumpResult
-    @State private var editableItems: [BrainDumpItem]
+    @State private var editableItems: [EnhancedBrainDumpItem]
     @State private var isProcessing = false
     @State private var showingExecutionSummary = false
     @State private var executionSummary: ExecutionSummary?
@@ -31,6 +31,17 @@ struct BrainDumpReviewView: View {
             originalInputView
             
             Divider()
+            
+            // AI Insights and Clarifications (temporarily disabled for stabilization)
+            VStack {
+                Text("AI insights and clarifications will appear here")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color.blue.opacity(0.05))
+            .cornerRadius(12)
+            .padding(.horizontal)
             
             // Items list for review/editing
             itemsListView
@@ -148,6 +159,7 @@ struct BrainDumpReviewView: View {
                             editableItems.remove(at: index)
                         }
                     )
+                    // TODO: Re-enable onChange tracking when EnhancedBrainDumpItem conforms to Equatable
                 }
             }
         }
@@ -173,11 +185,14 @@ struct BrainDumpReviewView: View {
     }
     
     private func executeBrainDump() {
+        print("🧠 BRAIN DUMP REVIEW: Starting execution with \(editableItems.count) items")
         isProcessing = true
         
         Task {
             do {
+                print("🧠 BRAIN DUMP REVIEW: Calling brainDumpProcessor.executeBrainDump...")
                 let summary = try await brainDumpProcessor.executeBrainDump(result, userApprovedItems: editableItems)
+                print("🧠 BRAIN DUMP REVIEW: ✅ Execution completed successfully")
                 
                 await MainActor.run {
                     self.executionSummary = summary
@@ -186,8 +201,9 @@ struct BrainDumpReviewView: View {
                 }
                 
             } catch {
+                print("🧠 BRAIN DUMP REVIEW: ❌ Execution failed: \(error)")
+                print("🧠 BRAIN DUMP REVIEW: ❌ Error details: \(error.localizedDescription)")
                 await MainActor.run {
-                    print("🧠 BRAIN DUMP: ❌ Execution failed: \(error)")
                     self.isProcessing = false
                 }
             }
@@ -197,7 +213,7 @@ struct BrainDumpReviewView: View {
 
 /// Individual item row for editing
 struct BrainDumpItemRow: View {
-    @Binding var item: BrainDumpItem
+    @Binding var item: EnhancedBrainDumpItem
     let onRemove: () -> Void
     
     @State private var isExpanded = false
@@ -282,8 +298,8 @@ struct BrainDumpItemRow: View {
             .font(.caption)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(item.workPersonal == .work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
-            .foregroundColor(item.workPersonal == .work ? .blue : .green)
+            .background(item.workPersonal == WorkPersonalType.work ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+            .foregroundColor(item.workPersonal == WorkPersonalType.work ? .blue : .green)
             .cornerRadius(4)
     }
     
@@ -537,6 +553,142 @@ struct ExecutionSummaryView: View {
             }
         }
     }
+    
+    // MARK: - AI Insights View
+    
+    private var aiInsightsView: some View {
+        VStack(spacing: 12) {
+            // TODO: Re-enable AI insights when result scope issues are resolved
+            clarificationQuestionsView
+            Divider()
+            optimizationSuggestionsView
+            Divider()
+            contextualInsightsView
+        }
+        .padding()
+        .background(Color.blue.opacity(0.05))
+        .cornerRadius(12)
+        .padding(.horizontal)
+    }
+    
+    private var clarificationQuestionsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "questionmark.circle.fill")
+                    .foregroundColor(.orange)
+                Text("Clarification Questions")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            // TODO: Re-enable when ForEach compilation issues are resolved
+            Text("AI clarification questions will appear here")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.leading, 16)
+        }
+    }
+    
+    private var optimizationSuggestionsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "lightbulb.fill")
+                    .foregroundColor(.yellow)
+                Text("AI Suggestions")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            // TODO: Re-enable when ForEach compilation issues are resolved
+            Text("AI optimization suggestions will appear here")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.leading, 16)
+        }
+    }
+    
+    private var contextualInsightsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .foregroundColor(.purple)
+                Text("Context Insights")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            // TODO: Re-enable context insights when compilation issues are resolved
+            Text("Contextual insights and patterns will appear here")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.leading, 16)
+        }
+    }
+    
+    // MARK: - User Correction Tracking
+    
+    private func trackUserCorrection(originalItem: EnhancedBrainDumpItem, editedItem: EnhancedBrainDumpItem) {
+        // Check if user made meaningful changes
+        if originalItem.paraCategory != editedItem.paraCategory ||
+           originalItem.suggestedProject != editedItem.suggestedProject ||
+           originalItem.suggestedArea != editedItem.suggestedArea ||
+           originalItem.priority != editedItem.priority {
+            
+            // Create contextual PARA item for correction tracking
+            let contextualItem = ContextualPARAItem(
+                originalItem: AtomicItem(
+                    content: originalItem.content,
+                    type: originalItem.contentType,
+                    contextualHints: [],
+                    confidence: Float(originalItem.confidence)
+                ),
+                paraClassification: PARAClassification(
+                    category: originalItem.paraCategory,
+                    subcategory: originalItem.suggestedArea,
+                    suggestedProject: originalItem.suggestedProject,
+                    suggestedArea: originalItem.suggestedArea,
+                    priority: originalItem.priority,
+                    dueDate: originalItem.dueDate.flatMap { ISO8601DateFormatter().date(from: $0) },
+                    tags: originalItem.tags,
+                    workPersonal: originalItem.workPersonal,
+                    confidence: Float(originalItem.confidence),
+                    reasoning: originalItem.primaryReason
+                ),
+                semanticMatches: [],
+                metadata: ItemMetadata(
+                    extractedTags: originalItem.tags,
+                    detectedPeople: [],
+                    estimatedDuration: nil,
+                    urgencyLevel: originalItem.priority,
+                    sentiment: nil
+                ),
+                reasoning: originalItem.primaryReason,
+                confidence: Float(originalItem.confidence)
+            )
+            
+            let correctedClassification = PARAClassification(
+                category: editedItem.paraCategory,
+                subcategory: editedItem.suggestedArea,
+                suggestedProject: editedItem.suggestedProject,
+                suggestedArea: editedItem.suggestedArea,
+                priority: editedItem.priority,
+                dueDate: editedItem.dueDate.flatMap { ISO8601DateFormatter().date(from: $0) },
+                tags: editedItem.tags,
+                workPersonal: editedItem.workPersonal,
+                confidence: Float(editedItem.confidence),
+                reasoning: "User correction applied"
+            )
+            
+            // Record the correction for learning
+            Task {
+                await PersonalRulesService.shared.recordUserCorrection(
+                    originalItem: contextualItem,
+                    correctedClassification: correctedClassification,
+                    userFeedback: "User modified AI classification"
+                )
+            }
+        }
+    }
 }
 
 // MARK: - Extensions
@@ -569,4 +721,4 @@ extension TaskPriority {
             return .gray
         }
     }
-} 
+}

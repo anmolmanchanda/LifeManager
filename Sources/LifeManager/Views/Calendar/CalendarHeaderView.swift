@@ -51,15 +51,15 @@ struct CalendarHeaderView: View {
                 .fill(Color.secondary.opacity(0.2))
                 .frame(height: 0.5)
         }
-        .alert("Clear All Tasks", isPresented: $showingClearAllConfirmation) {
+        .alert("Clear All Data", isPresented: $showingClearAllConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete All", role: .destructive) {
                 Task {
-                    await clearAllTasks()
+                    await clearAllData()
                 }
             }
         } message: {
-            Text("Are you sure you want to delete ALL tasks from parking lot, calendar, projects, areas, and resources? This action cannot be undone.")
+            Text("Are you sure you want to delete ALL data including tasks, resources, projects, areas, and archives? This action cannot be undone.")
         }
     }
     
@@ -120,8 +120,8 @@ struct CalendarHeaderView: View {
     
     private var actionControls: some View {
         HStack(spacing: 12) {
-            // Clear All Tasks Button
-            clearAllTasksButton
+            // Clear All Data Button
+            clearAllDataButton
             
             // Filter Button
             filterButton
@@ -202,9 +202,9 @@ struct CalendarHeaderView: View {
         .help("Toggle smart scheduling")
     }
     
-    // MARK: - Clear All Tasks Button
+    // MARK: - Clear All Data Button
     
-    private var clearAllTasksButton: some View {
+    private var clearAllDataButton: some View {
         Button(action: {
             showingClearAllConfirmation = true
         }) {
@@ -213,7 +213,7 @@ struct CalendarHeaderView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
                 
-                Text("Clear All")
+                Text("Clear All Data")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white)
             }
@@ -224,7 +224,7 @@ struct CalendarHeaderView: View {
             .shadow(color: .red.opacity(0.3), radius: 2, x: 0, y: 1)
         }
         .buttonStyle(.plain)
-        .help("Delete all tasks from parking lot, calendar, projects, areas, and resources")
+        .help("Delete all data including tasks, resources, projects, areas, and archives")
     }
     
     // MARK: - Sync Button
@@ -335,46 +335,84 @@ struct CalendarHeaderView: View {
         return formatter.string(from: calendarViewModel.selectedDate)
     }
     
-    // MARK: - Clear All Tasks Method
+    // MARK: - Clear All Data Method
     
-    private func clearAllTasks() async {
+    /// FIXED: Clear All Data - now actually deletes all PARA content as promised
+    private func clearAllData() async {
         do {
+            // Initialize all repositories
             let taskRepository = TaskRepository()
+            let resourceRepository = ResourceRepository()
+            let projectRepository = ProjectRepository()
+            let areaRepository = AreaRepository()
+            let archiveRepository = ArchiveRepository()
             
-            // Fetch all tasks from database
+            // Fetch all data types to get counts for logging
             let allTasks = try await taskRepository.fetchAllTasks()
+            let allResources = try await resourceRepository.fetchAllResources()
+            let allProjects = try await projectRepository.fetchAllProjects()
+            let allAreas = try await areaRepository.fetchAllAreas()
+            let allArchives = try await archiveRepository.fetchAllArchives()
             
-            print("🗑️ CLEAR ALL: Starting to delete \(allTasks.count) tasks")
+            Logger.shared.info("CLEAR ALL: Starting deletion - Tasks: \(allTasks.count), Resources: \(allResources.count), Projects: \(allProjects.count), Areas: \(allAreas.count), Archives: \(allArchives.count)")
             
-            // Delete each task from database
+            // Delete all tasks
             for task in allTasks {
                 try await taskRepository.deleteTask(id: task.id)
-                print("🗑️ CLEAR ALL: Deleted task: \(task.title)")
             }
+            Logger.shared.debug("CLEAR ALL: Deleted \(allTasks.count) tasks")
             
-            // Clear tasks from calendar view model
+            // Delete all resources  
+            for resource in allResources {
+                try await resourceRepository.deleteResource(id: resource.id)
+            }
+            Logger.shared.debug("CLEAR ALL: Deleted \(allResources.count) resources")
+            
+            // Delete all projects
+            for project in allProjects {
+                try await projectRepository.deleteProject(id: project.id)
+            }
+            Logger.shared.debug("CLEAR ALL: Deleted \(allProjects.count) projects")
+            
+            // Delete all areas
+            for area in allAreas {
+                try await areaRepository.deleteArea(id: area.id)
+            }
+            Logger.shared.debug("CLEAR ALL: Deleted \(allAreas.count) areas")
+            
+            // Delete all archives
+            for archive in allArchives {
+                try await archiveRepository.deleteArchive(id: archive.id)
+            }
+            Logger.shared.debug("CLEAR ALL: Deleted \(allArchives.count) archives")
+            
+            // Clear UI state comprehensively
             await MainActor.run {
+                // Clear calendar view model
                 calendarViewModel.allTasks = []
                 calendarViewModel.events = []
                 
-                // Clear tasks from all PARA categories in MainViewModel
+                // Clear main view model PARA data
                 mainViewModel.areaTasks = [:]
                 mainViewModel.projectTasks = [:]
                 mainViewModel.focusTasks = []
-                
-                print("🗑️ CLEAR ALL: ✅ Cleared all tasks from UI and PARA categories")
+                mainViewModel.areas = []           // NEW: Clear areas
+                mainViewModel.projects = []       // NEW: Clear projects  
+                mainViewModel.resources = []      // NEW: Clear resources
+                mainViewModel.archives = []       // NEW: Clear archives
             }
             
-            // Refresh all data
+            // Refresh all data to ensure UI consistency
             await calendarViewModel.loadCalendarData()
             await mainViewModel.refreshData()
             
-            print("🗑️ CLEAR ALL: ✅ Successfully deleted all \(allTasks.count) tasks")
+            let totalDeleted = allTasks.count + allResources.count + allProjects.count + allAreas.count + allArchives.count
+            Logger.shared.success("CLEAR ALL: Successfully deleted all \(totalDeleted) items")
             
         } catch {
-            print("🗑️ CLEAR ALL: ❌ Error deleting tasks: \(error)")
+            Logger.shared.error("CLEAR ALL: Error - \(error)")
             await MainActor.run {
-                calendarViewModel.errorMessage = "Failed to delete all tasks: \(error.localizedDescription)"
+                calendarViewModel.errorMessage = "Failed to delete all data: \(error.localizedDescription)"
             }
         }
     }
@@ -439,9 +477,9 @@ struct FilterToggleRow: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     CalendarHeaderView()
         .environmentObject(CalendarViewModel())
         .environmentObject(MainViewModel())
         .frame(width: 800)
-} 
+} */

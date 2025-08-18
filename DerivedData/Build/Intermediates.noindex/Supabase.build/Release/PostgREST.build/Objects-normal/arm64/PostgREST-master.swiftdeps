@@ -1,0 +1,15 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "f4d87f468ff585a9e26189b4344484c3860a03f07213e2f4df422d8c42f09046"
+build_start_time: [1750253428, 421276000]
+build_end_time: [1750253430, 409277000]
+inputs:
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/Defaults.swift": [1750253412, 290330724]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/Deprecated.swift": [1750253412, 290456016]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/Exports.swift": [1750253412, 290538516]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/PostgrestBuilder.swift": [1750253412, 290665099]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/PostgrestClient.swift": [1750253412, 290836891]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/PostgrestFilterBuilder.swift": [1750253412, 290952308]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/PostgrestFilterValue.swift": [1750253412, 291089433]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/PostgrestQueryBuilder.swift": [1750253412, 291334142]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/PostgrestTransformBuilder.swift": [1750253412, 291466559]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/PostgREST/Types.swift": [1750253412, 291610143]

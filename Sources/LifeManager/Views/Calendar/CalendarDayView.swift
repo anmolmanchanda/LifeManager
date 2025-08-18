@@ -495,8 +495,8 @@ struct CalendarHourContextMenu: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     CalendarDayView()
         .environmentObject(CalendarViewModel())
         .frame(width: 600, height: 800)
-} 
+} */

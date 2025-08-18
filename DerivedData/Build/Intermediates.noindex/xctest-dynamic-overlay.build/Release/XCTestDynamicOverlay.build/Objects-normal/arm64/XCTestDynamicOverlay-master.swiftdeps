@@ -1,0 +1,9 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "ac2a657b88d9691065e360ed5e2bfb2482b62b54bc996f0cf590b25b256a9ee2"
+build_start_time: [1750253421, 477000]
+build_end_time: [1750253421, 614110000]
+inputs:
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/XCTestDynamicOverlay/Internal/Deprecations.swift"
+  : [1750253411, 635940486]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/xctest-dynamic-overlay/Sources/XCTestDynamicOverlay/Internal/Exports.swift"
+  : [1750253411, 636063528]

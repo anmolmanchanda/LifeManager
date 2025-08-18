@@ -128,29 +128,29 @@ class SupabaseService: ObservableObject {
     
     /// Handle magic link callback from custom URL scheme
     func handleMagicLinkCallback(url: URL) async throws {
-        print("Processing magic link callback URL: \(url)")
+        Logger.shared.info("SUPABASE AUTH: Processing magic link callback URL: \(url)")
         
         // Extract the components from the URL
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems else {
-            print("Failed to parse URL components")
+            Logger.shared.error("SUPABASE AUTH: Failed to parse URL components")
             throw SupabaseError.invalidCallback
         }
         
-        print("Query items: \(queryItems)")
+        Logger.shared.debug("SUPABASE AUTH: Query items: \(queryItems)")
         
         // Check if this is a verification URL (with token) or callback URL (with code)
         if let token = queryItems.first(where: { $0.name == "token" })?.value,
            let type = queryItems.first(where: { $0.name == "type" })?.value {
             // This is a verification URL - process with verifyOTP
-            print("Found verification token: \(token), type: \(type)")
+            Logger.shared.info("SUPABASE AUTH: Found verification token: \(token), type: \(type)")
             try await processVerificationToken(token: token, type: type)
         } else if let code = queryItems.first(where: { $0.name == "code" })?.value {
             // This is a callback URL - process with exchangeCodeForSession
-            print("Found auth code: \(code)")
+            Logger.shared.info("SUPABASE AUTH: Found auth code: \(code)")
             try await processAuthCode(code: code)
         } else {
-            print("No token or code parameter found in URL")
+            Logger.shared.warning("SUPABASE AUTH: No token or code parameter found in URL")
             throw SupabaseError.invalidCallback
         }
     }
@@ -164,11 +164,11 @@ class SupabaseService: ObservableObject {
             await MainActor.run {
                 self.isAuthenticated = response.user != nil
             }
-            print("Successfully verified session")
+            Logger.shared.success("SUPABASE AUTH: Successfully verified session")
         } catch {
             // If session verification fails, try the direct verification approach
             // This might require the user to be already in some auth state
-            print("Session verification failed, trying direct token verification: \(error)")
+            Logger.shared.warning("SUPABASE AUTH: Session verification failed, trying direct token verification: \(error)")
             throw SupabaseError.invalidCallback
         }
     }
@@ -182,9 +182,9 @@ class SupabaseService: ObservableObject {
                 self.isAuthenticated = session.user != nil
             }
             
-            print("Successfully exchanged code for session")
+            Logger.shared.success("SUPABASE AUTH: Successfully exchanged code for session")
         } catch {
-            print("Failed to exchange code for session: \(error)")
+            Logger.shared.error("SUPABASE AUTH: Failed to exchange code for session: \(error)")
             throw error
         }
     }
@@ -193,7 +193,7 @@ class SupabaseService: ObservableObject {
     
     /// Generic method to insert a record into any table
     func insert<T: Codable>(_ record: T, into table: String) async throws -> T {
-        print("🔧 SUPABASE INSERT: Attempting to insert into table: \(table)")
+        Logger.shared.info("SUPABASE INSERT: Attempting to insert into table: \(table)")
         
         // Debug: Log the record data
         do {
@@ -201,10 +201,10 @@ class SupabaseService: ObservableObject {
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(record)
             if let jsonString = String(data: data, encoding: .utf8) {
-                print("🔧 SUPABASE INSERT: Record JSON: \(jsonString)")
+                Logger.shared.debug("SUPABASE INSERT: Record JSON: \(jsonString)")
             }
         } catch {
-            print("🔧 SUPABASE INSERT: Failed to encode record for debugging: \(error)")
+            Logger.shared.warning("SUPABASE INSERT: Failed to encode record for debugging: \(error)")
         }
         
         do {
@@ -219,11 +219,11 @@ class SupabaseService: ObservableObject {
                 .select() // Ensure we get the response back
                 .execute()
             
-            print("🔧 SUPABASE INSERT: Raw response data size: \(response.data.count) bytes")
+            Logger.shared.debug("SUPABASE INSERT: Raw response data size: \(response.data.count) bytes")
             
             // Check if response data is empty
             guard !response.data.isEmpty else {
-                print("🔧 SUPABASE INSERT: Empty response data - treating as success")
+                Logger.shared.warning("SUPABASE INSERT: Empty response data - treating as success")
                 return record // Return original record if no response data
             }
             
@@ -232,42 +232,42 @@ class SupabaseService: ObservableObject {
             do {
                 decodedResponse = try decoder.decode([T].self, from: response.data)
             } catch {
-                print("🔧 SUPABASE INSERT: Failed to decode response as [\(T.self)]: \(error)")
+                Logger.shared.warning("SUPABASE INSERT: Failed to decode response as [\(T.self)]: \(error)")
                 
                 // Try to parse as single object
                 do {
                     let singleResponse = try decoder.decode(T.self, from: response.data)
                     return singleResponse
                 } catch {
-                    print("🔧 SUPABASE INSERT: Failed to decode as single \(T.self): \(error)")
+                    Logger.shared.warning("SUPABASE INSERT: Failed to decode as single \(T.self): \(error)")
                     
                     // Log the actual response content for debugging
                     if let responseString = String(data: response.data, encoding: .utf8) {
-                        print("🔧 SUPABASE INSERT: Response content: \(responseString)")
+                        Logger.shared.debug("SUPABASE INSERT: Response content: \(responseString)")
                     }
                     
                     // If decoding fails but insert likely succeeded, return original record
-                    print("🔧 SUPABASE INSERT: Decoding failed but insert may have succeeded - returning original record")
+                    Logger.shared.warning("SUPABASE INSERT: Decoding failed but insert may have succeeded - returning original record")
                     return record
                 }
             }
             
-            print("🔧 SUPABASE INSERT: Success - received \(decodedResponse.count) records")
+            Logger.shared.success("SUPABASE INSERT: Success - received \(decodedResponse.count) records")
             
             guard let insertedRecord = decodedResponse.first else {
-                print("🔧 SUPABASE INSERT: No records in response - returning original")
+                Logger.shared.warning("SUPABASE INSERT: No records in response - returning original")
                 return record
         }
         
         return insertedRecord
             
         } catch {
-            print("🔧 SUPABASE INSERT: Error - \(error)")
-            print("🔧 SUPABASE INSERT: Error type - \(type(of: error))")
+            Logger.shared.error("SUPABASE INSERT: Error - \(error)")
+            Logger.shared.debug("SUPABASE INSERT: Error type - \(type(of: error))")
             
             // Check if it's a network/server error vs a decoding error
             if error.localizedDescription.contains("JSON") || error.localizedDescription.contains("decode") {
-                print("🔧 SUPABASE INSERT: JSON decoding error - likely insert succeeded but response parsing failed")
+                Logger.shared.warning("SUPABASE INSERT: JSON decoding error - likely insert succeeded but response parsing failed")
                 // Return the original record as insert likely succeeded
                 return record
             }
@@ -322,6 +322,28 @@ class SupabaseService: ObservableObject {
             .value
         
         return response.first
+    }
+    
+    /// Fetch records with custom query
+    func fetchWithQuery<T: Codable>(_ type: T.Type, from table: String, query: String) async throws -> [T] {
+        // Parse the query string for simple eq operations
+        // Format expected: "column.eq.value"
+        let parts = query.split(separator: ".")
+        guard parts.count == 3, parts[1] == "eq" else {
+            throw SupabaseError.general(message: "Invalid query format")
+        }
+        
+        let column = String(parts[0])
+        let value = String(parts[2])
+        
+        let response: [T] = try await client
+            .from(table)
+            .select()
+            .eq(column, value: value)
+            .execute()
+            .value
+        
+        return response
     }
     
     /// Filter records by work/personal type
@@ -403,7 +425,7 @@ class SupabaseService: ObservableObject {
     
     /// Test method to verify JSON encoding/decoding works
     func testBlobSerialization() async {
-        print("🔧 TEST: Starting Blob serialization test")
+        Logger.shared.info("SUPABASE TEST: Starting Blob serialization test")
         
         let testBlob = Blob(
             content: "Test content",
@@ -417,20 +439,20 @@ class SupabaseService: ObservableObject {
             let data = try encoder.encode(testBlob)
             
             if let jsonString = String(data: data, encoding: .utf8) {
-                print("🔧 TEST: Successfully encoded Blob to JSON:")
-                print("🔧 TEST: \(jsonString)")
+                Logger.shared.success("SUPABASE TEST: Successfully encoded Blob to JSON:")
+                Logger.shared.debug("SUPABASE TEST: \(jsonString)")
                 
                 // Try to decode it back
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
                 let decodedBlob = try decoder.decode(Blob.self, from: data)
                 
-                print("🔧 TEST: Successfully decoded Blob back")
-                print("🔧 TEST: Decoded ID: \(decodedBlob.id)")
-                print("🔧 TEST: Decoded content: \(decodedBlob.content)")
+                Logger.shared.success("SUPABASE TEST: Successfully decoded Blob back")
+                Logger.shared.debug("SUPABASE TEST: Decoded ID: \(decodedBlob.id)")
+                Logger.shared.debug("SUPABASE TEST: Decoded content: \(decodedBlob.content)")
             }
         } catch {
-            print("🔧 TEST: Failed to serialize/deserialize Blob: \(error)")
+            Logger.shared.error("SUPABASE TEST: Failed to serialize/deserialize Blob: \(error)")
         }
     }
 }

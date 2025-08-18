@@ -1,0 +1,185 @@
+{
+  "" : {
+    "const-values" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManager-master.swiftconstvalues",
+    "dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManager-master.d",
+    "diagnostics" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManager-master.dia",
+    "emit-module-dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManager-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManager-master-emit-module.dia",
+    "swift-dependencies" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManager-master.swiftdeps"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/App/LifeManagerApp.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManagerApp.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManagerApp.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LifeManagerApp.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Models/CalendarModels.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarModels.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarModels.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarModels.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Models/ContentModels.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ContentModels.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ContentModels.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ContentModels.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Models/CoreModels.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CoreModels.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CoreModels.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CoreModels.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Models/PARAModels.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/PARAModels.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/PARAModels.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/PARAModels.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Repositories/BlobRepository.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BlobRepository.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BlobRepository.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BlobRepository.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Repositories/IndividualRepositories.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/IndividualRepositories.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/IndividualRepositories.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/IndividualRepositories.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Repositories/TaskRepository.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/TaskRepository.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/TaskRepository.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/TaskRepository.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Resources/Config.example.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/Config.example.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/Config.example.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/Config.example.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/BufferManagementService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BufferManagementService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BufferManagementService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BufferManagementService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/CalendarOrchestrationService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarOrchestrationService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarOrchestrationService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarOrchestrationService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/EmailNotificationService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EmailNotificationService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EmailNotificationService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EmailNotificationService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/EmbeddingsService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EmbeddingsService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EmbeddingsService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EmbeddingsService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/EnhancedParkingLotService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EnhancedParkingLotService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EnhancedParkingLotService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EnhancedParkingLotService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/LLMService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LLMService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LLMService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/LLMService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/NotificationService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/NotificationService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/NotificationService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/NotificationService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/PARARepository.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/PARARepository.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/PARARepository.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/PARARepository.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/SupabaseService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/SupabaseService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/SupabaseService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/SupabaseService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Services/TogglService.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/TogglService.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/TogglService.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/TogglService.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Utils/Logger.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/Logger.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/Logger.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/Logger.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/CalendarViewModel.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarViewModel.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarViewModel.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarViewModel.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/ViewModels/MainViewModel.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/MainViewModel.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/MainViewModel.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/MainViewModel.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/AuthenticationView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/AuthenticationView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/AuthenticationView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/AuthenticationView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/BrainDumpReviewView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BrainDumpReviewView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BrainDumpReviewView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/BrainDumpReviewView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/CalendarDayView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarDayView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarDayView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarDayView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/CalendarEventView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarEventView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarEventView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarEventView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/CalendarHeaderView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarHeaderView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarHeaderView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarHeaderView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/CalendarMainView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarMainView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarMainView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarMainView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/CalendarMonthView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarMonthView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarMonthView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarMonthView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/CalendarView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/CalendarWeekView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarWeekView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarWeekView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarWeekView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/EventEditView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EventEditView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EventEditView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/EventEditView.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/Calendar/ParkingLotSidebar.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ParkingLotSidebar.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ParkingLotSidebar.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ParkingLotSidebar.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/CalendarParkingLot.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarParkingLot.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarParkingLot.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/CalendarParkingLot.o"
+  },
+  "/Users/Shared/LifeManager/Sources/LifeManager/Views/ContentView.swift" : {
+    "index-unit-output-path" : "/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/Shared/LifeManager/DerivedData/Build/Intermediates.noindex/LifeManager.build/Release/LifeManager.build/Objects-normal/arm64/ContentView.o"
+  }
+}

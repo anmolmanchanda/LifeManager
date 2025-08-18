@@ -178,7 +178,7 @@ struct DragOverlay: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     CalendarView()
         .environmentObject(MainViewModel())
-} 
+} */

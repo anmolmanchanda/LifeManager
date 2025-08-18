@@ -22,6 +22,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
     let completedAt: String?
     let archivedAt: String?
     let deletedAt: String?
+    let tags: [String]? // Added for tag support
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -43,6 +44,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         case completedAt = "completed_at"
         case archivedAt = "archived_at"
         case deletedAt = "deleted_at"
+        case tags
     }
     
     init(
@@ -64,7 +66,8 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         updatedAt: String = ISO8601DateFormatter().string(from: Date()),
         completedAt: String? = nil,
         archivedAt: String? = nil,
-        deletedAt: String? = nil
+        deletedAt: String? = nil,
+        tags: [String]? = nil
     ) {
         self.id = id
         self.blobId = blobId
@@ -85,6 +88,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         self.completedAt = completedAt
         self.archivedAt = archivedAt
         self.deletedAt = deletedAt
+        self.tags = tags
     }
     
     // Hashable conformance - use id for hashing
@@ -116,7 +120,7 @@ struct LifeTask: Codable, Identifiable, PARAContent, Hashable {
         return deletedAt != nil
     }
     
-    var canBePermalentlyDeleted: Bool {
+    var canBePermanentlyDeleted: Bool {
         guard let deletedAtString = deletedAt,
               let deletedDate = ISO8601DateFormatter().date(from: deletedAtString) else {
             return false

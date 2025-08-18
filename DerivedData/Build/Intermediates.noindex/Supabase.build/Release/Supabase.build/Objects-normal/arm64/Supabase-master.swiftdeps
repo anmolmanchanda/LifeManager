@@ -1,0 +1,10 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "6227b9f9e6e98c2f7c2ff19b93d958f59e5ce8e00636f303a92c054e4e79ba41"
+build_start_time: [1750253434, 162991000]
+build_end_time: [1750253435, 50154000]
+inputs:
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Constants.swift": [1750253412, 296287026]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Deprecated.swift": [1750253412, 296362193]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Exports.swift": [1750253412, 296443610]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Supabase/SupabaseClient.swift": [1750253412, 296583444]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Supabase/Types.swift": [1750253412, 296711944]

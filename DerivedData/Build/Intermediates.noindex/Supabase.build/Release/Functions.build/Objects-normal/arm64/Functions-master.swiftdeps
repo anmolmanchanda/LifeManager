@@ -1,0 +1,8 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "aa123879e56bc3a1f475f26d2793dcfd6f982bad164ba982a36511b43f4bd3ab"
+build_start_time: [1750253428, 420073000]
+build_end_time: [1750253428, 977792000]
+inputs:
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Functions/Exports.swift": [1750253412, 287407593]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Functions/FunctionsClient.swift": [1750253412, 287512885]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/supabase-swift/Sources/Functions/Types.swift": [1750253412, 287620968]

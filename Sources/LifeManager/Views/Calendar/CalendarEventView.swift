@@ -479,7 +479,7 @@ struct EventContextMenu: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     VStack(spacing: 16) {
         CalendarEventView(event: CalendarEvent.sampleWorkEvent)
             .environmentObject(CalendarViewModel())
@@ -535,4 +535,4 @@ extension CalendarEvent {
         source: .toggl,
         duration: 1800 // 30 minutes
     )
-} 
+} */

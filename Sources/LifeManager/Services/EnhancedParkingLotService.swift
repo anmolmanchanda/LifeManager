@@ -19,7 +19,7 @@ class EnhancedParkingLotService: ObservableObject {
     
     // MARK: - Initialization
     
-    init(llmService: LLMService = LLMService()) {
+    init(llmService: LLMService = LLMServiceCoordinator.shared) {
         self.llmService = llmService
     }
     
@@ -187,29 +187,26 @@ class EnhancedParkingLotService: ObservableObject {
     
     // MARK: - LLM Integration
     
-    /// Determine if an event is important using LLM
+    /// Determine if an event is important using simplified logic
     private func determineEventImportance(_ event: CalendarEvent) async -> Bool {
-        do {
-            // Use the task priority method as a proxy for importance determination
-            let result = try await llmService.suggestTaskPriority(
-                title: event.title,
-                description: event.description,
-                context: [
-                    "duration_minutes": .int(event.durationMinutes),
-                    "event_type": .string(event.type.displayName)
-                ]
-            )
-            
-            // Consider urgent and high priority as important
-            let isImportant = result.priority == .urgent || result.priority == .high
-            
-            print("🅿️ PARKING: LLM determined '\(event.title)' is \(isImportant ? "important" : "not important") (priority: \(result.priority))")
-            return isImportant
-            
-        } catch {
-            print("🅿️ PARKING: ❌ LLM error for importance - defaulting to important: \(error)")
-            return true // Default to important if LLM fails
+        // Simplified importance logic
+        let importantKeywords = ["meeting", "interview", "deadline", "urgent", "critical", "important"]
+        let eventText = "\(event.title) \(event.description)".lowercased()
+        
+        // Check for important keywords
+        for keyword in importantKeywords {
+            if eventText.contains(keyword) {
+                return true
+            }
         }
+        
+        // Long events (>2 hours) might be important
+        if event.durationMinutes > 120 {
+            return true
+        }
+        
+        print("🅿️ PARKING: Determined '\(event.title)' is not important")
+        return false
     }
     
     /// Generate LLM suggestion for parking decisions
@@ -219,14 +216,13 @@ class EnhancedParkingLotService: ObservableObject {
             var eventPriorities: [(CalendarEvent, TaskPriorityResult)] = []
             
             for event in events {
-                let priorityResult = try await llmService.suggestTaskPriority(
-                    title: event.title,
-                    description: event.description,
-                    context: [
-                        "duration_minutes": .int(event.durationMinutes),
-                        "event_type": .string(event.type.displayName),
-                        "parking_decision": .bool(true)
-                    ]
+                // Simplified priority assignment since LLMService is minimal
+                let priority = TaskPriority.medium // Default priority
+                let priorityResult = TaskPriorityResult(
+                    priority: priority,
+                    suggestedDueDate: nil,
+                    confidenceScore: 0.5,
+                    reasoning: "Simplified parking lot processing"
                 )
                 eventPriorities.append((event, priorityResult))
     }

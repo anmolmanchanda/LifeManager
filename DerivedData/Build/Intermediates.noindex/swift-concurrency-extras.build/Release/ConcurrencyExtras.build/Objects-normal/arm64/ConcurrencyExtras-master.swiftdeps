@@ -1,0 +1,25 @@
+version: "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)"
+options: "ed3e596144e6915fd8e8bea33e00f9237a2a53046c922c122d3007a3d1948519"
+build_start_time: [1750253417, 685892000]
+build_end_time: [1750253420, 417808000]
+inputs:
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/ActorIsolated.swift"
+  : [1750253411, 764360145]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/AnyHashableSendable.swift"
+  : [1750253411, 764489020]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/AsyncStream.swift"
+  : [1750253411, 764614396]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/AsyncThrowingStream.swift"
+  : [1750253411, 764757396]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Internal/Locking.swift"
+  : [1750253411, 765600231]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Internal/UncheckedBox.swift"
+  : [1750253411, 765701023]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/LockIsolated.swift"
+  : [1750253411, 765805440]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/MainSerialExecutor.swift"
+  : [1750253411, 765954690]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Result.swift": [1750253411, 766051315]
+  "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/Task.swift": [1750253411, 766142982]
+  ? "/Users/Shared/LifeManager/DerivedData/SourcePackages/checkouts/swift-concurrency-extras/Sources/ConcurrencyExtras/UncheckedSendable.swift"
+  : [1750253411, 766303357]

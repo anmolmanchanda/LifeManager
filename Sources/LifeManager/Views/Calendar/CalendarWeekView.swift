@@ -538,8 +538,8 @@ extension CalendarEvent {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     CalendarWeekView()
         .environmentObject(CalendarViewModel())
         .frame(width: 1200, height: 800)
-} 
+} */

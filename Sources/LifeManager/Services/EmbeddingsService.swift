@@ -10,14 +10,6 @@
 
 import Foundation
 
-/// Similarity level based on thresholds
-enum SimilarityLevel {
-    case high    // >= 0.85
-    case medium  // >= 0.70
-    case low     // >= 0.55
-    case none    // < 0.55
-}
-
 /// Service for generating and managing text embeddings for semantic similarity
 /// Enables contextual PARA matching based on meaning rather than keywords
 class EmbeddingsService: ObservableObject {
@@ -52,9 +44,15 @@ class EmbeddingsService: ObservableObject {
     private var embeddingsCache: [String: CachedEmbedding] = [:]
     private let cacheQueue = DispatchQueue(label: "embeddings.cache", qos: .utility)
     
+    // Memory management
+    private let maxCacheSize = 1000 // Maximum number of cached embeddings
+    private let maxMemoryUsage = 100_000_000 // 100MB limit
+    private var lastCacheCleanup = Date()
+    
     // MARK: - Dependencies
     
     private let supabaseService = SupabaseService.shared
+    private let logger = Logger.shared
     
     // MARK: - Initialization
     
@@ -92,7 +90,7 @@ class EmbeddingsService: ObservableObject {
         var results: [String: [Float]] = [:]
         
         // Process in batches to respect API limits
-        let batches = texts.chunked(into: EmbeddingsConfig.batchSize)
+        let batches = texts.embeddingsChunked(into: EmbeddingsConfig.batchSize)
         
         for batch in batches {
             let batchResults = await processBatch(batch)
@@ -115,42 +113,25 @@ class EmbeddingsService: ObservableObject {
         return dotProduct / (magnitude1 * magnitude2)
     }
     
-    /// Calculate weighted similarity based on PARA category
-    func calculateWeightedSimilarity(
-        embedding1: [Float],
-        embedding2: [Float],
-        category: PARACategory
-    ) -> Float {
-        let baseSimilarity = calculateSimilarity(embedding1: embedding1, embedding2: embedding2)
-        let weight = EmbeddingsConfig.categoryWeights[category] ?? 1.0
-        return baseSimilarity * weight
-    }
-    
-    /// Determine similarity level based on thresholds
-    func getSimilarityLevel(_ similarity: Float) -> SimilarityLevel {
-        if similarity >= EmbeddingsConfig.highSimilarityThreshold {
-            return .high
-        } else if similarity >= EmbeddingsConfig.mediumSimilarityThreshold {
-            return .medium
-        } else if similarity >= EmbeddingsConfig.lowSimilarityThreshold {
-            return .low
-        } else {
-            return .none
-        }
-    }
-    
-    /// Find most similar items from a collection
+    /// Find most similar items from a collection with domain-specific enhancements
     func findMostSimilar(
         to queryEmbedding: [Float],
         in embeddings: [String: [Float]],
         threshold: Float = 0.7,
-        limit: Int = 10
+        limit: Int = 10,
+        domainContext: DomainContext? = nil
     ) -> [(key: String, similarity: Float)] {
         
         var similarities: [(String, Float)] = []
         
         for (key, embedding) in embeddings {
-            let similarity = calculateSimilarity(embedding1: queryEmbedding, embedding2: embedding)
+            var similarity = calculateSimilarity(embedding1: queryEmbedding, embedding2: embedding)
+            
+            // Apply domain-specific adjustments
+            if let context = domainContext {
+                similarity = applyDomainAdjustments(similarity: similarity, key: key, context: context)
+            }
+            
             if similarity >= threshold {
                 similarities.append((key, similarity))
             }
@@ -162,25 +143,79 @@ class EmbeddingsService: ObservableObject {
             .map { (key: $0.0, similarity: $0.1) }
     }
     
+    /// Enhanced PARA item matching with contextual intelligence
+    func findSimilarPARAItems(
+        to query: String,
+        category: PARACategory? = nil,
+        workPersonal: WorkPersonalType? = nil,
+        timeWindow: TimeInterval? = nil,
+        limit: Int = 10
+    ) async -> [EnhancedSimilarityResult] {
+        
+        guard let queryEmbedding = await getEmbedding(for: query) else {
+            return []
+        }
+        
+        // Load PARA items with optional filtering
+        let paraItems = await loadFilteredPARAItems(
+            category: category,
+            workPersonal: workPersonal,
+            timeWindow: timeWindow
+        )
+        
+        var results: [EnhancedSimilarityResult] = []
+        
+        for item in paraItems {
+            let itemContent = "\(item.title). \(item.content)"
+            guard let itemEmbedding = await getEmbedding(for: itemContent) else { continue }
+            
+            let baseSimilarity = calculateSimilarity(embedding1: queryEmbedding, embedding2: itemEmbedding)
+            
+            // Apply PARA-specific enhancements
+            let enhancedSimilarity = enhancePARASimilarity(
+                similarity: baseSimilarity,
+                item: item,
+                query: query
+            )
+            
+            if enhancedSimilarity > EmbeddingsConfig.lowSimilarityThreshold {
+                let confidence = calculateConfidenceScore(similarity: enhancedSimilarity, item: item)
+                
+                results.append(EnhancedSimilarityResult(
+                    item: item,
+                    similarity: enhancedSimilarity,
+                    confidence: confidence,
+                    matchType: determineMatchType(similarity: enhancedSimilarity),
+                    reasoningFactors: generateReasoningFactors(item: item, query: query, similarity: enhancedSimilarity)
+                ))
+            }
+        }
+        
+        return results
+            .sorted { $0.similarity > $1.similarity }
+            .prefix(limit)
+            .map { $0 }
+    }
+    
     /// Generate and store embedding for a PARA item
     func generateEmbeddingForPARAItem(id: UUID, content: String, type: String) async {
-        print("🔧 EMBEDDINGS: *** ENTRY *** generateEmbeddingForPARAItem called for \(type): \(id)")
-        print("🔧 EMBEDDINGS: Content: \"\(content.prefix(100))...\"")
+        Logger.shared.debug("EMBEDDINGS: generateEmbeddingForPARAItem called for \(type): \(id)")
+        Logger.shared.debug("EMBEDDINGS: Content: \"\(content.prefix(100))...\"")
         
         guard !content.isEmpty else { 
-            print("🔧 EMBEDDINGS: ❌ Empty content, skipping")
+            Logger.shared.warning("EMBEDDINGS: Empty content, skipping")
             return 
         }
         
-        print("🔧 EMBEDDINGS: ✅ Content not empty, proceeding with embedding generation")
-        print("🔧 EMBEDDINGS: Calling getEmbedding...")
+        Logger.shared.info("EMBEDDINGS: Content not empty, proceeding with embedding generation")
+        Logger.shared.debug("EMBEDDINGS: Calling getEmbedding...")
         
         if let embedding = await getEmbedding(for: content) {
-            print("🔧 EMBEDDINGS: ✅ Embedding generated successfully, storing...")
+            Logger.shared.success("EMBEDDINGS: Embedding generated successfully, storing...")
             // Store embedding in the appropriate PARA table
             await storePARAEmbedding(id: id, embedding: embedding, type: type)
         } else {
-            print("🔧 EMBEDDINGS: ❌ Failed to generate embedding")
+            Logger.shared.error("EMBEDDINGS: Failed to generate embedding")
         }
     }
     
@@ -202,7 +237,7 @@ class EmbeddingsService: ObservableObject {
             case "habit": tableName = "habits"
             case "goal": tableName = "goals"
             default:
-                print("🔧 EMBEDDINGS: ❌ Unknown PARA type: \(type)")
+                Logger.shared.error("EMBEDDINGS: Unknown PARA type: \(type)")
                 return
             }
             
@@ -212,16 +247,16 @@ class EmbeddingsService: ObservableObject {
                 .eq("id", value: id.uuidString)
                 .execute()
             
-            print("🔧 EMBEDDINGS: ✅ Stored embedding for \(type) \(id)")
+            Logger.shared.success("EMBEDDINGS: Stored embedding for \(type) \(id)")
             
         } catch {
-            print("🔧 EMBEDDINGS: ❌ Failed to store embedding for \(type) \(id): \(error)")
+            Logger.shared.error("EMBEDDINGS: Failed to store embedding for \(type) \(id): \(error)")
         }
     }
     
     /// Update embeddings for all PARA items
     func updatePARAEmbeddings() async {
-        print("🔧 EMBEDDINGS: Starting PARA embeddings update...")
+        Logger.shared.info("EMBEDDINGS: Starting PARA embeddings update...")
         
         do {
             // Get all PARA items
@@ -242,10 +277,10 @@ class EmbeddingsService: ObservableObject {
                 }
             }
             
-            print("🔧 EMBEDDINGS: ✅ Updated \(updatedCount) embeddings for PARA items")
+            Logger.shared.success("EMBEDDINGS: Updated \(updatedCount) embeddings for PARA items")
             
         } catch {
-            print("🔧 EMBEDDINGS: ❌ Failed to update PARA embeddings: \(error)")
+            Logger.shared.error("EMBEDDINGS: Failed to update PARA embeddings: \(error)")
         }
     }
     
@@ -257,7 +292,7 @@ class EmbeddingsService: ObservableObject {
         
         let apiKey = loadAPIKey()
         guard !apiKey.isEmpty else {
-            print("🔧 EMBEDDINGS: ❌ No OpenAI API key found")
+            Logger.shared.error("EMBEDDINGS: No OpenAI API key found")
             return nil
         }
         
@@ -267,7 +302,7 @@ class EmbeddingsService: ObservableObject {
         )
         
         guard let requestData = try? JSONEncoder().encode(requestBody) else {
-            print("🔧 EMBEDDINGS: ❌ Failed to encode request")
+            Logger.shared.error("EMBEDDINGS: Failed to encode request")
             return nil
         }
         
@@ -281,14 +316,14 @@ class EmbeddingsService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("🔧 EMBEDDINGS: ❌ Invalid response type")
+                Logger.shared.error("EMBEDDINGS: Invalid response type")
                 return nil
             }
             
             guard httpResponse.statusCode == 200 else {
-                print("🔧 EMBEDDINGS: ❌ API error: \(httpResponse.statusCode)")
+                Logger.shared.error("EMBEDDINGS: API error: \(httpResponse.statusCode)")
                 if let errorData = String(data: data, encoding: .utf8) {
-                    print("🔧 EMBEDDINGS: Error details: \(errorData)")
+                    Logger.shared.error("EMBEDDINGS: Error details: \(errorData)")
                 }
                 return nil
             }
@@ -296,15 +331,15 @@ class EmbeddingsService: ObservableObject {
             let embeddingResponse = try JSONDecoder().decode(EmbeddingResponse.self, from: data)
             
             guard let firstEmbedding = embeddingResponse.data.first else {
-                print("🔧 EMBEDDINGS: ❌ No embedding data in response")
+                Logger.shared.error("EMBEDDINGS: No embedding data in response")
                 return nil
             }
             
-            print("🔧 EMBEDDINGS: ✅ Generated embedding for: \"\(text.prefix(50))...\" [vector: \(firstEmbedding.embedding.count) dimensions]")
+            Logger.shared.success("EMBEDDINGS: Generated embedding for: \"\(text.prefix(50))...\" [vector: \(firstEmbedding.embedding.count) dimensions]")
             return firstEmbedding.embedding
             
         } catch {
-            print("🔧 EMBEDDINGS: ❌ Failed to generate embedding: \(error)")
+            Logger.shared.error("EMBEDDINGS: Failed to generate embedding: \(error)")
             return nil
         }
     }
@@ -322,12 +357,55 @@ class EmbeddingsService: ObservableObject {
         return results
     }
     
-    /// Normalize text for consistent embedding generation
+    /// Normalize text for consistent embedding generation with domain-specific preprocessing
     private func normalizeText(_ text: String) -> String {
-        return text
+        var normalized = text
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        
+        // Preserve case for proper nouns and acronyms but normalize common words
+        normalized = preprocessPARAContent(normalized)
+        
+        return normalized
+    }
+    
+    /// Preprocess content for PARA-specific embedding enhancement
+    private func preprocessPARAContent(_ text: String) -> String {
+        var processed = text
+        
+        // Expand common PARA abbreviations
+        let paraExpansions = [
+            "proj": "project",
+            "mtg": "meeting",
+            "appt": "appointment",
+            "todo": "task to do",
+            "followup": "follow up",
+            "asap": "as soon as possible",
+            "fyi": "for your information"
+        ]
+        
+        for (abbrev, expansion) in paraExpansions {
+            processed = processed.replacingOccurrences(
+                of: "\\b\(abbrev)\\b",
+                with: expansion,
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+        
+        // Add semantic markers for better categorization
+        if processed.contains("deadline") || processed.contains("due") || processed.contains("urgent") {
+            processed = "priority task: " + processed
+        }
+        
+        if processed.contains("meeting") || processed.contains("call") || processed.contains("discussion") {
+            processed = "collaboration: " + processed
+        }
+        
+        if processed.contains("learn") || processed.contains("research") || processed.contains("study") {
+            processed = "knowledge work: " + processed
+        }
+        
+        return processed
     }
     
     /// Generate cache key for text
@@ -356,17 +434,17 @@ class EmbeddingsService: ObservableObject {
                     if line.hasPrefix("OPENAI_API_KEY=") {
                         let apiKey = String(line.dropFirst("OPENAI_API_KEY=".count)).trimmingCharacters(in: .whitespacesAndNewlines)
                         if !apiKey.isEmpty && !apiKey.contains("your-openai-api-key-here") {
-                            print("🔧 EMBEDDINGS: ✅ Loaded API key from config.txt")
+                            Logger.shared.success("EMBEDDINGS: Loaded API key from config.txt")
                             return apiKey
                         }
                     }
                 }
             }
         } catch {
-            print("🔧 EMBEDDINGS: ⚠️ Could not read config.txt: \(error)")
+            Logger.shared.warning("EMBEDDINGS: Could not read config.txt: \(error)")
         }
         
-        print("🔧 EMBEDDINGS: ❌ No valid OpenAI API key found")
+        Logger.shared.error("EMBEDDINGS: No valid OpenAI API key found")
         return ""
     }
     
@@ -410,6 +488,9 @@ class EmbeddingsService: ObservableObject {
         
         // Persist to database
         await persistEmbeddingToDatabase(key: key, embedding: cachedEmbedding)
+        
+        // Perform cache cleanup if needed
+        performCacheCleanupIfNeeded()
     }
     
     /// Load embeddings cache from database
@@ -422,10 +503,10 @@ class EmbeddingsService: ObservableObject {
             
             // Process cached embeddings
             // Implementation depends on Supabase response format
-            print("🔧 EMBEDDINGS: ✅ Loaded embeddings cache from database")
+            Logger.shared.success("EMBEDDINGS: Loaded embeddings cache from database")
             
         } catch {
-            print("🔧 EMBEDDINGS: ❌ Failed to load embeddings cache: \(error)")
+            Logger.shared.error("EMBEDDINGS: Failed to load embeddings cache: \(error)")
         }
     }
     
@@ -445,7 +526,7 @@ class EmbeddingsService: ObservableObject {
                 .execute()
             
         } catch {
-            print("🔧 EMBEDDINGS: ❌ Failed to persist embedding: \(error)")
+            Logger.shared.error("EMBEDDINGS: Failed to persist embedding: \(error)")
         }
     }
     
@@ -529,13 +610,78 @@ class EmbeddingsService: ObservableObject {
                 }
             }
             
-            print("🔧 EMBEDDINGS: ✅ Loaded \(items.count) PARA items for embedding generation")
+            Logger.shared.success("EMBEDDINGS: Loaded \(items.count) PARA items for embedding generation")
             return items
             
         } catch {
-            print("🔧 EMBEDDINGS: ❌ Failed to load PARA items: \(error)")
+            Logger.shared.error("EMBEDDINGS: Failed to load PARA items: \(error)")
             throw error
         }
+    }
+    
+    // MARK: - Memory Management
+    
+    /// Check and perform cache cleanup if needed
+    private func performCacheCleanupIfNeeded() {
+        let now = Date()
+        guard now.timeIntervalSince(lastCacheCleanup) >= 3600 else { return } // 1 hour interval
+        
+        cacheQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            let currentSize = self.embeddingsCache.count
+            let currentMemoryUsage = self.estimateCacheMemoryUsage()
+            
+            Logger.shared.debug("EMBEDDINGS_CACHE: Current cache size: \(currentSize) items, memory: \(currentMemoryUsage / 1_000_000)MB")
+            
+            if currentSize > self.maxCacheSize || currentMemoryUsage > self.maxMemoryUsage {
+                self.performCacheCleanup()
+            }
+            
+            self.lastCacheCleanup = now
+        }
+    }
+    
+    /// Estimate current cache memory usage
+    private func estimateCacheMemoryUsage() -> Int {
+        var totalUsage = 0
+        for (key, cachedEmbedding) in embeddingsCache {
+            totalUsage += key.count * 2 // Rough estimate for string
+            totalUsage += cachedEmbedding.embedding.count * 4 // 4 bytes per Float
+            totalUsage += cachedEmbedding.text.count * 2 // Rough estimate for text
+            totalUsage += 100 // Overhead
+        }
+        return totalUsage
+    }
+    
+    /// Perform cache cleanup using LRU strategy
+    private func performCacheCleanup() {
+        Logger.shared.info("EMBEDDINGS_CACHE: Performing cache cleanup")
+        
+        let beforeCount = embeddingsCache.count
+        let beforeMemory = estimateCacheMemoryUsage()
+        
+        // Sort by creation date (oldest first) for LRU cleanup
+        let sortedKeys = embeddingsCache.keys.sorted { key1, key2 in
+            let date1 = embeddingsCache[key1]?.createdAt ?? Date.distantPast
+            let date2 = embeddingsCache[key2]?.createdAt ?? Date.distantPast
+            return date1 < date2
+        }
+        
+        // Remove oldest entries until we're under limits
+        var removedCount = 0
+        for key in sortedKeys {
+            if embeddingsCache.count <= maxCacheSize / 2 && estimateCacheMemoryUsage() <= maxMemoryUsage / 2 {
+                break
+            }
+            embeddingsCache.removeValue(forKey: key)
+            removedCount += 1
+        }
+        
+        let afterCount = embeddingsCache.count
+        let afterMemory = estimateCacheMemoryUsage()
+        
+        Logger.shared.success("EMBEDDINGS_CACHE: Cleanup complete. Removed \(removedCount) entries. Cache: \(beforeCount)→\(afterCount) items, Memory: \(beforeMemory / 1_000_000)MB→\(afterMemory / 1_000_000)MB")
     }
 }
 
@@ -580,8 +726,203 @@ struct EmbeddingRecord: Codable {
 
 // MARK: - Extensions
 
+// MARK: - Domain-Specific Enhancements
+
+struct DomainContext {
+    let category: PARACategory?
+    let workPersonal: WorkPersonalType?
+    let priority: TaskPriority?
+    let tags: [String]
+    let timeContext: Date?
+}
+
+struct EnhancedSimilarityResult {
+    let item: PARAItem
+    let similarity: Float
+    let confidence: Float
+    let matchType: MatchType
+    let reasoningFactors: [String]
+}
+
+enum MatchType {
+    case exact      // > 0.85 similarity
+    case high       // 0.7 - 0.85 similarity
+    case medium     // 0.55 - 0.7 similarity
+    case contextual // Enhanced by context factors
+}
+
+// MARK: - Private Enhancement Methods
+
+private extension EmbeddingsService {
+    
+    func applyDomainAdjustments(similarity: Float, key: String, context: DomainContext) -> Float {
+        var adjustedSimilarity = similarity
+        
+        // Category-based adjustments
+        if let category = context.category,
+           let weight = EmbeddingsConfig.categoryWeights[category] {
+            adjustedSimilarity *= weight
+        }
+        
+        // Time-based relevance boost
+        if let timeContext = context.timeContext {
+            let daysSince = Calendar.current.dateComponents([.day], from: timeContext, to: Date()).day ?? 0
+            let recencyBoost = max(0.1, 1.0 - (Float(daysSince) * 0.02)) // Decay over 50 days
+            adjustedSimilarity *= recencyBoost
+        }
+        
+        // Tag-based boosting
+        if !context.tags.isEmpty {
+            // Boost similarity if key contains any of the context tags
+            for tag in context.tags {
+                if key.lowercased().contains(tag.lowercased()) {
+                    adjustedSimilarity *= 1.1
+                    break
+                }
+            }
+        }
+        
+        return min(1.0, adjustedSimilarity) // Cap at 1.0
+    }
+    
+    func enhancePARASimilarity(similarity: Float, item: PARAItem, query: String) -> Float {
+        var enhanced = similarity
+        
+        // Priority-based enhancement
+        switch item.priority {
+        case .urgent:
+            enhanced *= 1.25
+        case .high:
+            enhanced *= 1.15
+        case .medium:
+            enhanced *= 1.05
+        case .low:
+            enhanced *= 0.95
+        }
+        
+        // Category-specific pattern matching
+        if item.category == .project {
+            let projectKeywords = ["deadline", "milestone", "deliver", "complete", "finish"]
+            if projectKeywords.contains(where: { query.lowercased().contains($0) }) {
+                enhanced *= 1.2
+            }
+        }
+        
+        if item.category == .area {
+            let areaKeywords = ["ongoing", "maintain", "review", "monitor", "manage"]
+            if areaKeywords.contains(where: { query.lowercased().contains($0) }) {
+                enhanced *= 1.15
+            }
+        }
+        
+        // Recency boost for recent items
+        let daysSinceCreation = Calendar.current.dateComponents([.day], from: item.createdAt, to: Date()).day ?? 0
+        if daysSinceCreation <= 7 {
+            enhanced *= 1.1 // 10% boost for items created in last week
+        }
+        
+        return min(1.0, enhanced)
+    }
+    
+    func calculateConfidenceScore(similarity: Float, item: PARAItem) -> Float {
+        var confidence = similarity
+        
+        // Boost confidence for items with more context
+        if !item.content.isEmpty {
+            confidence *= 1.1
+        }
+        
+        if !item.tags.isEmpty {
+            confidence *= 1.05
+        }
+        
+        // Category-specific confidence adjustments
+        switch item.category {
+        case .project:
+            confidence *= 1.1 // Projects typically have more structured content
+        case .area:
+            confidence *= 1.05
+        case .resource:
+            confidence *= 1.0
+        case .archive:
+            confidence *= 0.9 // Archived items less relevant
+        }
+        
+        return min(1.0, confidence)
+    }
+    
+    func determineMatchType(similarity: Float) -> MatchType {
+        if similarity >= EmbeddingsConfig.highSimilarityThreshold {
+            return .exact
+        } else if similarity >= EmbeddingsConfig.mediumSimilarityThreshold {
+            return .high
+        } else if similarity >= EmbeddingsConfig.lowSimilarityThreshold {
+            return .medium
+        } else {
+            return .contextual
+        }
+    }
+    
+    func generateReasoningFactors(item: PARAItem, query: String, similarity: Float) -> [String] {
+        var factors: [String] = []
+        
+        if similarity >= EmbeddingsConfig.highSimilarityThreshold {
+            factors.append("High semantic similarity (\(String(format: "%.2f", similarity)))")
+        }
+        
+        if item.category == .project {
+            factors.append("Project category match")
+        }
+        
+        if item.priority == .high {
+            factors.append("High priority item")
+        }
+        
+        let daysSince = Calendar.current.dateComponents([.day], from: item.createdAt, to: Date()).day ?? 0
+        if daysSince <= 7 {
+            factors.append("Recent item (\(daysSince) days ago)")
+        }
+        
+        if !item.tags.isEmpty {
+            factors.append("Tagged item: \(item.tags.joined(separator: ", "))")
+        }
+        
+        return factors
+    }
+    
+    func loadFilteredPARAItems(
+        category: PARACategory?,
+        workPersonal: WorkPersonalType?,
+        timeWindow: TimeInterval?
+    ) async -> [PARAItem] {
+        // This would load PARA items with the specified filters
+        // For now, returning a placeholder - would integrate with actual data loading
+        do {
+            var items = try await loadAllPARAItems()
+            
+            if let category = category {
+                items = items.filter { $0.category == category }
+            }
+            
+            if let workPersonal = workPersonal {
+                items = items.filter { $0.workPersonal == workPersonal }
+            }
+            
+            if let timeWindow = timeWindow {
+                let cutoffDate = Date().addingTimeInterval(-timeWindow)
+                items = items.filter { $0.createdAt >= cutoffDate }
+            }
+            
+            return items
+        } catch {
+            Logger.shared.error("EMBEDDINGS: Failed to load filtered PARA items: \(error)")
+            return []
+        }
+    }
+}
+
 extension Array {
-    func chunked(into size: Int) -> [[Element]] {
+    func embeddingsChunked(into size: Int) -> [[Element]] {
         return stride(from: 0, to: count, by: size).map {
             Array(self[$0..<Swift.min($0 + size, count)])
         }

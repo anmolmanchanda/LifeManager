@@ -436,7 +436,7 @@ struct ParkingDecisionModal: View {
 
 // MARK: - Preview
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ParkingLotSidebar(calendarViewModel: CalendarViewModel())
         .frame(height: 600)
-} 
+} */

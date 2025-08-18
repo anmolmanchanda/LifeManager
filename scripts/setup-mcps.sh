@@ -23,23 +23,29 @@ fi
 check_mcp() {
     local name=$1
     local package=$2
-    timeout 10s npx "$package" --help >/dev/null 2>&1 && echo "✓ $name server available" || echo "✗ $name server not available"
+    # Check if package is installed globally
+    if npm list -g --depth=0 | grep -q "$package"; then
+        echo "✓ $name server available (installed)"
+    else
+        echo "✗ $name server not installed"
+    fi
 }
 
-# Test all 9 MCP servers availability
+# Test all 10 MCP servers availability
 echo "Testing MCP server packages..."
 check_mcp "Sequential thinking" "@modelcontextprotocol/server-sequential-thinking"
 check_mcp "Postgres" "@modelcontextprotocol/server-postgres"
 check_mcp "Brave search" "@modelcontextprotocol/server-brave-search"
 check_mcp "Filesystem" "@modelcontextprotocol/server-filesystem"
-check_mcp "Task master AI" "@task-master-ai/mcp-server"
+check_mcp "Task master AI" "@astrotask/mcp"
 check_mcp "Context7" "@upstash/context7-mcp"
-check_mcp "APIDOG" "@apidog/mcp-server"
-check_mcp "Batch processor" "@modelcontextprotocol/server-batch-processor"
-check_mcp "Memory cache" "@modelcontextprotocol/server-memory-cache"
+check_mcp "APIDOG" "apidog-mcp-server"
+check_mcp "Firecrawl" "firecrawl-mcp"
+check_mcp "Memory cache" "@sylphlab/tools-memory-mcp"
+check_mcp "Browser MCP" "@browsermcp/mcp"
 
 echo ""
-echo "All 9 MCP servers configured:"
+echo "All 10 MCP servers configured:"
 echo "1. Sequential thinking - AI reasoning chains"
 echo "2. Postgres - Database operations"
 echo "3. Brave search - Web search capabilities"
@@ -47,8 +53,9 @@ echo "4. Filesystem - File operations"
 echo "5. Task master AI - Task management"
 echo "6. Context7 - Context management"
 echo "7. APIDOG - API testing"
-echo "8. Batch processor - Batch operations"
+echo "8. Firecrawl - Web scraping and content processing"
 echo "9. Memory cache - Caching layer"
+echo "10. Browser MCP - Browser automation"
 
 echo ""
 echo "To use MCPs with Claude Code, run:"

@@ -60,16 +60,16 @@ class TogglService: ObservableObject {
         self.workspaceId = workspaceId
         self.isConnected = !apiKey.isEmpty && !workspaceId.isEmpty && apiKey != "YOUR_TOGGL_API_TOKEN_HERE"
         
-        NSLog("🔧 TOGGL: Configured with workspace: \(workspaceId), connected: \(isConnected)")
+        Logger.shared.info("TOGGL: Configured with workspace: \(workspaceId), connected: \(isConnected)")
         
         // Test connection and fetch projects
         Task {
             do {
                 _ = try await testConnection()
-                NSLog("🔧 TOGGL: ✅ Connection test successful")
+                Logger.shared.info("TOGGL: ✅ Connection test successful")
                 await fetchProjects()
             } catch {
-                NSLog("🔧 TOGGL: ❌ Connection test failed: \(error)")
+                Logger.shared.info("TOGGL: ❌ Connection test failed: \(error)")
                 await MainActor.run {
                     self.isConnected = false
                 }
@@ -92,7 +92,7 @@ class TogglService: ObservableObject {
             let timeSinceLastRequest = Date().timeIntervalSince(lastRequestTime)
             if timeSinceLastRequest < minimumRequestInterval {
                 let waitTime = minimumRequestInterval - timeSinceLastRequest
-                NSLog("🔧 TOGGL: Queue processing - waiting \(waitTime)s for rate limit")
+                Logger.shared.info("TOGGL: Queue processing - waiting \(waitTime)s for rate limit")
                 try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
             }
             
@@ -101,11 +101,11 @@ class TogglService: ObservableObject {
                 
                 // Handle 429 Rate Limiting with exponential backoff
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 429 {
-                    NSLog("🔧 TOGGL: 429 Rate Limited - implementing exponential backoff")
+                    Logger.shared.info("TOGGL: 429 Rate Limited - implementing exponential backoff")
                     
                     // Exponential backoff: 5, 10, 20 seconds
                     let backoffDelay: TimeInterval = min(5.0 * pow(2.0, Double(requestQueue.count)), 20.0)
-                    NSLog("🔧 TOGGL: Backing off for \(backoffDelay)s")
+                    Logger.shared.info("TOGGL: Backing off for \(backoffDelay)s")
                     
                     try await Task.sleep(nanoseconds: UInt64(backoffDelay * 1_000_000_000))
                     
@@ -118,7 +118,7 @@ class TogglService: ObservableObject {
                 request.completion(.success(data))
                 
             } catch {
-                NSLog("🔧 TOGGL: Queue request failed: \(error)")
+                Logger.shared.info("TOGGL: Queue request failed: \(error)")
                 request.completion(.failure(error))
             }
         }
@@ -158,13 +158,13 @@ class TogglService: ObservableObject {
         request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        NSLog("🔧 TOGGL: Testing connection to \(urlString)")
+        Logger.shared.info("TOGGL: Testing connection to \(urlString)")
         
         let data = try await queueRequest(request)
         
-        NSLog("🔧 TOGGL: ✅ API connection successful")
+        Logger.shared.info("TOGGL: ✅ API connection successful")
         if let responseString = String(data: data, encoding: .utf8) {
-            NSLog("🔧 TOGGL: User info: \(responseString.prefix(200))...")
+            Logger.shared.info("TOGGL: User info: \(responseString.prefix(200))...")
         }
         return true
     }
@@ -186,7 +186,7 @@ class TogglService: ObservableObject {
         // Check cache first
         if let (cachedEntries, cacheTime) = cachedTimeEntries[cacheKey],
            Date().timeIntervalSince(cacheTime) < cacheValidityDuration {
-            NSLog("🔧 TOGGL: ✅ Using cached entries (\(cachedEntries.count) entries)")
+            Logger.shared.info("TOGGL: ✅ Using cached entries (\(cachedEntries.count) entries)")
             await MainActor.run {
                 self.timeEntries = cachedEntries
                 self.lastSyncDate = cacheTime
@@ -211,15 +211,15 @@ class TogglService: ObservableObject {
         request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        NSLog("🔧 TOGGL: Fetching entries from \(startString) to \(endString)")
-        NSLog("🔧 TOGGL: URL: \(urlString)")
+        Logger.shared.info("TOGGL: Fetching entries from \(startString) to \(endString)")
+        Logger.shared.info("TOGGL: URL: \(urlString)")
         
         do {
             let data = try await queueRequest(request)
             
             // Debug: Print raw response
             if let responseString = String(data: data, encoding: .utf8) {
-                NSLog("🔧 TOGGL: Raw response: \(responseString.prefix(500))...")
+                Logger.shared.info("TOGGL: Raw response: \(responseString.prefix(500))...")
             }
             
             let entries = try JSONDecoder().decode([TogglTimeEntry].self, from: data)
@@ -232,15 +232,15 @@ class TogglService: ObservableObject {
                 self.lastSyncDate = Date()
             }
             
-            NSLog("🔧 TOGGL: ✅ Fetched \(entries.count) time entries")
+            Logger.shared.info("TOGGL: ✅ Fetched \(entries.count) time entries")
             for entry in entries {
-                NSLog("🔧 TOGGL: Entry - '\(entry.description ?? "Unnamed")' from \(entry.start) to \(entry.stop ?? "running")")
+                Logger.shared.info("TOGGL: Entry - '\(entry.description ?? "Unnamed")' from \(entry.start) to \(entry.stop ?? "running")")
             }
             
             return entries
             
         } catch {
-            NSLog("🔧 TOGGL: ❌ Error fetching time entries: \(error)")
+            Logger.shared.info("TOGGL: ❌ Error fetching time entries: \(error)")
             throw error
         }
     }
@@ -254,9 +254,9 @@ class TogglService: ObservableObject {
         let startOfDay = calendar.startOfDay(for: now)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? now
         
-        NSLog("🔧 TOGGL: Fetching today's entries")
-        NSLog("🔧 TOGGL: Local start: \(startOfDay)")
-        NSLog("🔧 TOGGL: Local end: \(endOfDay)")
+        Logger.shared.info("TOGGL: Fetching today's entries")
+        Logger.shared.info("TOGGL: Local start: \(startOfDay)")
+        Logger.shared.info("TOGGL: Local end: \(endOfDay)")
         
         return try await fetchTimeEntries(startDate: startOfDay, endDate: endOfDay)
     }
@@ -269,7 +269,7 @@ class TogglService: ObservableObject {
             let urlString = "\(baseURL)/workspaces/\(workspaceId)/projects"
             
             guard let url = URL(string: urlString) else {
-                NSLog("🔧 TOGGL: ❌ Invalid projects URL")
+                Logger.shared.info("TOGGL: ❌ Invalid projects URL")
                 return
             }
             
@@ -281,7 +281,7 @@ class TogglService: ObservableObject {
             request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             
-            NSLog("🔧 TOGGL: Fetching projects from \(urlString)")
+            Logger.shared.info("TOGGL: Fetching projects from \(urlString)")
             
             let data = try await queueRequest(request)
             let fetchedProjects = try JSONDecoder().decode([TogglProject].self, from: data)
@@ -298,11 +298,11 @@ class TogglService: ObservableObject {
                     }
                 }
                 
-                NSLog("🔧 TOGGL: ✅ Fetched \(fetchedProjects.count) projects with colors")
+                Logger.shared.info("TOGGL: ✅ Fetched \(fetchedProjects.count) projects with colors")
             }
             
         } catch {
-            NSLog("🔧 TOGGL: ❌ Error fetching projects: \(error)")
+            Logger.shared.info("TOGGL: ❌ Error fetching projects: \(error)")
         }
     }
     
@@ -330,16 +330,16 @@ class TogglService: ObservableObject {
             let data = try await queueRequest(request)
             
             if data.isEmpty {
-                NSLog("🔧 TOGGL: No current entry running")
+                Logger.shared.info("TOGGL: No current entry running")
                 return nil // No current entry
             }
             
             let entry = try JSONDecoder().decode(TogglTimeEntry.self, from: data)
-            NSLog("🔧 TOGGL: Current entry: \(entry.description ?? "Unnamed")")
+            Logger.shared.info("TOGGL: Current entry: \(entry.description ?? "Unnamed")")
             return entry
             
         } catch {
-            NSLog("🔧 TOGGL: ❌ Error fetching current entry: \(error)")
+            Logger.shared.info("TOGGL: ❌ Error fetching current entry: \(error)")
             throw error
         }
     }
@@ -358,21 +358,21 @@ class TogglService: ObservableObject {
             Task {
                 do {
                     let _ = try await self.fetchTodaysEntries()
-                    NSLog("🔧 TOGGL: ✅ Polling update completed")
+                    Logger.shared.info("TOGGL: ✅ Polling update completed")
                 } catch {
-                    NSLog("🔧 TOGGL: ❌ Polling error: \(error)")
+                    Logger.shared.info("TOGGL: ❌ Polling error: \(error)")
                 }
             }
         }
         
-        NSLog("🔧 TOGGL: ✅ Started polling every 60 seconds")
+        Logger.shared.info("TOGGL: ✅ Started polling every 60 seconds")
     }
     
     /// Stop polling for time entries
     func stopPolling() {
         pollingTimer?.invalidate()
         pollingTimer = nil
-        NSLog("🔧 TOGGL: Stopped polling")
+        Logger.shared.info("TOGGL: Stopped polling")
     }
     
     // MARK: - Utility Methods
@@ -383,9 +383,9 @@ class TogglService: ObservableObject {
         let endDate = entry.endDate ?? Date()
         let calculatedDuration = endDate.timeIntervalSince(startDate)
         
-        NSLog("🔧 TOGGL: Converting entry '\(entry.description ?? "Unnamed")'")
-        NSLog("🔧 TOGGL: Start: \(startDate), End: \(endDate)")
-        NSLog("🔧 TOGGL: Duration: \(Int(calculatedDuration/60)) minutes")
+        Logger.shared.info("TOGGL: Converting entry '\(entry.description ?? "Unnamed")'")
+        Logger.shared.info("TOGGL: Start: \(startDate), End: \(endDate)")
+        Logger.shared.info("TOGGL: Duration: \(Int(calculatedDuration/60)) minutes")
         
         return CalendarEvent(
             id: UUID(uuidString: String(entry.id)) ?? UUID(),
@@ -412,11 +412,11 @@ class TogglService: ObservableObject {
         // Get project color if available
         let projectColor = entry.projectId.flatMap { projectColors[$0] } ?? Color.green
         
-        NSLog("🔧 TOGGL: Converting entry '\(entry.description ?? "Unnamed")' with color")
-        NSLog("🔧 TOGGL: Start: \(startDate), End: \(endDate)")
-        NSLog("🔧 TOGGL: Duration: \(Int(calculatedDuration/60)) minutes")
+        Logger.shared.info("TOGGL: Converting entry '\(entry.description ?? "Unnamed")' with color")
+        Logger.shared.info("TOGGL: Start: \(startDate), End: \(endDate)")
+        Logger.shared.info("TOGGL: Duration: \(Int(calculatedDuration/60)) minutes")
         if let projectId = entry.projectId {
-            NSLog("🔧 TOGGL: Project ID: \(projectId), Color: \(projectColor)")
+            Logger.shared.info("TOGGL: Project ID: \(projectId), Color: \(projectColor)")
         }
         
         return CalendarEvent(
@@ -493,7 +493,7 @@ struct TogglTimeEntry: Codable, Identifiable {
         }
         
         // Last resort fallback
-        NSLog("🔧 TOGGL: ❌ Failed to parse start date: \(start)")
+        Logger.shared.info("TOGGL: ❌ Failed to parse start date: \(start)")
         return Date()
     }
     
@@ -513,7 +513,7 @@ struct TogglTimeEntry: Codable, Identifiable {
             return date
         }
         
-        NSLog("🔧 TOGGL: ❌ Failed to parse stop date: \(stop)")
+        Logger.shared.info("TOGGL: ❌ Failed to parse stop date: \(stop)")
         return nil
     }
     

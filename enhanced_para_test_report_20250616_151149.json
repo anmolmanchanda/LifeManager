@@ -1,0 +1,236 @@
+{
+  "test_summary": {
+    "timestamp": "2025-06-16T15:11:22.318225",
+    "total_duration": 1750101109.132834,
+    "mcp_servers": {
+      "total": 9,
+      "successful": 9,
+      "success_rate": "100.0%"
+    },
+    "enhanced_features": {
+      "total": 6,
+      "successful": 6,
+      "success_rate": "100.0%"
+    },
+    "overall_status": "PASS"
+  },
+  "detailed_results": {
+    "timestamp": "2025-06-16T15:11:22.318225",
+    "mcp_servers": {
+      "sequential-thinking": {
+        "status": "success",
+        "message": "MCP server sequential-thinking command available",
+        "command": "npx @modelcontextprotocol/server-sequential-thinking",
+        "timestamp": "2025-06-16T15:11:22.321010"
+      },
+      "context7": {
+        "status": "success",
+        "message": "MCP server context7 command available",
+        "command": "npx @upstash/context7-mcp",
+        "timestamp": "2025-06-16T15:11:22.323171"
+      },
+      "postgres": {
+        "status": "success",
+        "message": "MCP server postgres command available",
+        "command": "npx @modelcontextprotocol/server-postgres",
+        "timestamp": "2025-06-16T15:11:22.325174"
+      },
+      "brave-search": {
+        "status": "success",
+        "message": "MCP server brave-search command available",
+        "command": "npx @modelcontextprotocol/server-brave-search",
+        "timestamp": "2025-06-16T15:11:22.327161"
+      },
+      "filesystem": {
+        "status": "success",
+        "message": "MCP server filesystem command available",
+        "command": "npx @modelcontextprotocol/server-filesystem",
+        "timestamp": "2025-06-16T15:11:22.329293"
+      },
+      "task-master-ai": {
+        "status": "success",
+        "message": "MCP server task-master-ai command available",
+        "command": "npx @task-master-ai/mcp-server",
+        "timestamp": "2025-06-16T15:11:22.331549"
+      },
+      "apidog": {
+        "status": "success",
+        "message": "MCP server apidog command available",
+        "command": "npx @apidog/mcp-server",
+        "timestamp": "2025-06-16T15:11:22.333541"
+      },
+      "batch-processor": {
+        "status": "success",
+        "message": "MCP server batch-processor command available",
+        "command": "npx @modelcontextprotocol/server-batch-processor",
+        "timestamp": "2025-06-16T15:11:22.335593"
+      },
+      "memory-cache": {
+        "status": "success",
+        "message": "MCP server memory-cache command available",
+        "command": "npx @modelcontextprotocol/server-memory-cache",
+        "timestamp": "2025-06-16T15:11:22.337722"
+      }
+    },
+    "features": {
+      "dynamic_context_window": {
+        "status": "success",
+        "details": {
+          "success": true,
+          "message": "Found 6/6 dynamic window features",
+          "found_features": [
+            "minSlidingWindowSize",
+            "maxSlidingWindowSize",
+            "adjustWindowSize",
+            "ActivityPatterns",
+            "averageDailyActivity",
+            "recentActivityTrend"
+          ],
+          "implementation_quality": "complete"
+        },
+        "duration": 0.00011992454528808594,
+        "timestamp": "2025-06-16T15:11:22.337942"
+      },
+      "calendar_integration": {
+        "status": "success",
+        "details": {
+          "success": true,
+          "message": "Found 6/6 calendar integration features",
+          "found_features": [
+            "CalendarContext",
+            "getCalendarContext",
+            "calculateAvailableTimeSlots",
+            "analyzeSchedulingPatterns",
+            "todayEvents",
+            "upcomingEvents"
+          ],
+          "implementation_quality": "complete"
+        },
+        "duration": 5.412101745605469e-05,
+        "timestamp": "2025-06-16T15:11:22.338013"
+      },
+      "semantic_embeddings": {
+        "status": "success",
+        "details": {
+          "success": true,
+          "message": "Found 6/7 semantic embedding features",
+          "found_features": [
+            "DomainContext",
+            "EnhancedSimilarityResult",
+            "findSimilarPARAItems",
+            "enhancePARASimilarity",
+            "preprocessPARAContent",
+            "categoryWeights"
+          ],
+          "implementation_quality": "complete"
+        },
+        "duration": 7.796287536621094e-05,
+        "timestamp": "2025-06-16T15:11:22.338104"
+      },
+      "advanced_analytics": {
+        "status": "success",
+        "details": {
+          "success": true,
+          "message": "Found 7/8 analytics features",
+          "found_features": [
+            "AdvancedAnalyticsService",
+            "performComprehensiveAnalysis",
+            "getProductivityTrends",
+            "getPARADistribution",
+            "getOptimizationSuggestions",
+            "AnalyticsInsight",
+            "PerformanceMetrics"
+          ],
+          "implementation_quality": "complete"
+        },
+        "duration": 7.700920104980469e-05,
+        "timestamp": "2025-06-16T15:11:22.338192"
+      },
+      "clarification_questions": {
+        "status": "success",
+        "details": {
+          "success": true,
+          "message": "Found 9/9 clarification features",
+          "found_features": [
+            "generateComprehensiveClarifications",
+            "generateCategoryAmbiguityClarification",
+            "generateContextMismatchClarification",
+            "generatePriorityClarification",
+            "generateTemporalClarification",
+            "generateScopeClarification",
+            "ClarificationType",
+            "CategoryAmbiguity",
+            "ContextMismatch"
+          ],
+          "implementation_quality": "complete"
+        },
+        "duration": 0.00011801719665527344,
+        "timestamp": "2025-06-16T15:11:22.338324"
+      },
+      "enhanced_json_output": {
+        "status": "success",
+        "details": {
+          "success": true,
+          "message": "Found 9/9 enhanced JSON features",
+          "found_features": [
+            "EnhancedBrainDumpItem",
+            "DetailedReasoning",
+            "ClassificationReasoning",
+            "AlternativeClassification",
+            "ContextualRelevance",
+            "SemanticSimilarity",
+            "UncertaintyFactor",
+            "ProcessingMetadata",
+            "ContextualInsights"
+          ],
+          "implementation_quality": "complete"
+        },
+        "duration": 0.00018525123596191406,
+        "timestamp": "2025-06-16T15:11:22.338519"
+      }
+    },
+    "performance": {
+      "file_read_time": 0.0009868144989013672,
+      "build_time": 12.68166995048523,
+      "service_initialization": {
+        "ContextMemoryService": 3,
+        "EmbeddingsService": 2,
+        "AdvancedAnalyticsService": 3,
+        "ContextualPARAEngine": 1,
+        "LLMBrainDumpProcessor": 0
+      },
+      "timestamp": "2025-06-16T15:11:49.132720"
+    },
+    "errors": [],
+    "integration": {
+      "app_build": {
+        "success": false,
+        "message": "Build failed",
+        "error": ""
+      },
+      "mcp_configuration": {
+        "success": true,
+        "message": "MCP configuration complete (9/9 servers)",
+        "configured_servers": [
+          "sequential-thinking",
+          "postgres",
+          "brave-search",
+          "filesystem",
+          "task-master-ai",
+          "context7",
+          "apidog",
+          "batch-processor",
+          "memory-cache"
+        ],
+        "missing_servers": []
+      },
+      "prompt_caching": {
+        "success": false,
+        "message": "Prompt caching configured: None, TTL: None",
+        "cache_prompt": null,
+        "cache_ttl": null
+      },
+      "timestamp": "2025-06-16T15:11:36.448240"
+    }
+  }
+}

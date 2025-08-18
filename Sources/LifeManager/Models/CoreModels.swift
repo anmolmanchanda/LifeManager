@@ -190,6 +190,8 @@ enum ContentType: String, CaseIterable, Codable {
     case appointment = "appointment"
     case habit = "habit"
     case goal = "goal"
+    case project = "project"
+    case area = "area"
     
     var displayName: String {
         switch self {
@@ -203,6 +205,8 @@ enum ContentType: String, CaseIterable, Codable {
         case .appointment: return "Appointment"
         case .habit: return "Habit"
         case .goal: return "Goal"
+        case .project: return "Project"
+        case .area: return "Area"
         }
     }
     
@@ -218,6 +222,8 @@ enum ContentType: String, CaseIterable, Codable {
         case .appointment: return "calendar"
         case .habit: return "repeat"
         case .goal: return "target"
+        case .project: return "folder"
+        case .area: return "square.stack.3d.up"
         }
     }
 }
@@ -294,12 +300,22 @@ enum TaskStatus: String, CaseIterable, Codable {
 
 /// Project status types
 enum ProjectStatus: String, CaseIterable, Codable {
+    case planning = "planning"
     case active = "active"
+    case onHold = "on_hold"
     case completed = "completed"
+    case cancelled = "cancelled"
     case archived = "archived"
     
     var displayName: String {
-        return rawValue.capitalized
+        switch self {
+        case .planning: return "Planning"
+        case .active: return "Active"
+        case .onHold: return "On Hold"
+        case .completed: return "Completed"
+        case .cancelled: return "Cancelled"
+        case .archived: return "Archived"
+        }
     }
 }
 
@@ -933,6 +949,57 @@ struct TaskEnhancementResult {
         self.priorityReasoning = priorityReasoning
         self.wasEnhanced = wasEnhanced
         self.confidence = confidence
+    }
+}
+
+// MARK: - Unified System Enums
+
+/// Unified pattern types for all services
+enum UnifiedPatternType: String, CaseIterable, Codable {
+    case recurring = "recurring"
+    case temporal = "temporal" 
+    case contextual = "contextual"
+    case behavioral = "behavioral"
+    case semantic = "semantic"
+    case serviceUsage = "service_usage"
+    case decisionMaking = "decision_making"
+}
+
+/// Unified optimization types for all services
+enum UnifiedOptimizationType: String, CaseIterable, Codable {
+    case responseTimeOptimization = "response_time_optimization"
+    case coordinationImprovement = "coordination_improvement"
+    case memoryOptimization = "memory_optimization"
+    case errorReduction = "error_reduction"
+    case serviceOptimization = "service_optimization"
+    case databaseOptimization = "database_optimization"
+    case aiOptimization = "ai_optimization"
+    case cacheOptimization = "cache_optimization"
+}
+
+/// Unified risk level for all services
+enum UnifiedRiskLevel: String, CaseIterable, Codable {
+    case low = "low"
+    case medium = "medium" 
+    case high = "high"
+    case critical = "critical"
+    
+    var displayName: String {
+        switch self {
+        case .low: return "Low Risk"
+        case .medium: return "Medium Risk"
+        case .high: return "High Risk"
+        case .critical: return "Critical Risk"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .low: return .green
+        case .medium: return .yellow
+        case .high: return .orange
+        case .critical: return .red
+        }
     }
 }
 

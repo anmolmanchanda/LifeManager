@@ -6,9 +6,11 @@ struct PARATasksParkingLot: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @State private var selectedFilter: TaskFilter = .all
     @State private var searchText = ""
+    @State private var recentlyDeletedTasks: [LifeTask] = []
+    @State private var isLoadingArchive = false
     
     enum TaskFilter: CaseIterable {
-        case all, scheduled, unscheduled, focus, work, personal
+        case all, scheduled, unscheduled, focus, work, personal, archive
         
         var displayName: String {
             switch self {
@@ -18,6 +20,7 @@ struct PARATasksParkingLot: View {
             case .focus: return "Focus"
             case .work: return "Work"
             case .personal: return "Personal"
+            case .archive: return "Archive"
             }
         }
         
@@ -29,6 +32,7 @@ struct PARATasksParkingLot: View {
             case .focus: return "target"
             case .work: return "briefcase"
             case .personal: return "house"
+            case .archive: return "archivebox"
             }
         }
     }
@@ -39,12 +43,12 @@ struct PARATasksParkingLot: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Tasks Parking Lot")
+                        Text(selectedFilter == .archive ? "Recently Deleted" : "Tasks Parking Lot")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .lineLimit(1)
                         
-                        Text("All tasks from PARA")
+                        Text(selectedFilter == .archive ? "Deleted tasks (24hr retention)" : "All tasks from PARA")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -139,32 +143,86 @@ struct PARATasksParkingLot: View {
                 ))
                 .frame(height: 1)
             
-            // Tasks list
-            if filteredTasks.isEmpty {
-                emptyState
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 6) {
-                        ForEach(filteredTasks) { task in
-                            ParkingLotTaskRow(task: task)
-                                .environmentObject(calendarViewModel)
-                                .environmentObject(viewModel)
-                        }
+            // Tasks list with archive support
+            if selectedFilter == .archive {
+                // Archive view with restore functionality
+                if isLoadingArchive {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Loading archived tasks...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                } else if filteredTasks.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 32, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text("No deleted tasks")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 6) {
+                            ForEach(filteredTasks) { task in
+                                ArchiveTaskRow(task: task) {
+                                    await restoreTask(task)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .padding(.top, 4)
+                    }
+                    .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
                 }
-                .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+            } else {
+                // Existing active tasks view
+                if filteredTasks.isEmpty {
+                    emptyState
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 6) {
+                            ForEach(filteredTasks) { task in
+                                ParkingLotTaskRow(task: task)
+                                    .environmentObject(calendarViewModel)
+                                    .environmentObject(viewModel)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .padding(.top, 4)
+                    }
+                    .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
         .clipped() // Prevent overflow outside bounds
         .zIndex(100) // Ensure parking lot appears above calendar views
+        .onChange(of: selectedFilter) { newFilter in
+            if newFilter == .archive {
+                Task {
+                    await loadRecentlyDeletedTasks()
+                }
+            }
+        }
     }
     
     private var filteredTasks: [LifeTask] {
+        if selectedFilter == .archive {
+            // Return recently deleted tasks for archive view
+            return filterArchiveTasks()
+        }
+        
+        // Existing logic for other filters
         var tasks = allTasksFromPARA
         
         // Apply search filter
@@ -189,6 +247,8 @@ struct PARATasksParkingLot: View {
             tasks = tasks.filter { $0.workPersonal == .work || $0.workPersonal == .both }
         case .personal:
             tasks = tasks.filter { $0.workPersonal == .personal || $0.workPersonal == .both }
+        case .archive:
+            break // Handled above
         }
         
         // Sort by priority and due date
@@ -268,6 +328,7 @@ struct PARATasksParkingLot: View {
         case .focus: return "No focus tasks"
         case .work: return "No work tasks"
         case .personal: return "No personal tasks"
+        case .archive: return "No deleted tasks"
         }
     }
     
@@ -279,6 +340,65 @@ struct PARATasksParkingLot: View {
         case .focus: return "Mark important tasks as focus to see them here."  
         case .work: return "Work-related tasks will appear here."
         case .personal: return "Personal tasks will appear here."
+        case .archive: return "Recently deleted tasks will appear here."
+        }
+    }
+    
+    // MARK: - Archive Methods
+    
+    /// Filter archive tasks with search support
+    private func filterArchiveTasks() -> [LifeTask] {
+        let filtered = recentlyDeletedTasks
+        
+        // Apply search filter to archived tasks
+        if searchText.isEmpty {
+            return filtered
+        } else {
+            return filtered.filter { task in
+                task.title.localizedCaseInsensitiveContains(searchText) ||
+                (task.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
+        }
+    }
+    
+    /// Load recently deleted tasks for archive view
+    private func loadRecentlyDeletedTasks() async {
+        guard selectedFilter == .archive else { return }
+        
+        isLoadingArchive = true
+        do {
+            let taskRepository = TaskRepository()
+            let deleted = try await taskRepository.fetchRecentlyDeletedTasks()
+            
+            await MainActor.run {
+                recentlyDeletedTasks = deleted
+                isLoadingArchive = false
+            }
+            
+            Logger.shared.debug("PARKING_LOT: Loaded \(deleted.count) recently deleted tasks")
+        } catch {
+            Logger.shared.error("PARKING_LOT: Failed to load archive: \(error)")
+            await MainActor.run {
+                isLoadingArchive = false
+            }
+        }
+    }
+    
+    /// Restore a deleted task
+    private func restoreTask(_ task: LifeTask) async {
+        do {
+            let taskRepository = TaskRepository()
+            try await taskRepository.restoreDeletedTask(id: task.id)
+            
+            // Refresh archive list
+            await loadRecentlyDeletedTasks()
+            
+            // Refresh main data to show restored task
+            await viewModel.refreshData()
+            
+            Logger.shared.success("PARKING_LOT: Restored task: \(task.title)")
+        } catch {
+            Logger.shared.error("PARKING_LOT: Failed to restore task: \(error)")
         }
     }
 }
@@ -588,7 +708,7 @@ struct TaskContextMenu: View {
                 }
             }
         } catch {
-            print("Failed to move completed task to archive: \(error.localizedDescription)")
+            Logger.shared.error("PARKING_LOT: Failed to move completed task to archive: \(error.localizedDescription)")
         }
     }
     
@@ -659,5 +779,63 @@ struct TaskContextMenu: View {
                 viewModel.errorMessage = "Failed to delete task: \(error.localizedDescription)"
             }
         }
+    }
+}
+
+// MARK: - Archive Task Row Component
+
+/// Archive task row with restore functionality
+struct ArchiveTaskRow: View {
+    let task: LifeTask
+    let onRestore: () async -> Void
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(task.title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+                
+                HStack(spacing: 4) {
+                    if let deletedAt = task.deletedAt {
+                        Text("Deleted: \(formatDeletedDate(deletedAt))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if task.canBePermanentlyDeleted {
+                        Text("⚠️ Expires soon")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                Task {
+                    await onRestore()
+                }
+            }) {
+                Image(systemName: "arrow.uturn.backward")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(.borderless)
+            .help("Restore task")
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .cornerRadius(6)
+    }
+    
+    private func formatDeletedDate(_ deletedAt: String) -> String {
+        guard let date = ISO8601DateFormatter().date(from: deletedAt) else {
+            return deletedAt
+        }
+        return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
     }
 } 

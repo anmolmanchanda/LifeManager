@@ -13,7 +13,7 @@ class NotificationService: ObservableObject {
     
     private init() {
         // Don't request permission during initialization - wait for first use
-        NSLog("🔧 DEBUG: NotificationService init() completed safely")
+        Logger.shared.info("DEBUG: NotificationService init() completed safely")
     }
     
     // MARK: - Permission Management
@@ -23,13 +23,13 @@ class NotificationService: ObservableObject {
         guard !permissionRequested else { return }
         permissionRequested = true
         
-        NSLog("🔧 DEBUG: Requesting notification permissions")
+        Logger.shared.info("DEBUG: Requesting notification permissions")
         
         // Safely handle UNUserNotificationCenter access with error handling
         do {
             // Check if we're running in a proper app bundle context
             guard Bundle.main.bundleIdentifier != nil else {
-                NSLog("🔧 NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notifications")
+                Logger.shared.info("NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notifications")
                 notificationPermissionGranted = false
                 return
             }
@@ -38,14 +38,14 @@ class NotificationService: ObservableObject {
                 DispatchQueue.main.async {
                     self.notificationPermissionGranted = granted
                     if let error = error {
-                        NSLog("🔧 NOTIFICATIONS: ❌ Permission error: \(error)")
+                        Logger.shared.info("NOTIFICATIONS: ❌ Permission error: \(error)")
                     } else {
-                        NSLog("🔧 NOTIFICATIONS: ✅ Permission granted: \(granted)")
+                        Logger.shared.info("NOTIFICATIONS: ✅ Permission granted: \(granted)")
                     }
                 }
             }
         } catch {
-            NSLog("🔧 NOTIFICATIONS: ❌ Failed to access UNUserNotificationCenter: \(error)")
+            Logger.shared.info("NOTIFICATIONS: ❌ Failed to access UNUserNotificationCenter: \(error)")
             notificationPermissionGranted = false
         }
     }
@@ -63,13 +63,13 @@ class NotificationService: ObservableObject {
         requestNotificationPermissionIfNeeded()
         
         guard notificationPermissionGranted else {
-            NSLog("🔧 NOTIFICATIONS: ⚠️ Permission not granted for local notification")
+            Logger.shared.info("NOTIFICATIONS: ⚠️ Permission not granted for local notification")
             return
         }
         
         // Check if we're running in a proper app bundle context
         guard Bundle.main.bundleIdentifier != nil else {
-            NSLog("🔧 NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notification")
+            Logger.shared.info("NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notification")
             return
         }
         
@@ -92,13 +92,13 @@ class NotificationService: ObservableObject {
             
             UNUserNotificationCenter.current().add(request) { error in
                 if let error = error {
-                    print("🔧 NOTIFICATIONS: ❌ Failed to send notification: \(error)")
+                    Logger.shared.error("NOTIFICATIONS: Failed to send notification: \(error)")
                 } else {
-                    print("🔧 NOTIFICATIONS: ✅ Sent notification: \(title)")
+                    Logger.shared.success("NOTIFICATIONS: Sent notification: \(title)")
                 }
             }
         } catch {
-            NSLog("🔧 NOTIFICATIONS: ❌ Failed to send notification: \(error)")
+            Logger.shared.info("NOTIFICATIONS: ❌ Failed to send notification: \(error)")
         }
     }
     
@@ -235,7 +235,7 @@ class NotificationService: ObservableObject {
     private func addNotificationActions(for category: NotificationCategory) {
         // Check if we're running in a proper app bundle context
         guard Bundle.main.bundleIdentifier != nil else {
-            NSLog("🔧 NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notification actions")
+            Logger.shared.info("NOTIFICATIONS: ⚠️ Not running in app bundle context, skipping notification actions")
             return
         }
         
@@ -290,7 +290,7 @@ class NotificationService: ObservableObject {
             break
         }
         } catch {
-            NSLog("🔧 NOTIFICATIONS: ❌ Failed to add notification actions: \(error)")
+            Logger.shared.info("NOTIFICATIONS: ❌ Failed to add notification actions: \(error)")
         }
     }
     
@@ -308,7 +308,7 @@ class NotificationService: ObservableObject {
     /// Send SMS notification (placeholder for Twilio integration)
     private func sendSMS() async -> Bool {
         // TODO: Implement Twilio SMS integration
-        print("🔧 NOTIFICATIONS: 📱 Would send SMS alert (integration needed)")
+        Logger.shared.info("NOTIFICATIONS: Would send SMS alert (integration needed)")
         
         // Placeholder for actual SMS implementation:
         /*
@@ -330,7 +330,7 @@ class NotificationService: ObservableObject {
     /// Send email notification (placeholder for email service integration)
     private func sendEmail() async {
         // TODO: Implement email service integration
-        print("🔧 NOTIFICATIONS: 📧 Would send email alert (integration needed)")
+        Logger.shared.info("NOTIFICATIONS: Would send email alert (integration needed)")
         
         // Placeholder for actual email implementation:
         /*
@@ -360,7 +360,7 @@ class NotificationService: ObservableObject {
     func updateBadgeCount(_ count: Int) {
         UNUserNotificationCenter.current().setBadgeCount(count) { error in
             if let error = error {
-                print("🔧 NOTIFICATIONS: ❌ Failed to update badge: \(error)")
+                Logger.shared.error("NOTIFICATIONS: Failed to update badge: \(error)")
             }
         }
     }
@@ -370,7 +370,7 @@ class NotificationService: ObservableObject {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         updateBadgeCount(0)
-        print("🔧 NOTIFICATIONS: ✅ Cleared all notifications")
+        Logger.shared.success("NOTIFICATIONS: Cleared all notifications")
     }
 }
 
@@ -387,11 +387,12 @@ enum NotificationCategory: String, CaseIterable {
     case decisionRequired = "DECISION_REQUIRED"
     case eventBumped = "EVENT_BUMPED"
     case cascadeBump = "CASCADE_BUMP"
+    case proactiveNotification = "PROACTIVE_NOTIFICATION"
     case staleEvents = "STALE_EVENTS"
     
     var sound: UNNotificationSound {
         switch self {
-        case .general, .eventParked, .eventRescheduled, .eventBumped:
+        case .general, .eventParked, .eventRescheduled, .eventBumped, .proactiveNotification:
             return .default
         case .bufferWarning, .staleEvents:
             return UNNotificationSound(named: UNNotificationSoundName("warning.caf"))

@@ -31,6 +31,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Class has more than 3 dependencies
 - Cyclomatic complexity exceeds 10
 
+## Development Principles
+
+### DRY (Don't Repeat Yourself)
+**CRITICAL: Always follow the DRY principle**
+- Never duplicate code - extract common functionality into reusable components
+- Create shared utilities, base classes, or protocols for repeated patterns
+- If you find yourself copying code, STOP and refactor it into a reusable module
+- Archive useful code snippets for future reusability instead of deleting
+- Maintain a library of common components and patterns
+
 ## Development Commands
 
 ### Building and Running

@@ -5,6 +5,9 @@ import SwiftUI
 @MainActor
 class CalendarOrchestrationService: ObservableObject {
     
+    // MARK: - Singleton
+    static let shared = CalendarOrchestrationService()
+    
     // MARK: - Published Properties
     
     @Published var isProcessing: Bool = false
@@ -20,7 +23,7 @@ class CalendarOrchestrationService: ObservableObject {
     private let parkingService: EnhancedParkingLotService
     private let togglService = TogglService()
     private let notificationService = NotificationService.shared
-    private let llmService = LLMService()
+    private let llmService = LLMServiceCoordinator.shared
     
     // MARK: - Configuration
     
@@ -55,7 +58,7 @@ class CalendarOrchestrationService: ObservableObject {
         isProcessing = true
         defer { isProcessing = false }
         
-        print("🎭 ORCHESTRATION: Processing schedule for \(formatDate(date))")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Processing schedule for \(formatDate(date))")
         
         do {
             // 1. Fetch latest Toggl data
@@ -80,22 +83,22 @@ class CalendarOrchestrationService: ObservableObject {
             await checkStaleParkedEvents()
             
             lastUpdateTime = Date()
-            print("🎭 ORCHESTRATION: ✅ Schedule processing complete")
+            Logger.shared.success("CALENDAR ORCHESTRATION: Schedule processing complete")
             
         } catch {
-            print("🎭 ORCHESTRATION: ❌ Error processing schedule: \(error)")
+            Logger.shared.error("CALENDAR ORCHESTRATION: Error processing schedule: \(error)")
         }
     }
     
     /// Start continuous monitoring
     func startContinuousMonitoring() {
-        print("🎭 ORCHESTRATION: 🔄 Starting continuous monitoring")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Starting continuous monitoring")
         startAutoRefresh()
     }
     
     /// Stop continuous monitoring
     func stopContinuousMonitoring() {
-        print("🎭 ORCHESTRATION: ⏹️ Stopping continuous monitoring")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Stopping continuous monitoring")
         stopAutoRefresh()
     }
     
@@ -111,7 +114,7 @@ class CalendarOrchestrationService: ObservableObject {
         
         bufferService.updateBufferConfiguration(minutesPerHour: minutesPerHour)
         
-        print("🎭 ORCHESTRATION: ⚙️ Updated buffer settings: \(minutesPerHour)min/hour, \(workingHours)h workday")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Updated buffer settings: \(minutesPerHour)min/hour, \(workingHours)h workday")
         
         // Reprocess today's schedule with new settings
         Task {
@@ -125,7 +128,7 @@ class CalendarOrchestrationService: ObservableObject {
         // Configure buffer service
         bufferService.bufferMinutesPerHour = bufferMinutesPerHour
         
-        print("🎭 ORCHESTRATION: ⚙️ Orchestration service initialized")
+        Logger.shared.success("CALENDAR ORCHESTRATION: Orchestration service initialized")
     }
     
     private func startAutoRefresh() {
@@ -160,7 +163,7 @@ class CalendarOrchestrationService: ObservableObject {
         let timeSinceLastFetch = Date().timeIntervalSince(lastTogglFetch)
         guard timeSinceLastFetch > 30 else { return } // Rate limit: max once per 30 seconds
         
-        print("🎭 ORCHESTRATION: 📊 Fetching Toggl actuals for \(formatDate(date))")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Fetching Toggl actuals for \(formatDate(date))")
         
         do {
             _ = try await togglService.fetchTodaysEntries()
@@ -169,10 +172,10 @@ class CalendarOrchestrationService: ObservableObject {
             // Convert Toggl entries to CalendarEvents
             await convertTogglToCalendarEvents(for: date)
             
-            print("🎭 ORCHESTRATION: ✅ Toggl actuals fetched and converted")
+            Logger.shared.success("CALENDAR ORCHESTRATION: Toggl actuals fetched and converted")
             
         } catch {
-            print("🎭 ORCHESTRATION: ❌ Error fetching Toggl data: \(error)")
+            Logger.shared.error("CALENDAR ORCHESTRATION: Error fetching Toggl data: \(error)")
         }
     }
     
@@ -197,7 +200,7 @@ class CalendarOrchestrationService: ObservableObject {
             )
         }
         
-        print("🎭 ORCHESTRATION: 📊 Converted \(actualEvents.count) Toggl entries to calendar events")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Converted \(actualEvents.count) Toggl entries to calendar events")
     }
     
     // MARK: - Event Categorization
@@ -212,7 +215,7 @@ class CalendarOrchestrationService: ObservableObject {
             event.startDate >= dayStart && event.startDate < dayEnd
         }.sorted { $0.startDate < $1.startDate }
         
-        print("🎭 ORCHESTRATION: 📅 Categorized events - Daily: \(dailyEvents.count), Actual: \(actualEvents.count), Planned: \(plannedEvents.count)")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Categorized events - Daily: \(dailyEvents.count), Actual: \(actualEvents.count), Planned: \(plannedEvents.count)")
     }
     
     // MARK: - Buffer Management
@@ -243,13 +246,13 @@ class CalendarOrchestrationService: ObservableObject {
             bufferStatus = .healthy
         }
         
-        print("🎭 ORCHESTRATION: 🛡️ Buffer status: \(bufferStatus.rawValue), Remaining: \(remainingBuffer)min")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Buffer status: \(bufferStatus.rawValue), Remaining: \(remainingBuffer)min")
     }
     
     // MARK: - Conflict Resolution & Auto-Bumping
     
     private func processConflictsAndBumps(for date: Date) async {
-        print("🎭 ORCHESTRATION: ⚡ Processing conflicts and auto-bumps")
+        Logger.shared.info("CALENDAR ORCHESTRATION: Processing conflicts and auto-bumps")
         
         var eventsToProcess = plannedEvents
         var bumpedEvents: [CalendarEvent] = []
@@ -262,7 +265,7 @@ class CalendarOrchestrationService: ObservableObject {
             }
             
             for conflictEvent in conflictingPlanned {
-                print("🎭 ORCHESTRATION: ⚡ Conflict detected: '\(actualEvent.title)' vs '\(conflictEvent.title)'")
+                Logger.shared.warning("CALENDAR ORCHESTRATION: Conflict detected: '\(actualEvent.title)' vs '\(conflictEvent.title)'")
                 
                 // Remove conflicting planned event
                 eventsToProcess.removeAll { $0.id == conflictEvent.id }
@@ -289,7 +292,7 @@ class CalendarOrchestrationService: ObservableObject {
                         reason: "Conflict with actual: \(actualEvent.title)"
                     )
                     
-                    print("🎭 ORCHESTRATION: ✅ Bumped '\(conflictEvent.title)' by \(bumpMinutes) minutes")
+                    Logger.shared.success("CALENDAR ORCHESTRATION: Bumped '\(conflictEvent.title)' by \(bumpMinutes) minutes")
                     
                 } else {
                     // Can't reschedule - needs to go to parking lot
@@ -298,7 +301,7 @@ class CalendarOrchestrationService: ObservableObject {
                         reason: .conflictResolution
                     )
                     
-                    print("🎭 ORCHESTRATION: 🅿️ Parked '\(conflictEvent.title)' - no available slots")
+                    Logger.shared.warning("CALENDAR ORCHESTRATION: Parked '\(conflictEvent.title)' - no available slots")
                 }
             }
         }
@@ -340,7 +343,7 @@ class CalendarOrchestrationService: ObservableObject {
                         // Remove from planned events
                         plannedEvents.removeAll { $0.id == conflictEvent.id }
                         
-                        print("🎭 ORCHESTRATION: ⚡ Cascade bump: '\(conflictEvent.title)' by \(bumpMinutes)min")
+                        Logger.shared.info("CALENDAR ORCHESTRATION: Cascade bump: '\(conflictEvent.title)' by \(bumpMinutes)min")
                     } else {
                         // Park the event that can't be bumped
                         await parkingService.parkEvent(conflictEvent, reason: .bumpCascade)
@@ -355,7 +358,7 @@ class CalendarOrchestrationService: ObservableObject {
         
         if cascadeCount > 0 {
             await notificationService.scheduleCascadeBumpNotification(eventCount: cascadeCount)
-            print("🎭 ORCHESTRATION: ⚡ Processed \(cascadeCount) cascade levels")
+            Logger.shared.info("CALENDAR ORCHESTRATION: Processed \(cascadeCount) cascade levels")
         }
     }
     
@@ -390,7 +393,7 @@ class CalendarOrchestrationService: ObservableObject {
                 conflicts: actualEvents
             )
             
-            print("🎭 ORCHESTRATION: 🌊 Handled \(overflowEvents.count) overflow events")
+            Logger.shared.info("CALENDAR ORCHESTRATION: Handled \(overflowEvents.count) overflow events")
         }
     }
     
@@ -401,7 +404,7 @@ class CalendarOrchestrationService: ObservableObject {
         
         if !staleEvents.isEmpty {
             await notificationService.scheduleStaleEventNotification(eventCount: staleEvents.count)
-            print("🎭 ORCHESTRATION: 📋 Found \(staleEvents.count) stale parked events")
+            Logger.shared.info("CALENDAR ORCHESTRATION: Found \(staleEvents.count) stale parked events")
         }
     }
     

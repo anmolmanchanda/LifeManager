@@ -128,7 +128,7 @@ struct EventEditView: View {
     }
 }
 
-#Preview {
+/* #Preview // DISABLED FOR STABILIZATION
     ZStack {
         Color.gray.opacity(0.3)
             .ignoresSafeArea()
@@ -138,4 +138,4 @@ struct EventEditView: View {
             onSave: { _ in }
         )
     }
-} 
+} */
