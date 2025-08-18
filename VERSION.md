@@ -11,6 +11,14 @@
   - `PARAManagementViewModel`: PARA methodology operations (350 lines)
   - `SyncViewModel`: Data synchronization (400 lines)
   - `SettingsViewModel`: Application settings (450 lines)
+  - `MainViewModelRefactored`: Coordinator for all ViewModels (400 lines)
+
+- **ContentView Refactoring**: Breaking down 5,668-line ContentView into modular components
+  - `InboxView`: Brain dump interface (100 lines)
+  - `NaturalLanguageInputView`: Text input component (150 lines)
+  - `ProcessingStateView`: Processing animations (80 lines)
+  - `ProjectsView`: Complete project management UI (400 lines)
+  - `CommonComponents`: Reusable UI components (350 lines)
 
 #### 🧪 Testing Enhancements
 - **Complete Context Service Test Coverage**: Added 6 comprehensive test suites
