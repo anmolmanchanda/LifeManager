@@ -2164,7 +2164,7 @@ struct ArchivesView: View {
                 self.completedTasks = completed
             }
         } catch {
-            print("Failed to load completed tasks: \(error.localizedDescription)")
+            Logger.shared.debug("Failed to load completed tasks: \(error.localizedDescription)")
         }
     }
     
@@ -2176,7 +2176,7 @@ struct ArchivesView: View {
                 self.recentlyDeletedTasks = deleted
             }
         } catch {
-            print("Failed to load recently deleted tasks: \(error.localizedDescription)")
+            Logger.shared.debug("Failed to load recently deleted tasks: \(error.localizedDescription)")
         }
     }
     
@@ -2798,7 +2798,7 @@ struct ProcessingConfirmationView: View {
 }
 
 struct ProcessingConfirmationContent: View {
-    @ObservedObject var viewModel: MainViewModel
+    let viewModel: MainViewModel
     @Binding var currentIndex: Int
     let dismiss: DismissAction
     
@@ -2831,7 +2831,7 @@ struct ProcessingConfirmationDetail: View {
     let result: ProcessingResult
     let currentIndex: Int
     let totalCount: Int
-    @ObservedObject var viewModel: MainViewModel
+    let viewModel: MainViewModel
     let onNext: () -> Void
     let onDismiss: () -> Void
     
@@ -2889,7 +2889,7 @@ struct ProcessingConfirmationHeader: View {
 
 struct ProcessingConfirmationBody: View {
     let result: ProcessingResult
-    @ObservedObject var viewModel: MainViewModel
+    let viewModel: MainViewModel
     
     var body: some View {
                         VStack(spacing: 24) {
@@ -3168,7 +3168,7 @@ struct ProcessingConfirmationFooter: View {
     let result: ProcessingResult
     let currentIndex: Int
     let totalCount: Int
-    @ObservedObject var viewModel: MainViewModel
+    let viewModel: MainViewModel
     let onNext: () -> Void
     let onDismiss: () -> Void
     
@@ -3180,7 +3180,7 @@ struct ProcessingConfirmationFooter: View {
                             Button("Skip This Note") {
                                 Task {
                                     await viewModel.confirmProcessing(for: result, approved: false)
-                        onNext()
+                                    onNext()
                                 }
                             }
                             .buttonStyle(.bordered)
@@ -3188,7 +3188,7 @@ struct ProcessingConfirmationFooter: View {
                             Button("Approve & Process") {
                                 Task {
                                     await viewModel.confirmProcessing(for: result, approved: true)
-                        onNext()
+                                    onNext()
                                 }
                             }
                             .buttonStyle(.borderedProminent)
@@ -5072,7 +5072,7 @@ struct PersonalView: View {
                 self.personalTasks = tasks
             }
         } catch {
-            print("Error loading personal content: \(error)")
+            Logger.shared.debug("Error loading personal content: \(error)")
         }
     }
 }
@@ -5224,7 +5224,7 @@ struct WorkView: View {
                 self.workTasks = tasks
             }
         } catch {
-            print("Error loading work content: \(error)")
+            Logger.shared.debug("Error loading work content: \(error)")
         }
     }
 }
@@ -5607,7 +5607,7 @@ struct RecentlyDeletedTaskRowView: View {
             try await taskRepository.restoreDeletedTask(id: task.id)
             await viewModel.refreshData()
         } catch {
-            print("Failed to restore task: \(error)")
+            Logger.shared.debug("Failed to restore task: \(error)")
         }
     }
     
@@ -5617,7 +5617,7 @@ struct RecentlyDeletedTaskRowView: View {
             try await taskRepository.permanentlyDeleteTask(id: task.id)
             await viewModel.refreshData()
         } catch {
-            print("Failed to permanently delete task: \(error)")
+            Logger.shared.debug("Failed to permanently delete task: \(error)")
         }
     }
     

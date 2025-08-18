@@ -11,6 +11,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Keep commits professional and technical only
 - Use conventional commit format without decorations
 
+## Code Organization Standards
+
+### File Size Limits
+- **MAXIMUM 500 lines per file** for services and view models
+- **MAXIMUM 300 lines per file** for views and UI components
+- **MAXIMUM 200 lines per file** for utility classes
+- Files exceeding these limits MUST be refactored
+
+### Service Architecture Rules
+- **Single Responsibility**: Each service handles ONE concern only
+- **Dependency Injection**: Use protocols for testability
+- **Clear Naming**: ServiceNameService.swift pattern
+- **Separate Concerns**: Data, Business Logic, and UI must be separated
+
+### When to Refactor
+- File exceeds line limits
+- Service has more than 5 public methods
+- Class has more than 3 dependencies
+- Cyclomatic complexity exceeds 10
+
 ## Development Commands
 
 ### Building and Running
@@ -81,14 +101,28 @@ python3 test_comprehensive_features.py
 - **Service-Oriented**: Business logic encapsulated in dedicated service classes
 - **Real-time Sync**: Supabase real-time subscriptions for live data updates
 - **AI-Powered**: LLM integration for natural language processing and PARA categorization
+- **Clean Architecture**: Refactored services follow Single Responsibility Principle
 
 ### Key Components
 
 #### Services Layer (`Sources/LifeManager/Services/`)
+
+**AI Services:**
 - **LLMService**: OpenAI/Claude API integration for AI processing (1,693 lines)
-- **SupabaseService**: Database operations and authentication (492 lines)
 - **EmbeddingsService**: OpenAI embeddings for semantic search and similarity
+- **EnhancedBrainDumpProcessor**: Complex note processing with o1 reasoning (709 lines)
 - **ContextualPARAEngine**: AI-powered PARA categorization engine
+
+**Context Memory System (Refactored from 987 lines to 6 focused services):**
+- **ActivityPatternService**: User behavior tracking (195 lines)
+- **ContextWindowManager**: Sliding window management (219 lines)
+- **SummaryGenerationService**: Daily/weekly/monthly summaries (261 lines)
+- **ContextPersistenceService**: Database operations (206 lines)
+- **ContextQueryService**: Search and queries (227 lines)
+- **ContextMemoryCoordinator**: Facade coordinator (186 lines)
+
+**Data & Integration Services:**
+- **SupabaseService**: Database operations and authentication (492 lines)
 - **CalendarOrchestrationService**: Intelligent scheduling with buffer management
 - **TogglService**: Time tracking integration (614 lines)
 - **PersonalRulesService**: User preference and rule management

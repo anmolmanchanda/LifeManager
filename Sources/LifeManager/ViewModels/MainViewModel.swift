@@ -29,6 +29,7 @@ class MainViewModel: ObservableObject {
     
     private let supabaseService = SupabaseService.shared
     internal let llmService = LLMService()
+    private let enhancedBrainDumpProcessor = EnhancedBrainDumpProcessor()
     
     // MARK: - Development Mode
     
@@ -114,16 +115,16 @@ class MainViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        NSLog("🔧 DEBUG: MainViewModel init() started")
+        Logger.shared.info("🔧 DEBUG: MainViewModel init() started")
         
         // Test blob serialization on startup
         Task {
-            NSLog("🔧 DEBUG: MainViewModel testing blob serialization")
+            Logger.shared.info("🔧 DEBUG: MainViewModel testing blob serialization")
             await supabaseService.testBlobSerialization()
-            NSLog("🔧 DEBUG: MainViewModel blob serialization test completed")
+            Logger.shared.info("🔧 DEBUG: MainViewModel blob serialization test completed")
         }
         
-        NSLog("🔧 DEBUG: MainViewModel BYPASSING auth to avoid keychain")
+        Logger.shared.info("🔧 DEBUG: MainViewModel BYPASSING auth to avoid keychain")
         // TEMPORARY: Skip auth to avoid keychain popups
         self.isAuthenticated = true
         self.isDevelopmentMode = true
@@ -134,19 +135,19 @@ class MainViewModel: ObservableObject {
         startLogMonitoring()
         
         Task {
-            NSLog("🔧 DEBUG: MainViewModel loading initial data")
+            Logger.shared.info("🔧 DEBUG: MainViewModel loading initial data")
             // Force authenticated state
             await MainActor.run {
                 self.isAuthenticated = true
             }
             await loadInitialData()
-            NSLog("🔧 DEBUG: MainViewModel initial data loading completed")
+            Logger.shared.info("🔧 DEBUG: MainViewModel initial data loading completed")
         }
         
         // Load persisted inbox history
         loadInboxHistory()
         
-        NSLog("🔧 DEBUG: MainViewModel init() completed")
+        Logger.shared.info("🔧 DEBUG: MainViewModel init() completed")
     }
     
     // MARK: - Inbox History Persistence
@@ -156,25 +157,25 @@ class MainViewModel: ObservableObject {
         do {
             let data = try JSONEncoder().encode(inboxHistory)
             UserDefaults.standard.set(data, forKey: "inboxHistory")
-            print("🔧 HISTORY: ✅ Saved \(inboxHistory.count) history items")
+            Logger.shared.info("🔧 HISTORY: ✅ Saved \(inboxHistory.count) history items")
         } catch {
-            print("🔧 HISTORY: ❌ Failed to save history: \(error)")
+            Logger.shared.info("🔧 HISTORY: ❌ Failed to save history: \(error)")
         }
     }
     
     /// Load inbox history from UserDefaults
     private func loadInboxHistory() {
         guard let data = UserDefaults.standard.data(forKey: "inboxHistory") else {
-            print("🔧 HISTORY: No saved history found")
+            Logger.shared.info("🔧 HISTORY: No saved history found")
             return
         }
         
         do {
             let loadedHistory = try JSONDecoder().decode([InboxHistoryItem].self, from: data)
             inboxHistory = loadedHistory
-            print("🔧 HISTORY: ✅ Loaded \(inboxHistory.count) history items")
+            Logger.shared.info("🔧 HISTORY: ✅ Loaded \(inboxHistory.count) history items")
         } catch {
-            print("🔧 HISTORY: ❌ Failed to load history: \(error)")
+            Logger.shared.info("🔧 HISTORY: ❌ Failed to load history: \(error)")
             // Clear corrupted data
             UserDefaults.standard.removeObject(forKey: "inboxHistory")
         }
@@ -192,9 +193,9 @@ class MainViewModel: ObservableObject {
                 
                 // Run in background
                 try process.run()
-                print("🔧 MAIN: ✅ Log monitoring started automatically")
+                Logger.shared.info("🔧 MAIN: ✅ Log monitoring started automatically")
             } catch {
-                print("🔧 MAIN: ❌ Failed to start log monitoring: \(error)")
+                Logger.shared.info("🔧 MAIN: ❌ Failed to start log monitoring: \(error)")
             }
         }
     }
@@ -346,15 +347,15 @@ class MainViewModel: ObservableObject {
     
     private func loadInitialData() async {
         guard isAuthenticated else { 
-            print("🔧 LOAD DATA: Skipping - not authenticated")
+            Logger.shared.info("🔧 LOAD DATA: Skipping - not authenticated")
             return 
         }
         
-        print("🔧 LOAD DATA: Starting initial data load...")
+        Logger.shared.info("🔧 LOAD DATA: Starting initial data load...")
     
         do {
             // Load all data in parallel for better performance with individual error handling
-            print("🔧 LOAD DATA: Starting parallel data fetch...")
+            Logger.shared.info("🔧 LOAD DATA: Starting parallel data fetch...")
             
             var loadedAreas: [Area] = []
             var loadedProjects: [Project] = []
@@ -365,62 +366,62 @@ class MainViewModel: ObservableObject {
             
             // Fetch Areas with individual error handling
             do {
-                print("🔧 LOAD DATA: Fetching areas...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching areas...")
                 loadedAreas = try await AreaRepository().fetchAllAreas()
-                print("🔧 LOAD DATA: ✅ Areas loaded: \(loadedAreas.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Areas loaded: \(loadedAreas.count)")
             } catch {
-                print("🔧 LOAD DATA: ❌ Areas fetch failed: \(error)")
-                print("🔧 LOAD DATA: ❌ Areas error type: \(type(of: error))")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Areas fetch failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Areas error type: \(type(of: error))")
             }
             
             // Fetch Projects with individual error handling
             do {
-                print("🔧 LOAD DATA: Fetching projects...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching projects...")
                 loadedProjects = try await ProjectRepository().fetchAllProjects()
-                print("🔧 LOAD DATA: ✅ Projects loaded: \(loadedProjects.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Projects loaded: \(loadedProjects.count)")
             } catch {
-                print("🔧 LOAD DATA: ❌ Projects fetch failed: \(error)")
-                print("🔧 LOAD DATA: ❌ Projects error type: \(type(of: error))")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Projects fetch failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Projects error type: \(type(of: error))")
             }
             
             // Fetch Resources with individual error handling
             do {
-                print("🔧 LOAD DATA: Fetching resources...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching resources...")
                 loadedResources = try await ResourceRepository().fetchAllResources()
-                print("🔧 LOAD DATA: ✅ Resources loaded: \(loadedResources.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Resources loaded: \(loadedResources.count)")
         } catch {
-                print("🔧 LOAD DATA: ❌ Resources fetch failed: \(error)")
-                print("🔧 LOAD DATA: ❌ Resources error type: \(type(of: error))")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Resources fetch failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Resources error type: \(type(of: error))")
             }
             
             // Fetch Archives with individual error handling
             do {
-                print("🔧 LOAD DATA: Fetching archives...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching archives...")
                 loadedArchives = try await ArchiveRepository().fetchAllArchives()
-                print("🔧 LOAD DATA: ✅ Archives loaded: \(loadedArchives.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Archives loaded: \(loadedArchives.count)")
             } catch {
-                print("🔧 LOAD DATA: ❌ Archives fetch failed: \(error)")
-                print("🔧 LOAD DATA: ❌ Archives error type: \(type(of: error))")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Archives fetch failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Archives error type: \(type(of: error))")
             }
             
             // Fetch Unprocessed Blobs with individual error handling
             do {
-                print("🔧 LOAD DATA: Fetching unprocessed blobs...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching unprocessed blobs...")
                 loadedUnprocessedBlobs = try await BlobRepository().fetchUnprocessedBlobs()
-                print("🔧 LOAD DATA: ✅ Unprocessed blobs loaded: \(loadedUnprocessedBlobs.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Unprocessed blobs loaded: \(loadedUnprocessedBlobs.count)")
             } catch {
-                print("🔧 LOAD DATA: ❌ Unprocessed blobs fetch failed: \(error)")
-                print("🔧 LOAD DATA: ❌ Unprocessed blobs error type: \(type(of: error))")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Unprocessed blobs fetch failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Unprocessed blobs error type: \(type(of: error))")
             }
             
             // Fetch Focus Tasks with individual error handling
             do {
-                print("🔧 LOAD DATA: Fetching focus tasks...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching focus tasks...")
                 loadedFocusTasks = try await TaskRepository().fetchFocusTasks()
-                print("🔧 LOAD DATA: ✅ Focus tasks loaded: \(loadedFocusTasks.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Focus tasks loaded: \(loadedFocusTasks.count)")
             } catch {
-                print("🔧 LOAD DATA: ❌ Focus tasks fetch failed: \(error)")
-                print("🔧 LOAD DATA: ❌ Focus tasks error type: \(type(of: error))")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Focus tasks fetch failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Focus tasks error type: \(type(of: error))")
             }
             
             // Fetch PARA-categorized blobs
@@ -430,11 +431,11 @@ class MainViewModel: ObservableObject {
             var loadedArchivedBlobs: [Blob] = []
             
             do {
-                print("🔧 LOAD DATA: Fetching PARA-categorized blobs...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching PARA-categorized blobs...")
                 
                 // Fetch all processed blobs
                 let allProcessedBlobs = try await BlobRepository().fetchProcessedBlobs()
-                print("🔧 LOAD DATA: ✅ Found \(allProcessedBlobs.count) processed blobs")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Found \(allProcessedBlobs.count) processed blobs")
                 
                 // Categorize blobs by their PARA assignment
                 for blob in allProcessedBlobs {
@@ -456,10 +457,10 @@ class MainViewModel: ObservableObject {
                     }
                 }
                 
-                print("🔧 LOAD DATA: ✅ Categorized blobs - Projects: \(loadedProjectBlobs.keys.count), Areas: \(loadedAreaBlobs.keys.count), Resources: \(loadedResourceBlobs.count), Archives: \(loadedArchivedBlobs.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Categorized blobs - Projects: \(loadedProjectBlobs.keys.count), Areas: \(loadedAreaBlobs.keys.count), Resources: \(loadedResourceBlobs.count), Archives: \(loadedArchivedBlobs.count)")
                 
             } catch {
-                print("🔧 LOAD DATA: ❌ PARA blobs fetch failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ PARA blobs fetch failed: \(error)")
             }
             
             // Fetch and categorize tasks by PARA assignment
@@ -467,11 +468,11 @@ class MainViewModel: ObservableObject {
             var loadedAreaTasks: [UUID: [LifeTask]] = [:]
             
             do {
-                print("🔧 LOAD DATA: Fetching and categorizing tasks...")
+                Logger.shared.info("🔧 LOAD DATA: Fetching and categorizing tasks...")
                 
                 // Fetch all tasks
                 let allTasks = try await TaskRepository().fetchAllTasks()
-                print("🔧 LOAD DATA: ✅ Found \(allTasks.count) tasks")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Found \(allTasks.count) tasks")
                 
                 // Categorize tasks by their PARA assignment
                 for task in allTasks {
@@ -488,18 +489,18 @@ class MainViewModel: ObservableObject {
                     }
                 }
                 
-                print("🔧 LOAD DATA: ✅ Categorized tasks - Projects: \(loadedProjectTasks.keys.count), Areas: \(loadedAreaTasks.keys.count)")
+                Logger.shared.info("🔧 LOAD DATA: ✅ Categorized tasks - Projects: \(loadedProjectTasks.keys.count), Areas: \(loadedAreaTasks.keys.count)")
                 
                 // Debug: Log task assignments
                 for (areaId, tasks) in loadedAreaTasks {
-                    print("🔧 LOAD DATA: Area \(areaId) has \(tasks.count) tasks")
+                    Logger.shared.info("🔧 LOAD DATA: Area \(areaId) has \(tasks.count) tasks")
                 }
                 for (projectId, tasks) in loadedProjectTasks {
-                    print("🔧 LOAD DATA: Project \(projectId) has \(tasks.count) tasks")
+                    Logger.shared.info("🔧 LOAD DATA: Project \(projectId) has \(tasks.count) tasks")
                 }
                 
             } catch {
-                print("🔧 LOAD DATA: ❌ Task categorization failed: \(error)")
+                Logger.shared.info("🔧 LOAD DATA: ❌ Task categorization failed: \(error)")
             }
             
             await MainActor.run {
@@ -521,7 +522,7 @@ class MainViewModel: ObservableObject {
                 self.areaTasks = loadedAreaTasks
             }
             
-            print("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
+            Logger.shared.info("🔧 LOAD DATA: ✅ Loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Focus Tasks: \(loadedFocusTasks.count)")
             
             // Enhance existing tasks with comprehensive LLM processing
             // DISABLED: Automatic task enhancement on startup to prevent unwanted API calls
@@ -529,12 +530,12 @@ class MainViewModel: ObservableObject {
             
             // If some data is empty, let's create some sample data for development
             if loadedAreas.isEmpty && loadedProjects.isEmpty {
-                print("🔧 LOAD DATA: No PARA data found, creating sample data...")
+                Logger.shared.info("🔧 LOAD DATA: No PARA data found, creating sample data...")
                 await createSampleParaData()
             }
             
         } catch {
-            print("🔧 LOAD DATA: ❌ General error loading data - \(error)")
+            Logger.shared.info("🔧 LOAD DATA: ❌ General error loading data - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to load data: \(error.localizedDescription)"
             }
@@ -543,7 +544,7 @@ class MainViewModel: ObservableObject {
     
     /// Create sample PARA data for development
     private func createSampleParaData() async {
-        print("🔧 SAMPLE DATA: Creating sample PARA data...")
+        Logger.shared.info("🔧 SAMPLE DATA: Creating sample PARA data...")
         
         do {
             // Create sample areas
@@ -566,7 +567,7 @@ class MainViewModel: ObservableObject {
             let savedHealthArea = try await AreaRepository().createArea(healthArea)
             let savedCareerArea = try await AreaRepository().createArea(careerArea)
             
-            print("🔧 SAMPLE DATA: ✅ Created sample areas")
+            Logger.shared.info("🔧 SAMPLE DATA: ✅ Created sample areas")
             
             // Create sample projects
             let q1Project = Project(
@@ -586,7 +587,7 @@ class MainViewModel: ObservableObject {
             let savedQ1Project = try await ProjectRepository().createProject(q1Project)
             let savedWorkoutProject = try await ProjectRepository().createProject(workoutProject)
             
-            print("🔧 SAMPLE DATA: ✅ Created sample projects")
+            Logger.shared.info("🔧 SAMPLE DATA: ✅ Created sample projects")
             
             // Create sample enhanced tasks with comprehensive data
             await createSampleEnhancedTasks(healthArea: savedHealthArea, careerArea: savedCareerArea, q1Project: savedQ1Project, workoutProject: savedWorkoutProject)
@@ -599,7 +600,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            print("🔧 SAMPLE DATA: ❌ Failed to create sample data: \(error)")
+            Logger.shared.info("🔧 SAMPLE DATA: ❌ Failed to create sample data: \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to create sample data: \(error.localizedDescription)"
             }
@@ -608,7 +609,7 @@ class MainViewModel: ObservableObject {
     
     /// Create sample enhanced tasks with comprehensive data for testing
     private func createSampleEnhancedTasks(healthArea: Area, careerArea: Area, q1Project: Project, workoutProject: Project) async {
-        print("🔧 SAMPLE TASKS: Creating enhanced sample tasks...")
+        Logger.shared.info("🔧 SAMPLE TASKS: Creating enhanced sample tasks...")
         
         do {
             let calendar = Calendar.current
@@ -691,7 +692,7 @@ class MainViewModel: ObservableObject {
             for task in sampleTasks {
                 let createdTask = try await TaskRepository().createTask(task)
                 createdTasks.append(createdTask)
-                print("🔧 SAMPLE TASKS: Created task: \(task.title) (Priority: \(task.priority.rawValue)/\(task.priority.priorityScore))")
+                Logger.shared.info("🔧 SAMPLE TASKS: Created task: \(task.title) (Priority: \(task.priority.rawValue)/\(task.priority.priorityScore))")
             }
             
             // Update focus tasks in local state
@@ -699,10 +700,10 @@ class MainViewModel: ObservableObject {
                 self.focusTasks = createdTasks.filter { $0.isFocus && $0.status != .completed }
             }
             
-            print("🔧 SAMPLE TASKS: ✅ Created \(sampleTasks.count) enhanced sample tasks")
+            Logger.shared.info("🔧 SAMPLE TASKS: ✅ Created \(sampleTasks.count) enhanced sample tasks")
             
         } catch {
-            print("🔧 SAMPLE TASKS: ❌ Failed to create sample tasks: \(error)")
+            Logger.shared.info("🔧 SAMPLE TASKS: ❌ Failed to create sample tasks: \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to create sample tasks: \(error.localizedDescription)"
             }
@@ -741,8 +742,8 @@ class MainViewModel: ObservableObject {
     // MARK: - Quick Actions
     
     func addQuickNote(_ content: String) async {
-        print("🔧 ADD NOTE: Starting note addition process")
-        print("🔧 ADD NOTE: Content length: \(content.count)")
+        Logger.shared.info("🔧 ADD NOTE: Starting note addition process")
+        Logger.shared.info("🔧 ADD NOTE: Content length: \(content.count)")
         
         // Clear any previous messages and set loading state
         await MainActor.run {
@@ -758,13 +759,13 @@ class MainViewModel: ObservableObject {
                 workPersonal: .personal
             )
             
-        print("🔧 ADD NOTE: Created blob with ID: \(blob.id)")
+        Logger.shared.info("🔧 ADD NOTE: Created blob with ID: \(blob.id)")
         
         // Step 2: Save to database first
         var savedBlob: Blob? = nil
         do {
             savedBlob = try await blobRepository().createBlob(blob)
-            print("🔧 ADD NOTE: ✅ Successfully saved blob with ID: \(savedBlob!.id)")
+            Logger.shared.info("🔧 ADD NOTE: ✅ Successfully saved blob with ID: \(savedBlob!.id)")
             
             // Add to UI after successful save
             await MainActor.run {
@@ -774,7 +775,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            print("🔧 ADD NOTE: ❌ SAVE ERROR - \(error)")
+            Logger.shared.info("🔧 ADD NOTE: ❌ SAVE ERROR - \(error)")
             
             await MainActor.run {
                 self.isLoading = false
@@ -789,7 +790,7 @@ class MainViewModel: ObservableObject {
         
         // Step 3: Start AI processing immediately (no delays)
         if let blob = savedBlob {
-            print("🔧 ADD NOTE: Starting immediate AI processing...")
+            Logger.shared.info("🔧 ADD NOTE: Starting immediate AI processing...")
             
             // Start processing immediately
             await processImmediately(blob)
@@ -817,12 +818,12 @@ class MainViewModel: ObservableObject {
             }
         }
         
-        print("🔧 ADD NOTE: ✅ Completed successfully with immediate processing")
+        Logger.shared.info("🔧 ADD NOTE: ✅ Completed successfully with immediate processing")
     }
     
     /// Process a blob immediately without delays
     private func processImmediately(_ blob: Blob) async {
-        print("🔧 IMMEDIATE PROCESS: Starting for blob: \(blob.id)")
+        Logger.shared.info("🔧 IMMEDIATE PROCESS: Starting for blob: \(blob.id)")
         
         await MainActor.run {
             self.blobProcessingStates[blob.id] = .processing
@@ -830,7 +831,7 @@ class MainViewModel: ObservableObject {
         }
         
         do {
-            print("🔧 IMMEDIATE PROCESS: Calling LLM service...")
+            Logger.shared.info("🔧 IMMEDIATE PROCESS: Calling LLM service...")
             let result = try await llmService.processComprehensively(
                 blob: blob,
                 availableAreas: areas,
@@ -838,9 +839,9 @@ class MainViewModel: ObservableObject {
                 confidenceThreshold: 0.3  // Lowered from 0.5 to 0.3 for more aggressive task creation
             )
             
-            print("🔧 IMMEDIATE PROCESS: ✅ LLM processing completed")
-            print("🔧 IMMEDIATE PROCESS: Result category: \(result.paraCategory.displayName)")
-            print("🔧 IMMEDIATE PROCESS: Result confidence: \(result.confidence)")
+            Logger.shared.info("🔧 IMMEDIATE PROCESS: ✅ LLM processing completed")
+            Logger.shared.info("🔧 IMMEDIATE PROCESS: Result category: \(result.paraCategory.displayName)")
+            Logger.shared.info("🔧 IMMEDIATE PROCESS: Result confidence: \(result.confidence)")
             
             // Store result immediately
             await MainActor.run {
@@ -856,12 +857,12 @@ class MainViewModel: ObservableObject {
             
             // Execute actions if high confidence
             if !result.requiresConfirmation {
-                print("🔧 IMMEDIATE PROCESS: Executing processing actions...")
+                Logger.shared.info("🔧 IMMEDIATE PROCESS: Executing processing actions...")
                 do {
                     try await executeProcessingActions(for: blob, with: result)
-                    print("🔧 IMMEDIATE PROCESS: ✅ Actions executed successfully")
+                    Logger.shared.info("🔧 IMMEDIATE PROCESS: ✅ Actions executed successfully")
                 } catch {
-                    print("🔧 IMMEDIATE PROCESS: ❌ Action execution failed: \(error)")
+                    Logger.shared.info("🔧 IMMEDIATE PROCESS: ❌ Action execution failed: \(error)")
                     await MainActor.run {
                         self.blobProcessingStates[blob.id] = .error("Action execution failed: \(error.localizedDescription)")
                     }
@@ -869,7 +870,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            print("🔧 IMMEDIATE PROCESS: ❌ LLM Processing failed: \(error)")
+            Logger.shared.info("🔧 IMMEDIATE PROCESS: ❌ LLM Processing failed: \(error)")
             
             await MainActor.run {
                 self.blobProcessingStates[blob.id] = .error(error.localizedDescription)
@@ -880,17 +881,17 @@ class MainViewModel: ObservableObject {
     
     /// Process a single blob with comprehensive AI analysis
     func processBlobIndividually(_ blob: Blob) async {
-        print("🔧 INDIVIDUAL PROCESS: Starting for blob: \(blob.id)")
-        print("🔧 INDIVIDUAL PROCESS: Blob content: '\(blob.content)'")
-        print("🔧 INDIVIDUAL PROCESS: Available areas: \(areas.count)")
-        print("🔧 INDIVIDUAL PROCESS: Available projects: \(projects.count)")
+        Logger.shared.info("🔧 INDIVIDUAL PROCESS: Starting for blob: \(blob.id)")
+        Logger.shared.info("🔧 INDIVIDUAL PROCESS: Blob content: '\(blob.content)'")
+        Logger.shared.info("🔧 INDIVIDUAL PROCESS: Available areas: \(areas.count)")
+        Logger.shared.info("🔧 INDIVIDUAL PROCESS: Available projects: \(projects.count)")
         
         await MainActor.run {
             self.blobProcessingStates[blob.id] = .processing
         }
         
         do {
-            print("🔧 INDIVIDUAL PROCESS: Calling LLM service...")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: Calling LLM service...")
             let result = try await llmService.processComprehensively(
                 blob: blob,
                 availableAreas: areas,
@@ -898,24 +899,24 @@ class MainViewModel: ObservableObject {
                 confidenceThreshold: 0.7
             )
             
-            print("🔧 INDIVIDUAL PROCESS: ✅ LLM processing completed")
-            print("🔧 INDIVIDUAL PROCESS: Result category: \(result.paraCategory.displayName)")
-            print("🔧 INDIVIDUAL PROCESS: Result confidence: \(result.confidence)")
-            print("🔧 INDIVIDUAL PROCESS: Extracted tasks: \(result.extractedTasks.count)")
-            print("🔧 INDIVIDUAL PROCESS: Auto tags: \(result.autoTags.count)")
-            print("🔧 INDIVIDUAL PROCESS: Requires confirmation: \(result.requiresConfirmation)")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: ✅ LLM processing completed")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: Result category: \(result.paraCategory.displayName)")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: Result confidence: \(result.confidence)")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: Extracted tasks: \(result.extractedTasks.count)")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: Auto tags: \(result.autoTags.count)")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: Requires confirmation: \(result.requiresConfirmation)")
             
             // Store the result
             await MainActor.run {
                 self.processingResults[blob.id] = result
                 
                 if result.requiresConfirmation {
-                    print("🔧 INDIVIDUAL PROCESS: Adding to pending confirmations")
+                    Logger.shared.info("🔧 INDIVIDUAL PROCESS: Adding to pending confirmations")
                     self.blobProcessingStates[blob.id] = .needsConfirmation(result)
                     self.pendingConfirmations.append(result)
                     self.successMessage = "🤖 AI processing complete - review needed for \(result.paraCategory.displayName)"
                 } else {
-                    print("🔧 INDIVIDUAL PROCESS: High confidence - no confirmation needed")
+                    Logger.shared.info("🔧 INDIVIDUAL PROCESS: High confidence - no confirmation needed")
                     self.blobProcessingStates[blob.id] = .processed(result)
                     self.successMessage = "🤖 Processed automatically → \(result.paraCategory.displayName)"
                 }
@@ -923,33 +924,33 @@ class MainViewModel: ObservableObject {
             
             // Execute actions if high confidence
             if !result.requiresConfirmation {
-                print("🔧 INDIVIDUAL PROCESS: Executing processing actions...")
+                Logger.shared.info("🔧 INDIVIDUAL PROCESS: Executing processing actions...")
                 do {
                     try await executeProcessingActions(for: blob, with: result)
-                    print("🔧 INDIVIDUAL PROCESS: ✅ Actions executed successfully")
+                    Logger.shared.info("🔧 INDIVIDUAL PROCESS: ✅ Actions executed successfully")
                 } catch {
-                    print("🔧 INDIVIDUAL PROCESS: ❌ Action execution failed: \(error)")
+                    Logger.shared.info("🔧 INDIVIDUAL PROCESS: ❌ Action execution failed: \(error)")
                     await MainActor.run {
                         self.blobProcessingStates[blob.id] = .error("Action execution failed: \(error.localizedDescription)")
                     }
                 }
             } else {
-                print("🔧 INDIVIDUAL PROCESS: Skipping action execution - confirmation required")
+                Logger.shared.info("🔧 INDIVIDUAL PROCESS: Skipping action execution - confirmation required")
             }
             
             // Fallback: If no tasks were extracted, try simple keyword-based extraction
             if result.extractedTasks.isEmpty {
-                print("🔧 INDIVIDUAL PROCESS: No tasks extracted by LLM, trying fallback extraction...")
+                Logger.shared.info("🔧 INDIVIDUAL PROCESS: No tasks extracted by LLM, trying fallback extraction...")
                 await performFallbackTaskExtraction(for: blob)
             }
 
         } catch {
-            print("🔧 INDIVIDUAL PROCESS: ❌ LLM Processing failed: \(error)")
-            print("🔧 INDIVIDUAL PROCESS: ❌ Error type: \(type(of: error))")
-            print("🔧 INDIVIDUAL PROCESS: ❌ Error description: \(error.localizedDescription)")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: ❌ LLM Processing failed: \(error)")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: ❌ Error type: \(type(of: error))")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: ❌ Error description: \(error.localizedDescription)")
             
             // Fallback: Try simple task extraction even if LLM fails
-            print("🔧 INDIVIDUAL PROCESS: Attempting fallback task extraction...")
+            Logger.shared.info("🔧 INDIVIDUAL PROCESS: Attempting fallback task extraction...")
             await performFallbackTaskExtraction(for: blob)
             
             await MainActor.run {
@@ -961,7 +962,7 @@ class MainViewModel: ObservableObject {
     
     /// Fallback task extraction using simple keyword matching
     private func performFallbackTaskExtraction(for blob: Blob) async {
-        print("🔧 FALLBACK EXTRACTION: Starting for blob: \(blob.id)")
+        Logger.shared.info("🔧 FALLBACK EXTRACTION: Starting for blob: \(blob.id)")
         
         let content = blob.content.lowercased()
         let taskKeywords = [
@@ -1008,7 +1009,7 @@ class MainViewModel: ObservableObject {
                     
                     if !taskTitle.isEmpty && !foundTasks.contains(taskTitle) {
                         foundTasks.append(taskTitle)
-                        print("🔧 FALLBACK EXTRACTION: Found task: '\(taskTitle)'")
+                        Logger.shared.info("🔧 FALLBACK EXTRACTION: Found task: '\(taskTitle)'")
                     }
                     break // Only match one keyword per sentence
                 }
@@ -1029,7 +1030,7 @@ class MainViewModel: ObservableObject {
             
             do {
                 let _ = try await taskRepository().createTask(task)
-                print("🔧 FALLBACK EXTRACTION: ✅ Created task: '\(taskTitle)'")
+                Logger.shared.info("🔧 FALLBACK EXTRACTION: ✅ Created task: '\(taskTitle)'")
                 
                 await MainActor.run {
                     // Add to focus tasks for immediate visibility
@@ -1046,14 +1047,14 @@ class MainViewModel: ObservableObject {
                     NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
                 }
             } catch {
-                print("🔧 FALLBACK EXTRACTION: ❌ Failed to create task: \(error)")
+                Logger.shared.info("🔧 FALLBACK EXTRACTION: ❌ Failed to create task: \(error)")
             }
         }
         
         if foundTasks.isEmpty {
-            print("🔧 FALLBACK EXTRACTION: No tasks found using keyword matching")
+            Logger.shared.info("🔧 FALLBACK EXTRACTION: No tasks found using keyword matching")
         } else {
-            print("🔧 FALLBACK EXTRACTION: ✅ Created \(foundTasks.count) tasks using fallback extraction")
+            Logger.shared.info("🔧 FALLBACK EXTRACTION: ✅ Created \(foundTasks.count) tasks using fallback extraction")
         }
     }
     
@@ -1122,11 +1123,11 @@ class MainViewModel: ObservableObject {
     }
     
     private func processBlob(_ blob: Blob) async throws {
-        print("🔧 PROCESS BLOB: Starting processing for blob ID: \(blob.id)")
+        Logger.shared.info("🔧 PROCESS BLOB: Starting processing for blob ID: \(blob.id)")
         
         do {
             // Use LLM to categorize and extract tasks
-            print("🔧 PROCESS BLOB: Calling LLM categorization...")
+            Logger.shared.info("🔧 PROCESS BLOB: Calling LLM categorization...")
             // Build context for PARA categorization
             let context = PARAContext(
                 projects: [],
@@ -1136,20 +1137,20 @@ class MainViewModel: ObservableObject {
                 commonTags: ["work", "personal", "urgent", "health", "finance"]
             )
             let categorization = try await llmService.categorizePARA(input: blob.content, context: context)
-            print("🔧 PROCESS BLOB: ✅ LLM categorization completed")
-            print("🔧 PROCESS BLOB: Category: \(categorization.category), Confidence: \(categorization.confidenceScore)")
+            Logger.shared.info("🔧 PROCESS BLOB: ✅ LLM categorization completed")
+            Logger.shared.info("🔧 PROCESS BLOB: Category: \(categorization.category), Confidence: \(categorization.confidenceScore)")
             
-            print("🔧 PROCESS BLOB: Calling LLM task extraction...")
+            Logger.shared.info("🔧 PROCESS BLOB: Calling LLM task extraction...")
             let tasks = try await llmService.extractTasks(content: blob.content)
-            print("🔧 PROCESS BLOB: ✅ LLM task extraction completed - found \(tasks.count) tasks")
+            Logger.shared.info("🔧 PROCESS BLOB: ✅ LLM task extraction completed - found \(tasks.count) tasks")
             
             // Update blob with processing results
-            print("🔧 PROCESS BLOB: Marking blob as processed...")
+            Logger.shared.info("🔧 PROCESS BLOB: Marking blob as processed...")
             let _ = try await blobRepository().markBlobAsProcessed(id: blob.id)
-            print("🔧 PROCESS BLOB: ✅ Blob marked as processed")
+            Logger.shared.info("🔧 PROCESS BLOB: ✅ Blob marked as processed")
             
             // Create any extracted tasks
-            print("🔧 PROCESS BLOB: Creating extracted tasks...")
+            Logger.shared.info("🔧 PROCESS BLOB: Creating extracted tasks...")
             for (index, taskData) in tasks.enumerated() {
                 let task = LifeTask(
                     blobId: blob.id,
@@ -1159,31 +1160,31 @@ class MainViewModel: ObservableObject {
                     workPersonal: blob.workPersonal
                 )
                 
-                print("🔧 PROCESS BLOB: Creating task \(index + 1): \(task.title)")
+                Logger.shared.info("🔧 PROCESS BLOB: Creating task \(index + 1): \(task.title)")
                 let _ = try await taskRepository().createTask(task)
-                print("🔧 PROCESS BLOB: ✅ Task \(index + 1) created")
+                Logger.shared.info("🔧 PROCESS BLOB: ✅ Task \(index + 1) created")
             }
             
-            print("🔧 PROCESS BLOB: ✅ All processing completed successfully")
+            Logger.shared.info("🔧 PROCESS BLOB: ✅ All processing completed successfully")
         } catch {
-            print("🔧 PROCESS BLOB: ❌ LLM ERROR - \(error)")
-            print("🔧 PROCESS BLOB: ❌ ERROR TYPE - \(type(of: error))")
+            Logger.shared.info("🔧 PROCESS BLOB: ❌ LLM ERROR - \(error)")
+            Logger.shared.info("🔧 PROCESS BLOB: ❌ ERROR TYPE - \(type(of: error))")
             
             // Still mark as processed to avoid blocking note saving
             do {
                 let _ = try await blobRepository().markBlobAsProcessed(id: blob.id)
-                print("🔧 PROCESS BLOB: ✅ Blob marked as processed despite LLM error")
+                Logger.shared.info("🔧 PROCESS BLOB: ✅ Blob marked as processed despite LLM error")
             } catch {
-                print("🔧 PROCESS BLOB: ❌ Failed to mark as processed: \(error)")
+                Logger.shared.info("🔧 PROCESS BLOB: ❌ Failed to mark as processed: \(error)")
             }
             
             // Don't show error to user for LLM failures - note was still saved
-            print("🔧 PROCESS BLOB: Note was saved successfully, LLM processing failed but non-critical")
+            Logger.shared.info("🔧 PROCESS BLOB: Note was saved successfully, LLM processing failed but non-critical")
         }
     }
     
     func refreshData() async {
-        print("🔧 REFRESH: Starting comprehensive data refresh...")
+        Logger.shared.info("🔧 REFRESH: Starting comprehensive data refresh...")
         
         await MainActor.run {
             self.isLoading = true
@@ -1193,7 +1194,7 @@ class MainViewModel: ObservableObject {
         
         do {
             // Force reload all data in parallel with timeout protection
-            print("🔧 REFRESH: Loading all data repositories...")
+            Logger.shared.info("🔧 REFRESH: Loading all data repositories...")
             
             async let areasTask = AreaRepository().fetchAllAreas()
             async let projectsTask = ProjectRepository().fetchAllProjects()
@@ -1209,7 +1210,7 @@ class MainViewModel: ObservableObject {
             let loadedUnprocessedBlobs = try await unprocessedBlobsTask
             let loadedFocusTasks = try await focusTasksTask
             
-            print("🔧 REFRESH: ✅ All data loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Tasks: \(loadedFocusTasks.count)")
+            Logger.shared.info("🔧 REFRESH: ✅ All data loaded - Areas: \(loadedAreas.count), Projects: \(loadedProjects.count), Resources: \(loadedResources.count), Archives: \(loadedArchives.count), Unprocessed Blobs: \(loadedUnprocessedBlobs.count), Tasks: \(loadedFocusTasks.count)")
             
             // Also fetch PARA-categorized blobs
             var loadedProjectBlobs: [UUID: [Blob]] = [:]
@@ -1219,7 +1220,7 @@ class MainViewModel: ObservableObject {
             
             do {
                 let allProcessedBlobs = try await BlobRepository().fetchProcessedBlobs()
-                print("🔧 REFRESH: ✅ Found \(allProcessedBlobs.count) processed blobs")
+                Logger.shared.info("🔧 REFRESH: ✅ Found \(allProcessedBlobs.count) processed blobs")
                 
                 // Categorize blobs by their PARA assignment
                 for blob in allProcessedBlobs {
@@ -1241,10 +1242,10 @@ class MainViewModel: ObservableObject {
                     }
                 }
                 
-                print("🔧 REFRESH: ✅ Categorized blobs - Projects: \(loadedProjectBlobs.keys.count), Areas: \(loadedAreaBlobs.keys.count), Resources: \(loadedResourceBlobs.count), Archives: \(loadedArchivedBlobs.count)")
+                Logger.shared.info("🔧 REFRESH: ✅ Categorized blobs - Projects: \(loadedProjectBlobs.keys.count), Areas: \(loadedAreaBlobs.keys.count), Resources: \(loadedResourceBlobs.count), Archives: \(loadedArchivedBlobs.count)")
                 
             } catch {
-                print("🔧 REFRESH: ❌ PARA blobs refresh failed: \(error)")
+                Logger.shared.info("🔧 REFRESH: ❌ PARA blobs refresh failed: \(error)")
             }
             
             // Fetch and categorize tasks by PARA assignment
@@ -1252,11 +1253,11 @@ class MainViewModel: ObservableObject {
             var loadedAreaTasks: [UUID: [LifeTask]] = [:]
             
             do {
-                print("🔧 REFRESH: Fetching and categorizing tasks...")
+                Logger.shared.info("🔧 REFRESH: Fetching and categorizing tasks...")
                 
                 // Fetch all tasks
                 let allTasks = try await TaskRepository().fetchAllTasks()
-                print("🔧 REFRESH: ✅ Found \(allTasks.count) tasks")
+                Logger.shared.info("🔧 REFRESH: ✅ Found \(allTasks.count) tasks")
                 
                 // Categorize tasks by their PARA assignment
                 for task in allTasks {
@@ -1273,10 +1274,10 @@ class MainViewModel: ObservableObject {
                     }
                 }
                 
-                print("🔧 REFRESH: ✅ Categorized tasks - Projects: \(loadedProjectTasks.keys.count), Areas: \(loadedAreaTasks.keys.count)")
+                Logger.shared.info("🔧 REFRESH: ✅ Categorized tasks - Projects: \(loadedProjectTasks.keys.count), Areas: \(loadedAreaTasks.keys.count)")
                 
             } catch {
-                print("🔧 REFRESH: ❌ Task categorization failed: \(error)")
+                Logger.shared.info("🔧 REFRESH: ❌ Task categorization failed: \(error)")
             }
             
             // Update all state at once on main thread
@@ -1302,10 +1303,10 @@ class MainViewModel: ObservableObject {
                 self.successMessage = "✅ Data refreshed"
             }
             
-            print("🔧 REFRESH: ✅ UI updated with fresh data")
+            Logger.shared.info("🔧 REFRESH: ✅ UI updated with fresh data")
             
         } catch {
-            print("🔧 REFRESH: ❌ Error during refresh - \(error)")
+            Logger.shared.info("🔧 REFRESH: ❌ Error during refresh - \(error)")
             await MainActor.run {
                 self.isLoading = false
                 self.errorMessage = "Failed to refresh data: \(error.localizedDescription)"
@@ -1336,13 +1337,13 @@ class MainViewModel: ObservableObject {
                 let session = try await supabaseService.signIn(email: developmentEmail, password: developmentPassword)
                 await MainActor.run {
                     self.isAuthenticated = true
-                    print("🔧 DEV BYPASS: ✅ Successfully signed in with development account")
+                    Logger.shared.info("🔧 DEV BYPASS: ✅ Successfully signed in with development account")
                 }
                 // Load real data from database
                 await loadInitialData()
                 return
             } catch {
-                print("🔧 DEV BYPASS: Sign in failed, trying to create account: \(error)")
+                Logger.shared.info("🔧 DEV BYPASS: Sign in failed, trying to create account: \(error)")
             }
             
             // If sign in failed, try to create the account
@@ -1350,21 +1351,21 @@ class MainViewModel: ObservableObject {
                 let session = try await supabaseService.signUp(email: developmentEmail, password: developmentPassword)
                 await MainActor.run {
                     self.isAuthenticated = true
-                    print("🔧 DEV BYPASS: ✅ Successfully created and signed in with development account")
+                    Logger.shared.info("🔧 DEV BYPASS: ✅ Successfully created and signed in with development account")
                 }
                 // Load real data from database
                 await loadInitialData()
                 return
             } catch {
-                print("🔧 DEV BYPASS: Account creation failed: \(error)")
+                Logger.shared.info("🔧 DEV BYPASS: Account creation failed: \(error)")
             }
             
         } catch {
-            print("🔧 DEV BYPASS: All authentication attempts failed: \(error)")
+            Logger.shared.info("🔧 DEV BYPASS: All authentication attempts failed: \(error)")
         }
         
         // If all else fails, use mock data
-        print("🔧 DEV BYPASS: Falling back to mock data")
+        Logger.shared.info("🔧 DEV BYPASS: Falling back to mock data")
             await loadMockData()
     }
     
@@ -1447,11 +1448,11 @@ class MainViewModel: ObservableObject {
     
     /// Delete a blob from the database
     func deleteBlob(_ blob: Blob) async {
-        print("🔧 DELETE BLOB: Deleting blob with ID: \(blob.id)")
+        Logger.shared.info("🔧 DELETE BLOB: Deleting blob with ID: \(blob.id)")
         
         do {
             try await blobRepository().deleteBlob(id: blob.id)
-            print("🔧 DELETE BLOB: ✅ Successfully deleted blob")
+            Logger.shared.info("🔧 DELETE BLOB: ✅ Successfully deleted blob")
             
             // Remove from local list
             await MainActor.run {
@@ -1460,10 +1461,10 @@ class MainViewModel: ObservableObject {
             
             // Refresh the data to ensure consistency
             await loadInitialData()
-            print("🔧 DELETE BLOB: ✅ Refreshed recent blobs list")
+            Logger.shared.info("🔧 DELETE BLOB: ✅ Refreshed recent blobs list")
             
         } catch {
-            print("🔧 DELETE BLOB: ❌ Error deleting blob - \(error)")
+            Logger.shared.info("🔧 DELETE BLOB: ❌ Error deleting blob - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to delete note: \(error.localizedDescription)"
             }
@@ -1472,11 +1473,11 @@ class MainViewModel: ObservableObject {
     
     /// Delete a project from the database
     func deleteProject(_ project: Project) async {
-        print("🔧 DELETE PROJECT: Deleting project with ID: \(project.id)")
+        Logger.shared.info("🔧 DELETE PROJECT: Deleting project with ID: \(project.id)")
         
         do {
             try await ProjectRepository().deleteProject(id: project.id)
-            print("🔧 DELETE PROJECT: ✅ Successfully deleted project")
+            Logger.shared.info("🔧 DELETE PROJECT: ✅ Successfully deleted project")
             
             // Remove from local list
             await MainActor.run {
@@ -1485,7 +1486,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            print("🔧 DELETE PROJECT: ❌ Error deleting project - \(error)")
+            Logger.shared.info("🔧 DELETE PROJECT: ❌ Error deleting project - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to delete project: \(error.localizedDescription)"
             }
@@ -1494,11 +1495,11 @@ class MainViewModel: ObservableObject {
     
     /// Delete an area from the database
     func deleteArea(_ area: Area) async {
-        print("🔧 DELETE AREA: Deleting area with ID: \(area.id)")
+        Logger.shared.info("🔧 DELETE AREA: Deleting area with ID: \(area.id)")
         
         do {
             try await AreaRepository().deleteArea(id: area.id)
-            print("🔧 DELETE AREA: ✅ Successfully deleted area")
+            Logger.shared.info("🔧 DELETE AREA: ✅ Successfully deleted area")
             
             // Remove from local list
             await MainActor.run {
@@ -1507,7 +1508,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            print("🔧 DELETE AREA: ❌ Error deleting area - \(error)")
+            Logger.shared.info("🔧 DELETE AREA: ❌ Error deleting area - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to delete area: \(error.localizedDescription)"
             }
@@ -1516,11 +1517,11 @@ class MainViewModel: ObservableObject {
     
     /// Delete a resource from the database
     func deleteResource(_ resource: Resource) async {
-        print("🔧 DELETE RESOURCE: Deleting resource with ID: \(resource.id)")
+        Logger.shared.info("🔧 DELETE RESOURCE: Deleting resource with ID: \(resource.id)")
         
         do {
             try await ResourceRepository().deleteResource(id: resource.id)
-            print("🔧 DELETE RESOURCE: ✅ Successfully deleted resource")
+            Logger.shared.info("🔧 DELETE RESOURCE: ✅ Successfully deleted resource")
             
             // Remove from local list
             await MainActor.run {
@@ -1529,7 +1530,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            print("🔧 DELETE RESOURCE: ❌ Error deleting resource - \(error)")
+            Logger.shared.info("🔧 DELETE RESOURCE: ❌ Error deleting resource - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to delete resource: \(error.localizedDescription)"
             }
@@ -1538,11 +1539,11 @@ class MainViewModel: ObservableObject {
     
     /// Delete an archive from the database
     func deleteArchive(_ archive: Archive) async {
-        print("🔧 DELETE ARCHIVE: Deleting archive with ID: \(archive.id)")
+        Logger.shared.info("🔧 DELETE ARCHIVE: Deleting archive with ID: \(archive.id)")
         
         do {
             try await ArchiveRepository().deleteArchive(id: archive.id)
-            print("🔧 DELETE ARCHIVE: ✅ Successfully deleted archive")
+            Logger.shared.info("🔧 DELETE ARCHIVE: ✅ Successfully deleted archive")
             
             // Remove from local list
             await MainActor.run {
@@ -1551,7 +1552,7 @@ class MainViewModel: ObservableObject {
             }
             
         } catch {
-            print("🔧 DELETE ARCHIVE: ❌ Error deleting archive - \(error)")
+            Logger.shared.info("🔧 DELETE ARCHIVE: ❌ Error deleting archive - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to delete archive: \(error.localizedDescription)"
             }
@@ -1560,11 +1561,11 @@ class MainViewModel: ObservableObject {
     
     /// Restore an item from archive
     func restoreFromArchive(_ archive: Archive) async {
-        print("🔧 RESTORE ARCHIVE: Restoring archive with ID: \(archive.id)")
+        Logger.shared.info("🔧 RESTORE ARCHIVE: Restoring archive with ID: \(archive.id)")
         
         do {
             try await ArchiveRepository().restoreFromArchive(id: archive.id)
-            print("🔧 RESTORE ARCHIVE: ✅ Successfully restored from archive")
+            Logger.shared.info("🔧 RESTORE ARCHIVE: ✅ Successfully restored from archive")
             
             // Remove from archives list and refresh all data
             await MainActor.run {
@@ -1576,7 +1577,7 @@ class MainViewModel: ObservableObject {
             await loadInitialData()
             
         } catch {
-            print("🔧 RESTORE ARCHIVE: ❌ Error restoring from archive - \(error)")
+            Logger.shared.info("🔧 RESTORE ARCHIVE: ❌ Error restoring from archive - \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to restore from archive: \(error.localizedDescription)"
             }
@@ -1585,7 +1586,7 @@ class MainViewModel: ObservableObject {
     
     /// Process all unprocessed blobs with comprehensive PARA workflow
     func processAllUnprocessedBlobs() async {
-        print("🔧 BULK PROCESS: Starting comprehensive bulk processing")
+        Logger.shared.info("🔧 BULK PROCESS: Starting comprehensive bulk processing")
         
         await MainActor.run {
             self.isLoading = true
@@ -1596,7 +1597,7 @@ class MainViewModel: ObservableObject {
         do {
             // Fetch all unprocessed blobs
             let unprocessedBlobs = try await blobRepository().fetchUnprocessedBlobs()
-            print("🔧 BULK PROCESS: Found \(unprocessedBlobs.count) unprocessed blobs")
+            Logger.shared.info("🔧 BULK PROCESS: Found \(unprocessedBlobs.count) unprocessed blobs")
             
             if unprocessedBlobs.isEmpty {
                 await MainActor.run {
@@ -1617,7 +1618,7 @@ class MainViewModel: ObservableObject {
             
             // Process each blob with comprehensive workflow
             for (index, blob) in unprocessedBlobs.enumerated() {
-                print("🔧 BULK PROCESS: Processing blob \(index + 1)/\(unprocessedBlobs.count): \(blob.id)")
+                Logger.shared.info("🔧 BULK PROCESS: Processing blob \(index + 1)/\(unprocessedBlobs.count): \(blob.id)")
                 
                 do {
                     // Step 1: AI Analysis
@@ -1631,21 +1632,21 @@ class MainViewModel: ObservableObject {
                     results[blob.id] = processingResult
                     summary.add(processingResult)
                     
-                    print("🔧 BULK PROCESS: AI analysis complete for blob \(index + 1)")
+                    Logger.shared.info("🔧 BULK PROCESS: AI analysis complete for blob \(index + 1)")
                     
                     // Step 2: Execute Actions (if confidence is high enough)
                     if !processingResult.requiresConfirmation {
                         try await executeProcessingActions(for: blob, with: processingResult)
-                        print("🔧 BULK PROCESS: ✅ Actions executed for blob \(index + 1)")
+                        Logger.shared.info("🔧 BULK PROCESS: ✅ Actions executed for blob \(index + 1)")
                     } else {
-                        print("🔧 BULK PROCESS: ⚠️ Blob \(index + 1) requires user confirmation")
+                        Logger.shared.info("🔧 BULK PROCESS: ⚠️ Blob \(index + 1) requires user confirmation")
                         await MainActor.run {
                             self.pendingConfirmations.append(processingResult)
                         }
                     }
                     
                 } catch {
-                    print("🔧 BULK PROCESS: ❌ Failed to process blob \(index + 1): \(error)")
+                    Logger.shared.info("🔧 BULK PROCESS: ❌ Failed to process blob \(index + 1): \(error)")
                     summary.errors += 1
                     
                     // Create error result
@@ -1699,11 +1700,11 @@ class MainViewModel: ObservableObject {
             // Refresh data
             await loadInitialData()
             
-            print("🔧 BULK PROCESS: ✅ Comprehensive processing complete")
-            print("🔧 BULK PROCESS: Summary - Processed: \(summary.totalProcessed), Tasks: \(summary.tasksCreated), Confirmations needed: \(summary.confirmationsNeeded), Errors: \(summary.errors)")
+            Logger.shared.info("🔧 BULK PROCESS: ✅ Comprehensive processing complete")
+            Logger.shared.info("🔧 BULK PROCESS: Summary - Processed: \(summary.totalProcessed), Tasks: \(summary.tasksCreated), Confirmations needed: \(summary.confirmationsNeeded), Errors: \(summary.errors)")
             
         } catch {
-            print("🔧 BULK PROCESS: ❌ Critical error during bulk processing - \(error)")
+            Logger.shared.info("🔧 BULK PROCESS: ❌ Critical error during bulk processing - \(error)")
             await MainActor.run {
                 self.isLoading = false
                 self.errorMessage = "Failed to process notes: \(error.localizedDescription)"
@@ -1713,7 +1714,7 @@ class MainViewModel: ObservableObject {
     
     /// Execute processing actions for a blob
     private func executeProcessingActions(for blob: Blob, with result: ProcessingResult) async throws {
-        print("🔧 EXECUTE ACTIONS: Starting for blob: \(blob.id)")
+        Logger.shared.info("🔧 EXECUTE ACTIONS: Starting for blob: \(blob.id)")
         
         // 1. Move blob to appropriate PARA category
         try await moveToParaCategory(blob: blob, category: result.paraCategory, result: result)
@@ -1745,12 +1746,12 @@ class MainViewModel: ObservableObject {
             self.blobProcessingStates[blob.id] = .processed(result)
         }
         
-        print("🔧 EXECUTE ACTIONS: ✅ All actions completed for blob: \(blob.id)")
+        Logger.shared.info("🔧 EXECUTE ACTIONS: ✅ All actions completed for blob: \(blob.id)")
     }
     
     /// Move blob to appropriate PARA category
     private func moveToParaCategory(blob: Blob, category: PARACategory, result: ProcessingResult) async throws {
-        print("🔧 MOVE PARA: Moving blob \(blob.id) to category: \(category.displayName)")
+        Logger.shared.info("🔧 MOVE PARA: Moving blob \(blob.id) to category: \(category.displayName)")
         
         var updatedBlob = blob
         var targetProjectId: UUID? = nil
@@ -1762,10 +1763,10 @@ class MainViewModel: ObservableObject {
                 if let existingProject = projects.first(where: { $0.name.lowercased() == suggestedProject.lowercased() }) {
                     // Link to existing project
                     targetProjectId = existingProject.id
-                    print("🔧 MOVE PARA: Linking to existing project: \(existingProject.name)")
+                    Logger.shared.info("🔧 MOVE PARA: Linking to existing project: \(existingProject.name)")
                 } else if result.confidence > 0.8 {
                     // Create new project if confidence is high
-                    print("🔧 MOVE PARA: Creating new project: \(suggestedProject)")
+                    Logger.shared.info("🔧 MOVE PARA: Creating new project: \(suggestedProject)")
                     do {
                         let newProject = Project(
                             name: suggestedProject,
@@ -1780,9 +1781,9 @@ class MainViewModel: ObservableObject {
                             self.projects.append(createdProject)
                         }
                         
-                        print("🔧 MOVE PARA: ✅ Created new project: \(createdProject.name)")
+                        Logger.shared.info("🔧 MOVE PARA: ✅ Created new project: \(createdProject.name)")
                     } catch {
-                        print("🔧 MOVE PARA: ❌ Failed to create project: \(error)")
+                        Logger.shared.info("🔧 MOVE PARA: ❌ Failed to create project: \(error)")
                     }
                 }
             }
@@ -1794,10 +1795,10 @@ class MainViewModel: ObservableObject {
                 if let existingArea = areas.first(where: { $0.name.lowercased() == suggestedArea.lowercased() }) {
                     // Link to existing area
                     targetAreaId = existingArea.id
-                    print("🔧 MOVE PARA: Linking to existing area: \(existingArea.name)")
+                    Logger.shared.info("🔧 MOVE PARA: Linking to existing area: \(existingArea.name)")
                 } else if result.confidence > 0.8 {
                     // Create new area if confidence is high
-                    print("🔧 MOVE PARA: Creating new area: \(suggestedArea)")
+                    Logger.shared.info("🔧 MOVE PARA: Creating new area: \(suggestedArea)")
                     do {
                         let newArea = Area(
                             name: suggestedArea,
@@ -1812,9 +1813,9 @@ class MainViewModel: ObservableObject {
                             self.areas.append(createdArea)
                         }
                         
-                        print("🔧 MOVE PARA: ✅ Created new area: \(createdArea.name)")
+                        Logger.shared.info("🔧 MOVE PARA: ✅ Created new area: \(createdArea.name)")
                     } catch {
-                        print("🔧 MOVE PARA: ❌ Failed to create area: \(error)")
+                        Logger.shared.info("🔧 MOVE PARA: ❌ Failed to create area: \(error)")
                     }
                 }
             }
@@ -1835,7 +1836,7 @@ class MainViewModel: ObservableObject {
                 )
                 
                 let updatedBlob = try await blobRepository().updateBlob(categorizedBlob)
-                print("🔧 MOVE PARA: ✅ Blob updated with PARA assignment")
+                Logger.shared.info("🔧 MOVE PARA: ✅ Blob updated with PARA assignment")
                 
                 // Update local state immediately
                 await MainActor.run {
@@ -1848,28 +1849,28 @@ class MainViewModel: ObservableObject {
                             self.projectBlobs[projectId] = []
                         }
                         self.projectBlobs[projectId]?.append(updatedBlob)
-                        print("🔧 MOVE PARA: ✅ Added blob to project blobs locally")
+                        Logger.shared.info("🔧 MOVE PARA: ✅ Added blob to project blobs locally")
                     } else if let areaId = targetAreaId {
                         if self.areaBlobs[areaId] == nil {
                             self.areaBlobs[areaId] = []
                         }
                         self.areaBlobs[areaId]?.append(updatedBlob)
-                        print("🔧 MOVE PARA: ✅ Added blob to area blobs locally")
+                        Logger.shared.info("🔧 MOVE PARA: ✅ Added blob to area blobs locally")
                     }
                 }
                 
             } catch {
-                print("🔧 MOVE PARA: ❌ Failed to update blob: \(error)")
+                Logger.shared.info("🔧 MOVE PARA: ❌ Failed to update blob: \(error)")
                 throw error
             }
         }
         
-        print("🔧 MOVE PARA: ✅ Blob categorized as: \(category.displayName)")
+        Logger.shared.info("🔧 MOVE PARA: ✅ Blob categorized as: \(category.displayName)")
     }
     
     /// Create task from extraction info
     private func createTaskFromExtraction(taskInfo: TaskExtractionInfo, sourceBlob: Blob) async throws {
-        print("🔧 CREATE TASK: Creating task: \(taskInfo.title)")
+        Logger.shared.info("🔧 CREATE TASK: Creating task: \(taskInfo.title)")
         
         // Determine project/area assignment for the task
         var taskProjectId: UUID? = nil
@@ -1878,30 +1879,30 @@ class MainViewModel: ObservableObject {
         // First try to use the blob's assignment
         if let blobProjectId = sourceBlob.projectId {
             taskProjectId = blobProjectId
-            print("🔧 CREATE TASK: Assigning to blob's project")
+            Logger.shared.info("🔧 CREATE TASK: Assigning to blob's project")
         } else if let blobAreaId = sourceBlob.areaId {
             taskAreaId = blobAreaId
-            print("🔧 CREATE TASK: Assigning to blob's area")
+            Logger.shared.info("🔧 CREATE TASK: Assigning to blob's area")
         } else {
             // If blob has no assignment, try to find suggested project/area
             if let suggestedProject = taskInfo.suggestedProject,
                let existingProject = projects.first(where: { $0.name.lowercased() == suggestedProject.lowercased() }) {
                 taskProjectId = existingProject.id
-                print("🔧 CREATE TASK: Assigning to suggested project: \(suggestedProject)")
+                Logger.shared.info("🔧 CREATE TASK: Assigning to suggested project: \(suggestedProject)")
             } else if let suggestedArea = taskInfo.suggestedArea,
                       let existingArea = areas.first(where: { $0.name.lowercased() == suggestedArea.lowercased() }) {
                 taskAreaId = existingArea.id
-                print("🔧 CREATE TASK: Assigning to suggested area: \(suggestedArea)")
+                Logger.shared.info("🔧 CREATE TASK: Assigning to suggested area: \(suggestedArea)")
             } else {
                 // Default to first available project or area
                 if let firstProject = projects.first {
                     taskProjectId = firstProject.id
-                    print("🔧 CREATE TASK: Assigning to first available project: \(firstProject.name)")
+                    Logger.shared.info("🔧 CREATE TASK: Assigning to first available project: \(firstProject.name)")
                 } else if let firstArea = areas.first {
                     taskAreaId = firstArea.id
-                    print("🔧 CREATE TASK: Assigning to first available area: \(firstArea.name)")
+                    Logger.shared.info("🔧 CREATE TASK: Assigning to first available area: \(firstArea.name)")
                 } else {
-                    print("🔧 CREATE TASK: ⚠️ No projects or areas available - task will be unassigned")
+                    Logger.shared.info("🔧 CREATE TASK: ⚠️ No projects or areas available - task will be unassigned")
                 }
             }
         }
@@ -1921,22 +1922,22 @@ class MainViewModel: ObservableObject {
         let createdTask = try await taskRepository().createTask(task)
         
         // Log the comprehensive task creation with priority scoring
-        print("🔧 CREATE TASK: ✅ Task created with comprehensive data:")
-        print("🔧 CREATE TASK:   Title: \(taskInfo.title)")
-        print("🔧 CREATE TASK:   Priority: \(taskInfo.priority.rawValue) (Score: \(taskInfo.priorityScore))")
-        print("🔧 CREATE TASK:   Due Date: \(taskInfo.suggestedDueDate ?? "Not set")")
-        print("🔧 CREATE TASK:   Duration: \(taskInfo.estimatedDuration ?? 0) minutes")
-        print("🔧 CREATE TASK:   Time Block: \(taskInfo.timeBlock ?? "Flexible")")
+        Logger.shared.info("🔧 CREATE TASK: ✅ Task created with comprehensive data:")
+        Logger.shared.info("🔧 CREATE TASK:   Title: \(taskInfo.title)")
+        Logger.shared.info("🔧 CREATE TASK:   Priority: \(taskInfo.priority.rawValue) (Score: \(taskInfo.priorityScore))")
+        Logger.shared.info("🔧 CREATE TASK:   Due Date: \(taskInfo.suggestedDueDate ?? "Not set")")
+        Logger.shared.info("🔧 CREATE TASK:   Duration: \(taskInfo.estimatedDuration ?? 0) minutes")
+        Logger.shared.info("🔧 CREATE TASK:   Time Block: \(taskInfo.timeBlock ?? "Flexible")")
         if let reasoning = taskInfo.priorityReasoning {
-            print("🔧 CREATE TASK:   Priority Reasoning: \(reasoning)")
+            Logger.shared.info("🔧 CREATE TASK:   Priority Reasoning: \(reasoning)")
         }
         if !taskInfo.urgencyIndicators.isEmpty {
-            print("🔧 CREATE TASK:   Urgency Indicators: \(taskInfo.urgencyIndicators.joined(separator: ", "))")
+            Logger.shared.info("🔧 CREATE TASK:   Urgency Indicators: \(taskInfo.urgencyIndicators.joined(separator: ", "))")
         }
         if !taskInfo.importanceFactors.isEmpty {
-            print("🔧 CREATE TASK:   Importance Factors: \(taskInfo.importanceFactors.joined(separator: ", "))")
+            Logger.shared.info("🔧 CREATE TASK:   Importance Factors: \(taskInfo.importanceFactors.joined(separator: ", "))")
         }
-        print("🔧 CREATE TASK:   Confidence: \(taskInfo.confidence)")
+        Logger.shared.info("🔧 CREATE TASK:   Confidence: \(taskInfo.confidence)")
         
         // Add to focus tasks if marked as high priority or focus
         if taskInfo.priority == .urgent || taskInfo.priority == .high || taskInfo.priorityScore >= 4 {
@@ -1963,11 +1964,11 @@ class MainViewModel: ObservableObject {
                 )
                 
                 self.focusTasks.append(focusTask)
-                print("🔧 CREATE TASK: ✅ Added high-priority task to focus list")
+                Logger.shared.info("🔧 CREATE TASK: ✅ Added high-priority task to focus list")
             }
         }
         
-        print("🔧 CREATE TASK: ✅ Task creation completed: \(taskInfo.title)")
+        Logger.shared.info("🔧 CREATE TASK: ✅ Task creation completed: \(taskInfo.title)")
         
         // Notify that a task was created so parking lot refreshes
         await MainActor.run {
@@ -1977,55 +1978,55 @@ class MainViewModel: ObservableObject {
     
     /// Apply tags to blob
     private func applyTags(to blob: Blob, tags: [String]) async throws {
-        print("🔧 APPLY TAGS: Applying \(tags.count) tags to blob: \(blob.id)")
+        Logger.shared.info("🔧 APPLY TAGS: Applying \(tags.count) tags to blob: \(blob.id)")
         
         // Tag application would be implemented with tag repository
         for tag in tags {
-            print("🔧 APPLY TAGS: Applied tag: \(tag)")
+            Logger.shared.info("🔧 APPLY TAGS: Applied tag: \(tag)")
         }
         
-        print("🔧 APPLY TAGS: ✅ All tags applied")
+        Logger.shared.info("🔧 APPLY TAGS: ✅ All tags applied")
     }
     
     /// Create cross-link
     private func createCrossLink(crossLink: CrossLinkSuggestion, sourceBlob: Blob) async throws {
-        print("🔧 CROSS LINK: Creating link to: \(crossLink.targetName)")
+        Logger.shared.info("🔧 CROSS LINK: Creating link to: \(crossLink.targetName)")
         
         // Cross-link creation would be implemented here
         // This would involve finding existing items or creating suggestions for new ones
         
-        print("🔧 CROSS LINK: ✅ Cross-link created")
+        Logger.shared.info("🔧 CROSS LINK: ✅ Cross-link created")
     }
     
     /// Log processing to audit trail
     private func logProcessingToAudit(blob: Blob, result: ProcessingResult) async throws {
-        print("🔧 AUDIT LOG: Logging processing for blob: \(blob.id)")
+        Logger.shared.info("🔧 AUDIT LOG: Logging processing for blob: \(blob.id)")
         
         // Audit logging would be implemented here
         // This would create entries in the audit trail table
         
-        print("🔧 AUDIT LOG: ✅ Processing logged to audit trail")
+        Logger.shared.info("🔧 AUDIT LOG: ✅ Processing logged to audit trail")
     }
     
     /// Confirm processing for pending items
     func confirmProcessing(for result: ProcessingResult, approved: Bool) async {
-        print("🔧 CONFIRM: Processing confirmation for blob: \(result.blobId), approved: \(approved)")
+        Logger.shared.info("🔧 CONFIRM: Processing confirmation for blob: \(result.blobId), approved: \(approved)")
         
         if approved {
             do {
                 // Find the blob and execute actions
                 if let blob = recentBlobs.first(where: { $0.id == result.blobId }) {
                     try await executeProcessingActions(for: blob, with: result)
-                    print("🔧 CONFIRM: ✅ Actions executed after confirmation")
+                    Logger.shared.info("🔧 CONFIRM: ✅ Actions executed after confirmation")
                 }
             } catch {
-                print("🔧 CONFIRM: ❌ Error executing confirmed actions: \(error)")
+                Logger.shared.info("🔧 CONFIRM: ❌ Error executing confirmed actions: \(error)")
                 await MainActor.run {
                     self.errorMessage = "Failed to execute confirmed actions: \(error.localizedDescription)"
                 }
             }
         } else {
-            print("🔧 CONFIRM: ⚠️ Processing rejected by user")
+            Logger.shared.info("🔧 CONFIRM: ⚠️ Processing rejected by user")
         }
         
         // Remove from pending confirmations
@@ -2041,7 +2042,7 @@ class MainViewModel: ObservableObject {
     
     /// Undo batch processing session
     func undoBatchProcessing(session: BatchProcessingSession) async {
-        print("🔧 UNDO: Starting batch undo for session: \(session.id)")
+        Logger.shared.info("🔧 UNDO: Starting batch undo for session: \(session.id)")
         
         await MainActor.run {
             self.isLoading = true
@@ -2059,7 +2060,7 @@ class MainViewModel: ObservableObject {
             // For now, we'll simulate the undo process
             try await performUndoOperations(session: session)
             
-            print("🔧 UNDO: ✅ Batch processing undone")
+            Logger.shared.info("🔧 UNDO: ✅ Batch processing undone")
             
             await MainActor.run {
                 self.currentProcessingSession = nil
@@ -2071,7 +2072,7 @@ class MainViewModel: ObservableObject {
             await loadInitialData()
             
         } catch {
-            print("🔧 UNDO: ❌ Error during undo: \(error)")
+            Logger.shared.info("🔧 UNDO: ❌ Error during undo: \(error)")
             await MainActor.run {
                 self.isLoading = false
                 self.errorMessage = "Failed to undo batch processing: \(error.localizedDescription)"
@@ -2084,7 +2085,7 @@ class MainViewModel: ObservableObject {
         // This would contain the actual undo logic
         // For now, just add a small delay to simulate work
         try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-        print("🔧 UNDO: Simulated undo operations complete")
+        Logger.shared.info("🔧 UNDO: Simulated undo operations complete")
     }
     
     /// Restore blob from archive
@@ -2127,10 +2128,10 @@ class MainViewModel: ObservableObject {
                 self.successMessage = "✅ Restored from archive"
             }
             
-            print("🔧 RESTORE: ✅ Blob restored from archive: \(blob.id)")
+            Logger.shared.info("🔧 RESTORE: ✅ Blob restored from archive: \(blob.id)")
             
         } catch {
-            print("🔧 RESTORE: ❌ Failed to restore blob from archive: \(error)")
+            Logger.shared.info("🔧 RESTORE: ❌ Failed to restore blob from archive: \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to restore from archive: \(error.localizedDescription)"
             }
@@ -2139,23 +2140,23 @@ class MainViewModel: ObservableObject {
     
     /// Enhance existing tasks with comprehensive LLM processing
     private func enhanceExistingTasks() async {
-        print("🔧 ENHANCE TASKS: Starting enhancement of existing tasks...")
+        Logger.shared.info("🔧 ENHANCE TASKS: Starting enhancement of existing tasks...")
         
         do {
             // Fetch all tasks from the database
-            print("🔧 ENHANCE TASKS: Fetching all tasks...")
+            Logger.shared.info("🔧 ENHANCE TASKS: Fetching all tasks...")
             let allTasks = try await TaskRepository().fetchAllTasks()
-            print("🔧 ENHANCE TASKS: Found \(allTasks.count) tasks to potentially enhance")
+            Logger.shared.info("🔧 ENHANCE TASKS: Found \(allTasks.count) tasks to potentially enhance")
             
             if allTasks.isEmpty {
-                print("🔧 ENHANCE TASKS: No tasks found, skipping enhancement")
+                Logger.shared.info("🔧 ENHANCE TASKS: No tasks found, skipping enhancement")
                 return
             }
             
             // Use LLM service to enhance tasks
-            print("🔧 ENHANCE TASKS: Starting LLM enhancement process...")
+            Logger.shared.info("🔧 ENHANCE TASKS: Starting LLM enhancement process...")
             let enhancementResults = try await llmService.enhanceExistingTasks(allTasks)
-            print("🔧 ENHANCE TASKS: ✅ LLM enhancement completed for \(enhancementResults.count) tasks")
+            Logger.shared.info("🔧 ENHANCE TASKS: ✅ LLM enhancement completed for \(enhancementResults.count) tasks")
             
             // Process enhancement results and update tasks that were enhanced
             var enhancedCount = 0
@@ -2164,19 +2165,19 @@ class MainViewModel: ObservableObject {
             for result in enhancementResults {
                 if result.wasEnhanced {
                     do {
-                        print("🔧 ENHANCE TASKS: Updating enhanced task: \(result.enhancedTask.title)")
+                        Logger.shared.info("🔧 ENHANCE TASKS: Updating enhanced task: \(result.enhancedTask.title)")
                         let _ = try await taskRepository.updateTask(result.enhancedTask)
                         enhancedCount += 1
-                        print("🔧 ENHANCE TASKS: ✅ Successfully updated task: \(result.enhancedTask.title)")
+                        Logger.shared.info("🔧 ENHANCE TASKS: ✅ Successfully updated task: \(result.enhancedTask.title)")
                     } catch {
-                        print("🔧 ENHANCE TASKS: ❌ Failed to update task: \(result.enhancedTask.title) - \(error)")
+                        Logger.shared.info("🔧 ENHANCE TASKS: ❌ Failed to update task: \(result.enhancedTask.title) - \(error)")
                     }
                 } else {
-                    print("🔧 ENHANCE TASKS: ⏭️ Task already optimized: \(result.originalTask.title)")
+                    Logger.shared.info("🔧 ENHANCE TASKS: ⏭️ Task already optimized: \(result.originalTask.title)")
                 }
             }
             
-            print("🔧 ENHANCE TASKS: ✅ Enhancement complete - Updated \(enhancedCount) of \(allTasks.count) tasks")
+            Logger.shared.info("🔧 ENHANCE TASKS: ✅ Enhancement complete - Updated \(enhancedCount) of \(allTasks.count) tasks")
             
             // Refresh focus tasks after enhancement
             await refreshFocusTasks()
@@ -2186,17 +2187,17 @@ class MainViewModel: ObservableObject {
                 if enhancedCount > 0 {
                     self.successMessage = "Enhanced \(enhancedCount) tasks with AI-powered priority scoring, dates, and durations"
                 } else {
-                    print("🔧 ENHANCE TASKS: All tasks already have comprehensive data")
+                    Logger.shared.info("🔧 ENHANCE TASKS: All tasks already have comprehensive data")
                 }
             }
             
         } catch LLMError.missingAPIKey {
-            print("🔧 ENHANCE TASKS: ⚠️ LLM API key not configured, skipping task enhancement")
+            Logger.shared.info("🔧 ENHANCE TASKS: ⚠️ LLM API key not configured, skipping task enhancement")
             await MainActor.run {
                 self.successMessage = "Task enhancement requires LLM API key. Set OPENAI_API_KEY environment variable."
             }
         } catch {
-            print("🔧 ENHANCE TASKS: ❌ Error enhancing tasks: \(error)")
+            Logger.shared.info("🔧 ENHANCE TASKS: ❌ Error enhancing tasks: \(error)")
             await MainActor.run {
                 self.errorMessage = "Task enhancement failed: \(error.localizedDescription)"
             }
@@ -2210,15 +2211,15 @@ class MainViewModel: ObservableObject {
             await MainActor.run {
                 self.focusTasks = updatedFocusTasks
             }
-            print("🔧 ENHANCE TASKS: ✅ Refreshed focus tasks: \(updatedFocusTasks.count)")
+            Logger.shared.info("🔧 ENHANCE TASKS: ✅ Refreshed focus tasks: \(updatedFocusTasks.count)")
         } catch {
-            print("🔧 ENHANCE TASKS: ❌ Failed to refresh focus tasks: \(error)")
+            Logger.shared.info("🔧 ENHANCE TASKS: ❌ Failed to refresh focus tasks: \(error)")
         }
     }
     
     /// Complete a task and update its status
     func completeTask(_ task: LifeTask) async {
-        print("🔧 COMPLETE TASK: Marking task as completed: \(task.title)")
+        Logger.shared.info("🔧 COMPLETE TASK: Marking task as completed: \(task.title)")
         
         do {
             // Create completed task with updated status and completion timestamp
@@ -2245,7 +2246,7 @@ class MainViewModel: ObservableObject {
             
             // Update in database
             let updatedTask = try await TaskRepository().updateTask(completedTask)
-            print("🔧 COMPLETE TASK: ✅ Task marked as completed in database")
+            Logger.shared.info("🔧 COMPLETE TASK: ✅ Task marked as completed in database")
             
             // Update local state
             await MainActor.run {
@@ -2260,10 +2261,10 @@ class MainViewModel: ObservableObject {
             // Refresh data to ensure consistency
             await refreshFocusTasks()
             
-            print("🔧 COMPLETE TASK: ✅ Task completion processed successfully")
+            Logger.shared.info("🔧 COMPLETE TASK: ✅ Task completion processed successfully")
             
         } catch {
-            print("🔧 COMPLETE TASK: ❌ Error completing task: \(error)")
+            Logger.shared.info("🔧 COMPLETE TASK: ❌ Error completing task: \(error)")
             await MainActor.run {
                 self.errorMessage = "Failed to complete task: \(error.localizedDescription)"
             }
@@ -2271,6 +2272,129 @@ class MainViewModel: ObservableObject {
     }
     
     // MARK: - Brain Dump Processing
+    
+    /// Process complex notes using enhanced brain dump processor
+    func processComplexNotes(_ input: String) async throws -> ComplexBrainDumpResult {
+        Logger.shared.info("ENHANCED_PROCESSOR: Starting complex note processing")
+        
+        // Use the enhanced processor for complex notes
+        let result = try await enhancedBrainDumpProcessor.processComplexNotes(input)
+        
+        Logger.shared.success("ENHANCED_PROCESSOR: Extracted \(result.totalItemsExtracted) items")
+        
+        // Save to database if confidence is high enough
+        if result.structuredData.overallConfidence > 0.8 && !result.requiresReview {
+            try await enhancedBrainDumpProcessor.saveToDatabase(result)
+            Logger.shared.success("ENHANCED_PROCESSOR: Saved to database automatically")
+        } else {
+            Logger.shared.info("ENHANCED_PROCESSOR: Review required (confidence: \(result.structuredData.overallConfidence))")
+        }
+        
+        return result
+    }
+    
+    /// Convert complex brain dump result to suggested items for UI compatibility
+    private func convertComplexToSuggestedItems(_ complexResult: ComplexBrainDumpResult) -> [SuggestedPARAItem] {
+        var items: [SuggestedPARAItem] = []
+        
+        // Convert health logs
+        for healthLog in complexResult.structuredData.healthLogs {
+            items.append(SuggestedPARAItem(
+                title: "Health: \(healthLog.condition)",
+                description: healthLog.symptoms.joined(separator: ", "),
+                category: .area,
+                suggestedAreaId: nil,
+                suggestedProjectId: nil,
+                confidence: 0.9,
+                tags: ["health", healthLog.condition.lowercased()]
+            ))
+        }
+        
+        // Convert medications
+        for medication in complexResult.structuredData.medications {
+            items.append(SuggestedPARAItem(
+                title: "Medication: \(medication.name)",
+                description: medication.dosage,
+                category: .area,
+                suggestedAreaId: nil,
+                suggestedProjectId: nil,
+                confidence: 0.95,
+                tags: ["medication", "health"]
+            ))
+        }
+        
+        // Convert personal rules
+        for rule in complexResult.structuredData.personalRules {
+            items.append(SuggestedPARAItem(
+                title: "Rule: \(rule.ruleText)",
+                description: nil,
+                category: .resource,
+                suggestedAreaId: nil,
+                suggestedProjectId: nil,
+                confidence: 0.85,
+                tags: ["rule", "personal"]
+            ))
+        }
+        
+        // Convert goals
+        for goal in complexResult.structuredData.goals {
+            let dateStr = goal.targetDate?.formatted(date: .abbreviated, time: .omitted) ?? ""
+            items.append(SuggestedPARAItem(
+                title: goal.title,
+                description: dateStr.isEmpty ? nil : "Target: \(dateStr)",
+                category: .project,
+                suggestedAreaId: nil,
+                suggestedProjectId: nil,
+                confidence: 0.9,
+                tags: ["goal"]
+            ))
+        }
+        
+        // Convert schedules
+        for schedule in complexResult.structuredData.schedules {
+            items.append(SuggestedPARAItem(
+                title: schedule.title,
+                description: "Schedule with \(schedule.timeBlocks.count) time blocks",
+                category: .area,
+                suggestedAreaId: nil,
+                suggestedProjectId: nil,
+                confidence: 0.85,
+                tags: ["schedule", "routine"]
+            ))
+        }
+        
+        // Convert appointments
+        for appointment in complexResult.structuredData.appointments {
+            items.append(SuggestedPARAItem(
+                title: appointment.title,
+                description: appointment.date?.formatted(date: .abbreviated, time: .shortened) ?? nil,
+                category: .task,
+                suggestedAreaId: nil,
+                suggestedProjectId: nil,
+                confidence: 0.95,
+                tags: ["appointment"]
+            ))
+        }
+        
+        return items
+    }
+    
+    /// Check if input appears to be complex notes
+    func isComplexInput(_ input: String) -> Bool {
+        let complexIndicators = [
+            "mctd", "medication", "symptom", "dr ", "appt",
+            "schedule", "routine", "rule", "restriction",
+            "goal", "target", "deadline", "milestone",
+            "$", "budget", "expense", "cost",
+            "feeling", "emotion", "therapy"
+        ]
+        
+        let lowercased = input.lowercased()
+        let matchCount = complexIndicators.filter { lowercased.contains($0) }.count
+        
+        // Consider it complex if it has 3+ indicators or is very long
+        return matchCount >= 3 || input.count > 1000
+    }
     
     /// Process inbox input using comprehensive brain dump processor
     func processInboxInput() {
@@ -2309,7 +2433,34 @@ class MainViewModel: ObservableObject {
                 Logger.shared.brainDumpProgress("UI: Processing with AI (no toast shown)")
                 
                 Logger.shared.brainDumpProgress("Calling brain dump processor...")
-                // Use comprehensive brain dump processor
+                
+                // Check if this is complex input that needs enhanced processing
+                if isComplexInput(inboxInput) {
+                    Logger.shared.info("BRAIN DUMP: Detected complex input, using enhanced processor")
+                    
+                    await MainActor.run {
+                        self.successMessage = "🧠 Processing complex notes with enhanced AI..."
+                    }
+                    
+                    let complexResult = try await processComplexNotes(inboxInput)
+                    
+                    // Convert to regular BrainDumpResult for compatibility
+                    let result = BrainDumpResult(
+                        originalInput: complexResult.originalInput,
+                        suggestedItems: convertComplexToSuggestedItems(complexResult),
+                        confidence: complexResult.structuredData.overallConfidence,
+                        processingNotes: "Enhanced processing: \(complexResult.totalItemsExtracted) items extracted"
+                    )
+                    
+                    await MainActor.run {
+                        self.brainDumpResult = result
+                        self.successMessage = "✅ Complex notes processed: \(complexResult.totalItemsExtracted) items extracted!"
+                    }
+                    
+                    return // Exit early for complex processing
+                }
+                
+                // Use standard brain dump processor for simple notes
                 let result = try await brainDumpProcessor.processBrainDump(inboxInput)
                 
                 let processingTime = Date().timeIntervalSince(startTime)
@@ -2432,10 +2583,10 @@ class MainViewModel: ObservableObject {
                 self.objectWillChange.send()
                 
                 // Log the refresh for debugging
-                print("🔧 BRAIN DUMP: ✅ Refreshed PARA categories after brain dump completion")
-                print("🔧 BRAIN DUMP: Areas: \(self.areas.count), Projects: \(self.projects.count), Resources: \(self.resources.count)")
-                print("🔧 BRAIN DUMP: Area tasks: \(self.areaTasks.values.flatMap { $0 }.count)")
-                print("🔧 BRAIN DUMP: Project tasks: \(self.projectTasks.values.flatMap { $0 }.count)")
+                Logger.shared.info("🔧 BRAIN DUMP: ✅ Refreshed PARA categories after brain dump completion")
+                Logger.shared.info("🔧 BRAIN DUMP: Areas: \(self.areas.count), Projects: \(self.projects.count), Resources: \(self.resources.count)")
+                Logger.shared.info("🔧 BRAIN DUMP: Area tasks: \(self.areaTasks.values.flatMap { $0 }.count)")
+                Logger.shared.info("🔧 BRAIN DUMP: Project tasks: \(self.projectTasks.values.flatMap { $0 }.count)")
             }
         }
     }

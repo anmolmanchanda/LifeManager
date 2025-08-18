@@ -1,430 +1,296 @@
-# LifeManager 🚀
+# LifeManager - AI-Powered Life Organization System
 
-**AI-Powered Personal Knowledge Management & Productivity System for macOS**
+**Transform chaos into clarity with intelligent task management and knowledge organization**
 
-*Organize your chaos, reclaim your time, and never lose a thought again.*
+[![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)](https://swift.org)
+[![macOS](https://img.shields.io/badge/macOS-13.0+-blue.svg)](https://www.apple.com/macos)
+[![Architecture](https://img.shields.io/badge/Architecture-MVVM-green.svg)](./ARCHITECTURE.md)
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
-**Current Version:** v1.9.1-stable | **Status:** ✅ Core Features Working | **Next:** v2.0 Integration in Progress
+## 🚀 Overview
 
----
+LifeManager is a native macOS application that combines advanced AI capabilities with the PARA methodology (Projects, Areas, Resources, Archives) to transform how you capture, organize, and act on information. Built with SwiftUI and powered by OpenAI's latest models, it's your intelligent second brain that understands context, learns your patterns, and helps you stay organized effortlessly.
 
-## 🎯 What is LifeManager?
+### 🎯 Core Philosophy
 
-LifeManager is your personal assistant, therapist, and project manager rolled into one. It combines natural language input, PARA-based organization (Projects, Areas, Resources, Archives), and real-time knowledge management—letting you brain-dump anything, and instantly turning it into structured, searchable, and prioritized tasks, notes, and insights.
-
-**Built natively for Mac, LifeManager automates the drudgery of sorting, categorizing, and remembering—all you do is type.**
-
-### 🧠 How It Works
-
-The app will automatically try to figure out if a pasted or typed input is:
-- **A single task** → Creates structured task with priority and due date
-- **A set of tasks** → Extracts each as separate actionable items  
-- **A mix of tasks + notes + other info** → Categorizes and organizes everything
-- **Something else** → Journal entries, knowledge snippets, financial records, etc.
-
-**You don't have to tell it what type of content it is!** The LLM intelligently parses, extracts, and categorizes everything automatically.
-
-### 📝 Real-World Examples
-
-**Scenario 1:** You paste:
-```
-"Buy groceries, call Mom, schedule dentist, renew car insurance."
-```
-→ LLM auto-extracts each as a separate task with appropriate priorities
-
-**Scenario 2:** You paste:
-```
-"Today I felt anxious. Need to book therapy. My goal is to run a marathon."
-```
-→ LLM creates a journal entry, extracts "book therapy" as a task, and adds marathon goal to projects
-
-**Scenario 3:** You paste a messy Apple Note:
-```
-"Meeting notes from today - need to follow up with John about the proposal, 
-also remember to buy milk, and I learned that React 18 has new concurrent features..."
-```
-→ LLM breaks it down into: task (follow up with John), personal task (buy milk), and knowledge entry (React 18 info)
-
----
+- **Zero Friction Capture**: Brain dump anything - the AI figures out what it is
+- **Intelligent Organization**: Automatic PARA categorization with context awareness
+- **Adaptive Intelligence**: Learns your patterns and improves over time
+- **Privacy First**: Your data stays local with optional cloud sync
+- **Professional Grade**: Enterprise-quality code with comprehensive testing
 
 ## ✨ Key Features
 
-### 🤖 **AI-Powered Organization**
-- **Universal Inbox**: Single input point for all text-based information
-- **Automatic Categorization**: Intelligent PARA classification and tagging
-- **Task Extraction**: Smart detection of actionable items with priority and due dates
-- **Multi-Category Support**: Journal, Therapy, Tasks, Finance, Knowledge, Recipes, Diet, Inventory, Shows, YouTube, Grocery lists
+### 🧠 Advanced Brain Dump Processing
+- **Complex Note Understanding**: Handles medical data, schedules, rules, goals, and mixed content
+- **Multi-Format Support**: Tasks, notes, journal entries, financial records, contacts, appointments
+- **Intelligent Extraction**: Automatically identifies and extracts actionable items
+- **Confidence Scoring**: AI provides confidence levels for automated decisions
 
-### 📅 **Advanced Calendar System** *(v1.75)*
-- **Intelligent Scheduling**: Drag & drop tasks with buffer management
-- **Toggl Integration**: Real-time time tracking with project visualization
-- **Smart Parking Lot**: LLM-powered task importance analysis
-- **Auto-Bumping**: Cascade rescheduling when conflicts arise
-- **Multi-View Support**: Day, Week, Month views with visual project bars
+### 📊 PARA Methodology Implementation
+- **Projects**: Active initiatives with defined outcomes
+- **Areas**: Ongoing responsibilities to maintain
+- **Resources**: Reference materials for future use
+- **Archives**: Completed or inactive items
 
-### 🗂️ **PARA Framework Implementation**
-- **Projects**: Time-bound efforts with clear outcomes
-- **Areas**: Ongoing responsibilities and spheres of activity
-- **Resources**: Reference materials and knowledge assets
-- **Archives**: Completed and inactive information with full history
+### 🤖 AI-Powered Features
+- **OpenAI GPT-4 & o1 Integration**: Advanced reasoning and understanding
+- **Embeddings & Semantic Search**: Find related content intelligently
+- **Contextual Processing**: Considers your history and patterns
+- **Smart Scheduling**: AI-assisted calendar management with buffer optimization
 
-### 🔍 **Advanced Search & Organization**
-- **Full-Text Search**: Instant search across all content types
-- **Intelligent Filtering**: Work/personal separation with smart categorization
-- **Complete Audit Trail**: Version history for all changes and edits
-- **Real-Time Sync**: Live data updates across the application
-- **Tag Management**: Automatic and manual tagging system
+### 💾 Robust Data Management
+- **Supabase Integration**: Real-time sync across devices
+- **10+ Specialized Tables**: Health logs, medications, goals, schedules, and more
+- **Row-Level Security**: Your data is always protected
+- **Offline Support**: Full functionality without internet
 
----
+## 🏗️ Architecture
 
-## 🚀 Current Status & Roadmap
-
-> **Current Version**: v1.75 (Calendar Revolution) - **SHIPPED** ✅
-> **Implementation Status**: 91.5% complete (43/47 planned features)
-> **Next Release**: v2.0 (Intelligence Expansion) - Planned June 15-17, 2025
-
-### **v1.0 - Foundation** *(June 9-10, 2025)* ✅ **SHIPPED**
-
-**Core Infrastructure:**
-- [x] Complete SwiftUI macOS app (`App/LifeManagerApp.swift`) ✅
-- [x] Supabase integration (`Services/SupabaseService.swift`) ✅
-- [x] PostgreSQL database with 18 tables (`supabase/migrations/`) ✅
-- [x] PARA framework implementation (`Models/`, `Views/ContentView.swift`) ✅
-- [x] Natural language input processing (`Views/ContentView.swift`) ✅
-- [x] Authentication system (`Views/AuthenticationView.swift`) ✅
-
-**Key Features:**
-- [x] Universal inbox with natural language processing ✅
-- [x] AI categorization and task extraction (`Services/LLMService.swift`) ✅
-- [x] Work/personal content classification (`Models/WorkPersonalType.swift`) ✅
-- [x] Complete audit trail system (Database schema) ✅
-- [x] PARA-based content organization (`ViewModels/MainViewModel.swift`) ✅
-
----
-
-### **v1.25 - Intelligence & UI** *(June 10, 2025)* ✅ **SHIPPED**
-
-**Enhanced AI Processing:**
-- [x] LLM service with intelligent date/time analysis (`Services/LLMService.swift`) ✅
-- [x] Task duration estimation and priority assessment ✅
-- [x] Smart temporal language parsing ("next week", "tomorrow") ✅
-- [x] Automatic PARA categorization with sub-categories (`Services/LLMBrainDumpProcessor.swift`) ✅
-
-**UI/UX Improvements:**
-- [x] Expanded text input area (half window height) ✅
-- [x] Auto-dismiss toasts after 10 seconds ✅
-- [x] Enhanced debugging for Supabase sync ✅
-- [x] Automatic sample PARA data creation ✅
-- [x] Improved inbox layout with proper space allocation ✅
-
----
-
-### **v1.5 - Advanced Features** *(June 10-11, 2025)* ✅ **90% SHIPPED**
-
-**PARA System Enhancements:**
-- [x] Complete Resources and Archives views (`Views/ContentView.swift`) ✅
-- [x] Context menus with delete/complete/archive/schedule actions ✅
-- [x] Completed tasks auto-archive system ✅
-- [x] Enhanced task management with priority scoring ✅
-
-**New Sidebar Views:**
-- [x] Tags management system ✅
-- [ ] Mind Map view ⏳ *stub implementation - needs LLM-powered expansion*
-- [ ] Timeline view ⏳ *stub implementation - needs chronological visualization*
-- [x] Work/Personal mode filtering ✅
-
----
-
-### **v1.75 - Calendar Revolution** *(June 11-13, 2025)* ✅ **SHIPPED**
-
-**Modular MVVM Architecture:**
-- [x] Split 6117-line ContentView into 9 modular components (`Views/Calendar/`) ✅
-- [x] Strict MVVM pattern with dedicated ViewModels (`ViewModels/CalendarViewModel.swift`) ✅
-- [x] Production-ready architecture with extensive documentation ✅
-
-**Advanced Calendar System:**
-- [x] Buffer Management (5min/hour rule) (`Services/BufferManagementService.swift`) ✅
-- [x] Auto-Bumping with cascade rescheduling (`Services/CalendarOrchestrationService.swift`) ✅
-- [x] LLM-powered parking lot with importance analysis (`Services/EnhancedParkingLotService.swift`) ✅
-- [x] Smart notifications and decision modals (`Services/NotificationService.swift`) ✅
-- [x] Real-time Toggl integration (`Services/TogglService.swift`) ✅
-
-**Visual & Interactive Features:**
-- [x] Multi-colored month view with project duration bars ✅
-- [x] Enhanced week view with event display ✅
-- [x] Drag & drop task scheduling between parking lot and calendar ✅
-- [x] Visual cues and hover states ✅
-- [x] Full-screen app launch ✅
-
----
-
-### **v1.8 - Traceability & Documentation** *(June 14, 2025)* ✅ **SHIPPED**
-
-**Roadmap ↔ Code Traceability System:**
-- [x] Comprehensive feature matrix (`doc/feature_matrix.md`) ✅
-- [x] Implementation tracking with metrics (`doc/implementation_tracking.md`) ✅
-- [x] File header documentation with roadmap references ✅
-- [x] Maintenance guidelines (`doc/traceability_maintenance.md`) ✅
-- [x] Updated README with detailed feature checklists ✅
-
-### **v1.85 - UI/UX Polish & API Management** *(June 14, 2025)* ✅ **SHIPPED**
-
-**Enhanced User Experience:**
-- [x] Improved API key management with template-based setup (`config.txt.template`) ✅
-- [x] Restored 3-dot "Thinking..." animation with faster 2-second intervals ✅
-- [x] Personalized greeting: "Good to see you, Anmol." with centered layout ✅
-- [x] Enhanced placeholder text showcasing comprehensive capabilities ✅
-- [x] Redesigned process button: square design with up arrow, positioned below input ✅
-- [x] Optimized text sizing hierarchy for better visual balance ✅
-
-**Areas Functionality Overhaul:**
-- [x] Complete Areas UI reconstruction with expandable sections (`Views/ContentView.swift`) ✅
-- [x] Consistent PARA tab architecture across Projects/Areas/Resources/Archive ✅
-- [x] Full task and note interaction capabilities with AI transparency ✅
-- [x] Enhanced brain dump processing with double refresh for proper PARA updates ✅
-- [x] Database migration for missing content type enum values (`supabase/migrations/004_add_idea_source_type.sql`) ✅
-
----
-
-## 🔮 Future Roadmap
-
-### **v2.0 - Intelligence Expansion** *(Planned: June 15-17, 2025)*
-
-**Enhanced AI Capabilities:**
-- [ ] Multi-LLM support (Claude, GPT-4, Gemini) (`Services/LLMService.swift`)
-- [ ] Advanced natural language understanding with context awareness
-- [ ] Predictive task scheduling based on patterns
-- [ ] Smart content summarization for long-form content
-- [ ] Automated priority adjustment based on deadlines and importance
-
-**Export & Integration:**
-- [ ] PDF/Markdown export system (`Services/ExportService.swift`)
-- [ ] Calendar app integration (Apple Calendar, Google Calendar)
-- [ ] Email client synchronization for task creation
-- [ ] Third-party tool connectors (Notion, Obsidian, etc.)
-
-**Collaboration Features:**
-- [ ] Shared project spaces for team collaboration
-- [ ] Task delegation and assignment system
-- [ ] Progress tracking dashboards
-- [ ] Real-time collaboration tools
-
----
-
-## 🏗️ Technical Architecture
-
-### **Current Stack**
-- **Frontend**: SwiftUI (macOS native)
-- **Backend**: PostgreSQL with Supabase
-- **AI Processing**: LLM integration (OpenAI/Claude)
-- **Architecture**: MVVM with service-oriented design
-- **Build System**: Swift Package Manager
-- **Real-time**: Supabase real-time subscriptions
-
-### **Project Structure**
+### Clean Architecture Principles
 ```
-LifeManager/
-├── Sources/LifeManager/
-│   ├── App/                    # Application lifecycle (45 lines)
-│   ├── Models/                 # Data models and enums (500+ lines)
-│   ├── Services/               # Core services (6,000+ lines)
-│   │   ├── LLMService.swift           # AI processing (1,693 lines)
-│   │   ├── SupabaseService.swift      # Database operations (492 lines)
-│   │   ├── TogglService.swift         # Time tracking (614 lines)
-│   │   └── [7 other services]         # Calendar, notifications, etc.
-│   ├── ViewModels/             # MVVM view models (3,125 lines)
-│   ├── Views/                  # SwiftUI views (8,000+ lines)
-│   │   ├── ContentView.swift          # Main UI (5,310 lines)
-│   │   ├── Calendar/                  # Calendar components (9 files)
-│   │   └── [Other views]              # Auth, brain dump, etc.
-│   ├── Repositories/           # Data access layer (300+ lines)
-│   └── Utils/                  # Utilities and extensions (200+ lines)
-├── Tests/                      # Unit and integration tests
-├── supabase/migrations/        # Database schema (2,000+ lines)
-├── doc/                        # Comprehensive documentation
-└── prompts/templates/          # LLM prompt templates
+Sources/LifeManager/
+├── Services/
+│   ├── Context/                    # Refactored context memory system
+│   │   ├── ActivityPatternService  # User behavior tracking (195 lines)
+│   │   ├── ContextWindowManager    # Sliding window management (219 lines)
+│   │   ├── SummaryGenerationService # Daily/weekly/monthly summaries (261 lines)
+│   │   ├── ContextPersistenceService # Database operations (206 lines)
+│   │   ├── ContextQueryService     # Search and queries (227 lines)
+│   │   └── ContextMemoryCoordinator # Facade coordinator (186 lines)
+│   ├── AI/
+│   │   ├── LLMService              # OpenAI integration
+│   │   ├── EmbeddingsService       # Semantic search
+│   │   └── EnhancedBrainDumpProcessor # Complex note processing
+│   └── Data/
+│       ├── SupabaseService         # Database operations
+│       └── CalendarService         # Calendar integration
+├── ViewModels/                     # MVVM architecture
+│   ├── MainViewModel               # Central app state
+│   └── ContextualPARAViewModel    # PARA methodology logic
+├── Views/                          # SwiftUI interfaces
+└── Models/                         # Data models
 ```
 
----
+### Code Quality Standards
+- **Maximum 500 lines** per service file
+- **Single Responsibility** principle enforced
+- **Comprehensive Testing** with >80% coverage target
+- **Performance Monitoring** built into all services
+- **Structured Logging** with multiple severity levels
 
-## 📊 Project Metrics
-
-| Metric | Value | Status |
-|--------|-------|--------|
-| **Total Lines of Code** | 24,390+ lines | Production-ready |
-| **Swift Source Files** | 35+ files | Well-organized |
-| **Average File Size** | 285 lines | Maintainable |
-| **Core Services** | 10 major services | Complete |
-| **View Components** | 25+ SwiftUI views | Modular |
-| **Database Tables** | 18+ core tables | Comprehensive |
-| **Test Coverage** | Expanding | Unit tests implemented |
-| **Build Success Rate** | 100% | Zero compilation errors |
-| **MVVM Compliance** | 100% | Strict architecture |
-| **Documentation Coverage** | 85% | Professional standards |
-
-### **Development Velocity**
-- **v1.0**: 8,876 lines in 2 days (4,438 lines/day)
-- **v1.25**: 3,417 lines in 1 day (3,417 lines/day)
-- **v1.5**: 1,900 lines in 1 day (1,900 lines/day)
-- **v1.75**: 10,197 lines in 3 days (3,399 lines/day)
-- **Average**: 3,538 lines/day
-
----
-
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
-- **macOS**: 13.0+ (Ventura or later)
-- **Swift**: 5.9+
-- **Database**: PostgreSQL 15+ (via Supabase)
-- **API Keys**: OpenAI API key for LLM processing
+- macOS 13.0 (Ventura) or later
+- Xcode 15.0 or later
+- OpenAI API key
+- Supabase account (for sync features)
 
 ### Installation
 
-1. **Clone and build:**
-   ```bash
-   git clone https://github.com/yourusername/LifeManager.git
-   cd LifeManager
-   ./build_and_install.sh
-   ```
-
-2. **Configure API keys:**
-   ```bash
-   export OPENAI_API_KEY="your-api-key-here"
-   ```
-
-3. **Launch the app:**
-   ```bash
-   open /Applications/LifeManager.app
-   ```
-
-### First Launch
-- Development account created automatically (`dev@lifemanager.local`)
-- Sample PARA data generated for exploration
-- Supabase connection established
-- Ready to start brain-dumping content!
-
----
-
-## 🧪 Testing & Quality Assurance
-
-### **Test Coverage Status**
-- **Core Services**: ✅ Unit tests implemented
-- **Calendar Logic**: ✅ Drag & drop, scheduling, buffer management
-- **LLM Processing**: ✅ Parsing, categorization, task extraction
-- **PARA Framework**: ✅ Content organization and filtering
-- **Database Operations**: ✅ CRUD operations and migrations
-- **UI Components**: ⏳ Expanding test coverage
-
-### **Quality Metrics**
-- **Build Success**: 100% compilation success rate
-- **Error Handling**: Comprehensive throughout codebase
-- **Code Quality**: Production-ready, no TODOs/placeholders
-- **Architecture**: Strict MVVM, modular components
-- **Performance**: Optimized API calls, smooth animations
-
-### **Running Tests**
+1. **Clone the repository**
 ```bash
-swift test                    # Run all tests
-swift test --parallel        # Parallel test execution
-./monitor_logs.sh            # Monitor app logs during testing
+git clone https://github.com/yourusername/LifeManager.git
+cd LifeManager
 ```
 
----
-
-## 🎨 Visual Features
-
-### **Calendar System** *(v1.75)*
-- **Drag & Drop**: Seamless task scheduling between parking lot and calendar
-- **Visual Feedback**: Color-coded events, hover states, and visual cues
-- **Multi-View Support**: Day (24-hour), Week, and Month views
-- **Project Visualization**: Duration bars and color coding by project
-- **Real-time Updates**: Live Toggl integration with actual vs. planned time
-
-### **PARA Organization**
-- **Inbox Processing**: Clean, intuitive interface for brain-dumping
-- **Category Views**: Dedicated views for Projects, Areas, Resources, Archives
-- **Smart Filtering**: Work/personal separation with intelligent categorization
-- **Context Menus**: Quick actions for delete, complete, archive, schedule
-
-*Note: UI screenshots and demo videos coming soon to showcase the calendar and parking lot features visually.*
-
----
-
-## 🔧 Development & Contributing
-
-### **Development Standards**
-- **Code Quality**: Production-ready, comprehensive error handling
-- **Architecture**: Strict MVVM pattern with service-oriented design
-- **Documentation**: Extensive inline documentation and roadmap traceability
-- **Testing**: Unit tests for all core functionality
-- **Version Control**: Git with feature branches and proper commit messages
-
-### **Key Areas for Contribution**
-1. **AI Enhancement**: Improving LLM processing accuracy and multi-model support
-2. **UI/UX**: Refining the native macOS experience and visual design
-3. **Performance**: Optimizing database queries and UI rendering
-4. **Testing**: Expanding test coverage and automation
-5. **Documentation**: User guides, API documentation, and tutorials
-
-### **Development Workflow**
+2. **Configure API keys**
 ```bash
-git checkout -b feature/your-feature-name
-# Make changes
-swift test                    # Run tests
-./build_and_install.sh       # Build and test
-git commit -m "feat: description"
-git push origin feature/your-feature-name
+cp config.txt.template config.txt
+# Edit config.txt with your API keys:
+# OPENAI_API_KEY=your-key-here
+# SUPABASE_URL=your-url-here
+# SUPABASE_ANON_KEY=your-key-here
 ```
 
----
+3. **Build and install**
+```bash
+# Quick install to /Applications
+./build_and_install.sh
 
-## 📈 Success Stories & Achievements
+# Or build and run directly
+./run.sh
+```
 
-### **v1.75 Achievements**
-- **Architecture**: Successfully modularized 6,117-line monolithic file into 9 clean components
-- **Calendar System**: Full drag & drop functionality with intelligent scheduling
-- **Performance**: Optimized Toggl API calls with rate limiting and smart caching
-- **User Experience**: Intuitive interface with visual feedback and smooth animations
+### Database Setup
 
-### **Technical Milestones**
-- **Zero Compilation Errors**: 100% build success rate maintained
-- **Production Quality**: No TODOs or placeholders in shipped code
-- **Comprehensive Testing**: Unit tests for all critical functionality
-- **Professional Documentation**: Complete roadmap-to-code traceability
+Apply the enhanced brain dump tables migration:
+```bash
+./apply_migration_tables.sh
+# Follow instructions to apply via Supabase dashboard
+```
 
----
+## 🧪 Testing
 
-## 🙏 Acknowledgments
+### Run Tests
+```bash
+# All tests
+swift test
 
-- **PARA Method**: Created by Tiago Forte for knowledge organization
-- **Supabase**: Real-time database and authentication platform
-- **Toggl**: Time tracking integration and project management
-- **OpenAI/Anthropic**: LLM processing capabilities for intelligent automation
-- **SwiftUI**: Modern declarative UI framework for native macOS development
+# Specific test suite
+swift test --filter LifeManagerTests
 
----
+# With coverage
+swift test --enable-code-coverage
+```
+
+### Test Brain Dump Processing
+```bash
+# Test enhanced processor
+./scripts/test_enhanced_brain_dump.sh
+
+# Test complex scenarios
+./scripts/test_complex_brain_dump.sh
+```
+
+## 📊 Performance & Monitoring
+
+### Real-time Monitoring
+```bash
+# Monitor logs with color coding
+./monitor_logs.sh -f
+
+# Filter by severity
+./monitor_logs.sh -l ERROR
+
+# Search specific features
+./monitor_logs.sh -s "BRAIN DUMP"
+```
+
+### Performance Metrics
+- **Processing Speed**: <2s for typical brain dump
+- **Memory Usage**: ~50MB baseline, scales with context
+- **Context Window**: Adaptive 50-200 items
+- **Database Sync**: Real-time with <100ms latency
+
+## 🔧 Development
+
+### Building from Source
+```bash
+# Clean build
+swift package clean
+swift build --configuration release
+
+# Development build with debugging
+swift build --configuration debug
+```
+
+### Code Organization Rules
+- Services: Max 500 lines
+- Views: Max 300 lines  
+- Utilities: Max 200 lines
+- Mandatory refactoring when limits exceeded
+
+### Commit Standards
+```bash
+# Use conventional commits
+git commit -m "feat: add calendar integration"
+git commit -m "fix: resolve memory leak in context window"
+git commit -m "refactor: split ContextMemoryService into focused services"
+
+# NEVER include:
+# - AI assistant references
+# - Emojis in commit messages
+# - Marketing language
+```
+
+## 🤝 MCP Servers Integration
+
+LifeManager includes Model Context Protocol (MCP) servers for enhanced capabilities:
+
+- **filesystem**: File system operations
+- **git**: Repository management
+- **memory**: Knowledge graph storage
+- **sequential-thinking**: Step-by-step reasoning
+- **time**: Time utilities
+- **brain-dump**: Custom complex note processor
+
+Setup MCP servers:
+```bash
+./setup_additional_mcps.sh
+```
+
+## 📈 Roadmap
+
+### v2.0 - Intelligence Expansion (Current)
+- ✅ Enhanced brain dump processing
+- ✅ Context memory system refactoring
+- ✅ Database migration for complex data types
+- 🚧 Advanced AI decision engine
+- 🚧 Learning system implementation
+
+### v2.5 - Automation & Integration
+- Calendar bi-directional sync
+- Email integration
+- Voice input support
+- Mobile companion app
+
+### v3.0 - Predictive Intelligence
+- Proactive task suggestions
+- Pattern-based automation
+- Collaborative features
+- API for third-party integrations
+
+## 📚 Documentation
+
+- [Architecture Guide](./ARCHITECTURE.md) - Technical deep dive
+- [API Documentation](./docs/api/README.md) - Service interfaces
+- [User Guide](./docs/guides/user_guide.md) - Feature walkthroughs
+- [Development Guide](./CLAUDE.md) - Coding standards and practices
+
+## 🛠️ Troubleshooting
+
+### Common Issues
+
+**Build fails with Swift version error**
+```bash
+# Check Swift version
+swift --version
+# Update Xcode if needed
+```
+
+**Database connection issues**
+```bash
+# Verify Supabase credentials
+curl -X GET "YOUR_SUPABASE_URL/rest/v1/" \
+  -H "apikey: YOUR_ANON_KEY"
+```
+
+**High memory usage**
+```bash
+# Adjust context window size in settings
+# Default: 100 items, Range: 50-200
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+### Development Process
+1. Fork the repository
+2. Create a feature branch
+3. Follow code standards in CLAUDE.md
+4. Write tests for new features
+5. Submit a pull request
 
 ## 📄 License
 
-LifeManager is released under the MIT License. See `LICENSE` file for details.
+This project is licensed under the MIT License - see [LICENSE](./LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- OpenAI for GPT-4 and embedding models
+- Supabase for real-time database infrastructure
+- The PARA Method by Tiago Forte
+- Swift community for excellent packages
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/LifeManager/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/LifeManager/discussions)
+- **Email**: support@lifemanager.app
 
 ---
 
-## 📞 Support & Community
-
-- **Documentation**: Comprehensive guides in `/doc` directory
-- **Issues**: Report bugs and request features via GitHub Issues
-- **Discussions**: Join community discussions for tips and best practices
-- **Updates**: Follow development progress and release notes
-
----
-
-**Built with ❤️ for productivity enthusiasts and knowledge workers**
-
-*LifeManager: Where chaos becomes clarity, and thoughts become action.*
-
----
-
-**Current Status**: v1.8 (Traceability & Documentation) | **Next Release**: v2.0 (Intelligence Expansion)  
-**Last Updated**: June 14, 2025 | **Active Development** | **Production Ready** 
+**Built with ❤️ for people who think in chaos but need to live in order**
