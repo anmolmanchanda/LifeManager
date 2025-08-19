@@ -105,6 +105,7 @@ class LLMConfigurationService: ObservableObject {
             switch self {
             case .openAI: return "OpenAI"
             case .claude: return "Claude"
+            @unknown default: return "Unknown Provider"
             }
         }
         
@@ -112,6 +113,7 @@ class LLMConfigurationService: ObservableObject {
             switch self {
             case .openAI: return !LLMConfigurationService.shared.getOpenAIKey().isEmpty && LLMConfigurationService.shared.getOpenAIKey() != "your-openai-api-key-here"
             case .claude: return !LLMConfigurationService.shared.getClaudeKey().isEmpty
+            @unknown default: return false
             }
         }
     }
@@ -197,6 +199,8 @@ class LLMConfigurationService: ObservableObject {
             return key.hasPrefix("sk-") && key.count > 20
         case .claude:
             return key.hasPrefix("sk-") && key.count > 20 // Claude uses similar format
+        @unknown default:
+            return false
         }
     }
     
@@ -239,6 +243,14 @@ class LLMConfigurationService: ObservableObject {
                 temperature: 0.7,
                 baseURL: getClaudeBaseURL()
             )
+        @unknown default:
+            return ModelConfiguration(
+                provider: provider,
+                model: "unknown",
+                maxTokens: 4096,
+                temperature: 0.7,
+                baseURL: ""
+            )
         }
     }
     
@@ -264,6 +276,9 @@ class LLMConfigurationService: ObservableObject {
             let isValid = validateAPIKey(key, for: provider)
             logger.info("🔧 CONFIG: Claude key validation: \(isValid)")
             return isValid
+        @unknown default:
+            logger.warning("🔧 CONFIG: Unknown provider: \(provider)")
+            return false
         }
     }
 }

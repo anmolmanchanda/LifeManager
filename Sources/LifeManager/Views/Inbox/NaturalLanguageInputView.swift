@@ -2,186 +2,170 @@
 // NaturalLanguageInputView.swift
 // LifeManager
 //
-// Implements: v1.0 "Natural Language Input", v1.25 "Enhanced UI", v1.85 "UI/UX Polish"
-// Roadmap Reference: v1.0 Foundation → v1.25 Intelligence & UI → v1.85 UI/UX Polish
-// Status: ✅ COMPLETE as of June 18, 2025 (extracted from ContentView.swift)
-// Future: v2.5 Voice Input, Real-time Suggestions, Smart Completions
+// Natural language input component for brain dump
+// Extracted from ContentView for modularity
 //
 
 import SwiftUI
 
-/// Advanced natural language input interface with AI processing capabilities
-/// Features personalized greeting, smart placeholders, and real-time processing feedback
-/// Core component of LifeManager's brain dump workflow
+/// Natural language input view for brain dump
 struct NaturalLanguageInputView: View {
     @EnvironmentObject var viewModel: MainViewModel
-    @State private var inputText = ""
-    @State private var isProcessing = false
+    @FocusState private var isInputFocused: Bool
+    @State private var characterCount = 0
+    @State private var showingClearConfirmation = false
+    
+    private let maxCharacters = 10000
     
     var body: some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 16) {
-                // Centered greeting
-                HStack {
-                    Spacer()
-                    Text("Good to see you, Anmol.")
-                        .font(.title)
-                        .fontWeight(.semibold)
-                    Spacer()
-                }
+        VStack(alignment: .leading, spacing: 16) {
+            // Input Header
+            HStack {
+                Label("What's on your mind?", systemImage: "bubble.left.and.bubble.right")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Text("\(characterCount)/\(maxCharacters)")
+                    .font(.caption)
+                    .foregroundColor(characterCount > maxCharacters * 0.9 ? .orange : .secondary)
             }
             
-            // Large text editor taking up significant vertical space
+            // Text Editor
             ZStack(alignment: .topLeading) {
-                TextEditor(text: $inputText)
-                    .font(.body)
-                    .padding(12)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(8)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(NSColor.controlBackgroundColor))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isInputFocused ? Color.accentColor : Color.gray.opacity(0.3), lineWidth: 2)
                     )
-                    .frame(minHeight: 200, maxHeight: .infinity)
-                    .disabled(isProcessing)
                 
-                // Placeholder text
-                if inputText.isEmpty {
-                    Text("What's on your mind?")
-                        .font(.title3)
+                if viewModel.inboxInput.isEmpty {
+                    Text("Type or paste your thoughts, tasks, ideas, notes...")
                         .foregroundColor(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 16)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 12)
                         .allowsHitTesting(false)
                 }
-            }
-            
-            // Button area below input with centered thinking text
-            HStack {
-                // Show thinking text in center when processing
-                if viewModel.isProcessingInbox || isProcessing {
-                    HStack {
-                        Spacer()
-                        if !viewModel.brainDumpProgressMessage.isEmpty {
-                            Text(viewModel.brainDumpProgressMessage)
-                                .font(.title)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                        } else {
-                            Text("Thinking")
-                                .font(.title)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                        }
-                        Spacer()
-                    }
-                    .transition(.opacity)
-                } else {
-                    Spacer()
-                    
-                    HStack(spacing: 8) {
-                        Text("ChatGPT 4.1")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                        
-                        Button(action: {
-                            submitInput()
-                        }) {
-                            Image(systemName: "arrow.up")
-                                .font(.body)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                        }
-                        .disabled(inputText.isEmpty || isProcessing)
-                        .buttonStyle(.plain)
-                        .frame(width: 28, height: 28)
-                        .background(inputText.isEmpty || isProcessing ? Color.gray : Color.blue)
-                        .cornerRadius(6)
-                    }
-                }
-            }
-            .padding(.top, 8)
-            
-            // Show elapsed time if available (separate row)
-            if viewModel.brainDumpElapsedTime > 0 {
-                let minutes = viewModel.brainDumpElapsedTime / 60
-                let seconds = viewModel.brainDumpElapsedTime % 60
-                let timeString = minutes > 0 ? "\(minutes)m \(seconds)s" : "\(seconds)s"
                 
-                HStack {
-                    Spacer()
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                            .foregroundColor(.blue)
-                        Text("Processing time: \(timeString)")
-                            .font(.caption2)
-                            .foregroundColor(.blue)
+                TextEditor(text: $viewModel.inboxInput)
+                    .font(.system(.body, design: .default))
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .focused($isInputFocused)
+                    .onChange(of: viewModel.inboxInput) { newValue in
+                        characterCount = newValue.count
+                        
+                        // Auto-save draft
+                        if !newValue.isEmpty {
+                            UserDefaults.standard.set(newValue, forKey: "brainDumpDraft")
+                        }
                     }
-                    Spacer()
+                    .disabled(viewModel.isProcessingInbox)
+            }
+            .frame(minHeight: 150, maxHeight: 400)
+            
+            // Action Buttons
+            HStack(spacing: 12) {
+                // Clear Button
+                Button(action: { showingClearConfirmation = true }) {
+                    Label("Clear", systemImage: "trash")
                 }
-                .padding(.top, 4)
+                .buttonStyle(.bordered)
+                .disabled(viewModel.inboxInput.isEmpty || viewModel.isProcessingInbox)
+                .confirmationDialog("Clear Input?", isPresented: $showingClearConfirmation) {
+                    Button("Clear", role: .destructive) {
+                        viewModel.inboxInput = ""
+                        characterCount = 0
+                        UserDefaults.standard.removeObject(forKey: "brainDumpDraft")
+                    }
+                    Button("Cancel", role: .cancel) {}
+                }
+                
+                // Load Draft Button
+                if let draft = UserDefaults.standard.string(forKey: "brainDumpDraft"),
+                   !draft.isEmpty && viewModel.inboxInput.isEmpty {
+                    Button(action: loadDraft) {
+                        Label("Load Draft", systemImage: "doc.text")
+                    }
+                    .buttonStyle(.bordered)
+                }
+                
+                Spacer()
+                
+                // Process Button
+                Button(action: { viewModel.processInboxInput() }) {
+                    Label(
+                        viewModel.isProcessingInbox ? "Processing..." : "Process",
+                        systemImage: viewModel.isProcessingInbox ? "gear" : "arrow.right.circle.fill"
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.inboxInput.isEmpty || viewModel.isProcessingInbox)
+                .keyboardShortcut(.return, modifiers: .command)
             }
             
-            // History section
-            if !viewModel.inboxHistory.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Recent Processing History")
+            // Keyboard Shortcuts Help
+            if isInputFocused {
+                HStack(spacing: 16) {
+                    Label("⌘↩ Process", systemImage: "keyboard")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    ForEach(Array(viewModel.inboxHistory.enumerated()), id: \.offset) { index, item in
-                        InboxHistoryRow(item: item)
-                    }
+                    Label("⌘D Clear", systemImage: "keyboard")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .padding(.top, 8)
             }
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(12)
-        .sheet(isPresented: $viewModel.showingBrainDumpReview) {
-            if let result = viewModel.brainDumpResult {
-                BrainDumpReviewView(
-                    result: result,
-                    onComplete: { summary in
-                        viewModel.completeBrainDump(summary)
-                    },
-                    onCancel: {
-                        viewModel.cancelBrainDump()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(NSColor.windowBackgroundColor))
+                .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+        )
+        .onAppear {
+            loadDraftIfEmpty()
+        }
+        .onDrop(of: [.plainText], isTargeted: nil) { providers in
+            handleDrop(providers: providers)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func loadDraft() {
+        if let draft = UserDefaults.standard.string(forKey: "brainDumpDraft") {
+            viewModel.inboxInput = draft
+            characterCount = draft.count
+        }
+    }
+    
+    private func loadDraftIfEmpty() {
+        if viewModel.inboxInput.isEmpty {
+            loadDraft()
+        } else {
+            characterCount = viewModel.inboxInput.count
+        }
+    }
+    
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first else { return false }
+        
+        provider.loadItem(forTypeIdentifier: "public.plain-text", options: nil) { data, _ in
+            if let data = data as? Data,
+               let text = String(data: data, encoding: .utf8) {
+                DispatchQueue.main.async {
+                    if viewModel.inboxInput.isEmpty {
+                        viewModel.inboxInput = text
+                    } else {
+                        viewModel.inboxInput += "\n\n" + text
                     }
-                )
-                .environmentObject(viewModel)
+                    characterCount = viewModel.inboxInput.count
+                }
             }
         }
-    }
-    
-    // MARK: - Private Methods
-    
-    /// Submit input for AI processing through brain dump workflow
-    private func submitInput() {
-        guard !inputText.isEmpty else { return }
         
-        isProcessing = true
-        
-        // Set the input in the view model and trigger brain dump processing
-        viewModel.inboxInput = inputText
-        
-        // Clear input immediately for better UX
-        inputText = ""
-        
-        // Process using brain dump processor
-        viewModel.processInboxInput()
-        
-        // Reset local processing state quickly, but keep viewModel.isProcessingInbox for persistent updates
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isProcessing = false
-        }
+        return true
     }
 }
-
-/* #Preview // DISABLED FOR STABILIZATION
-    NaturalLanguageInputView()
-        .environmentObject(MainViewModel())
-        .frame(width: 600, height: 400)
-}*/

@@ -52,7 +52,7 @@ class ContextualPARAViewModel: ObservableObject {
     // MARK: - Dependencies
     
     private let contextualEngine = ContextualPARAEngine()
-    private let contextMemoryService = ContextMemoryService.shared
+    private let contextMemoryCoordinator = ContextMemoryCoordinator.shared
     private let personalRulesService = PersonalRulesService.shared
     private let embeddingsService = EmbeddingsService.shared
     
@@ -105,7 +105,7 @@ class ContextualPARAViewModel: ObservableObject {
                 showingMetaSuggestions = true
             }
             
-            print("🧠 CONTEXTUAL: ✅ Processed \(processedItems.count) items with \(Int(processingConfidence * 100))% confidence")
+            Logger.shared.success("CONTEXTUAL: Processed \(processedItems.count) items with \(Int(processingConfidence * 100))% confidence")
             
         } catch {
             showError("Failed to process input: \(error.localizedDescription)")
@@ -139,7 +139,7 @@ class ContextualPARAViewModel: ObservableObject {
             // Refresh personal rules
             await refreshPersonalRules()
             
-            print("📝 CONTEXTUAL: ✅ Applied user correction and updated rules")
+            Logger.shared.info("CONTEXTUAL: Applied user correction and updated rules")
             
         } catch {
             showError("Failed to apply correction: \(error.localizedDescription)")
@@ -182,7 +182,7 @@ class ContextualPARAViewModel: ObservableObject {
     
     /// Get context summary for display
     func getContextSummary(timeframe: ContextTimeframe = .week) async {
-        contextSummary = await contextMemoryService.getContextSummary(for: timeframe)
+        contextSummary = await contextMemoryCoordinator.getContextSummary(timeframe: timeframe)
     }
     
     /// Refresh all data
@@ -215,12 +215,12 @@ class ContextualPARAViewModel: ObservableObject {
         do {
             // Convert to PARA items and add to context memory
             let paraItems = selectedItemsToExport.map { $0.toPARAItem() }
-            await contextMemoryService.addToContext(paraItems)
+            await contextMemoryCoordinator.addToContext(paraItems)
             
             // Update embeddings for new items
             await embeddingsService.updatePARAEmbeddings()
             
-            print("🧠 CONTEXTUAL: ✅ Exported \(paraItems.count) items to PARA system")
+            Logger.shared.success("CONTEXTUAL: Exported \(paraItems.count) items to PARA system")
             
             // Clear exported items
             processedItems.removeAll { item in
@@ -260,12 +260,12 @@ class ContextualPARAViewModel: ObservableObject {
     
     private func loadInitialData() async {
         // Load context information
-        let activeItems = contextMemoryService.getActiveItems()
+        let activeItems = contextMemoryCoordinator.getActiveItems()
         activeProjects = activeItems.projects
         activeAreas = activeItems.areas
         
         // Load context patterns
-        contextPatterns = contextMemoryService.getContextPatterns()
+        contextPatterns = contextMemoryCoordinator.getContextPatterns()
         
         // Load context summary
         await getContextSummary()

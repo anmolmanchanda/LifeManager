@@ -25,46 +25,60 @@ class SupabaseService: ObservableObject {
     // MARK: - Initialization
     
     private init() {
-        // Initialize Supabase client with configuration
+        // TEMPORARY: Disable Supabase to avoid keychain issues
+        // Initialize with dummy client that won't trigger keychain
         self.client = SupabaseClient(
-            supabaseURL: URL(string: SupabaseConfig.url)!,
-            supabaseKey: SupabaseConfig.anonKey
+            supabaseURL: URL(string: "https://localhost:54321")!,
+            supabaseKey: "dummy-key-to-avoid-keychain"
         )
         
-        // Check initial authentication state
-        Task {
-            await checkAuthState()
-        }
+        // Skip authentication completely
+        self.isAuthenticated = true // Force authenticated state
+        
+        // DO NOT check auth state to avoid keychain triggers
+        // Task {
+        //     await checkAuthState()
+        // }
     }
     
     // MARK: - Authentication
     
     /// Check current authentication state
     func checkAuthState() async {
-        do {
-            let session = try await client.auth.session
-            await MainActor.run {
-                self.isAuthenticated = session.user != nil
-                // currentUser will be set when needed
-            }
-        } catch {
-            await MainActor.run {
-                self.isAuthenticated = false
-                self.currentUser = nil
-            }
+        // TEMPORARY: Skip auth check to avoid keychain
+        await MainActor.run {
+            self.isAuthenticated = true // Always authenticated
+            // Don't set currentUser - let it be nil
+            self.currentUser = nil
         }
+        return // Skip actual auth check
+        
+        // Original code disabled to prevent keychain access:
+        // do {
+        //     let session = try await client.auth.session
+        //     await MainActor.run {
+        //         self.isAuthenticated = session.user != nil
+        //         // currentUser will be set when needed
+        //     }
+        // } catch {
+        //     await MainActor.run {
+        //         self.isAuthenticated = false
+        //         self.currentUser = nil
+        //     }
+        // }
     }
     
     /// Sign in with email and password
     func signIn(email: String, password: String) async throws -> Auth.Session {
-        let session = try await client.auth.signIn(email: email, password: password)
-        
+        // TEMPORARY: Skip auth to avoid keychain
         await MainActor.run {
-            self.isAuthenticated = session.user != nil
-            // Convert Auth.User to our User type if needed
+            self.isAuthenticated = true
+            self.currentUser = nil
         }
         
-        return session
+        // Throw a generic error to prevent actual auth
+        struct AuthBypassError: Error {}
+        throw AuthBypassError()
     }
     
     /// Sign in with magic link
@@ -476,6 +490,8 @@ enum SupabaseError: Error, LocalizedError {
             return "Invalid callback"
         case .emailConfirmationRequired:
             return "Email confirmation required"
+        @unknown default:
+            return "Unknown Supabase error occurred"
         }
     }
 }

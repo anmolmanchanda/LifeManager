@@ -9,7 +9,7 @@ class PersonalRulesServiceTests: XCTestCase {
     override func setUp() {
         super.setUp()
         mockRepository = MockPersonalRulesRepository()
-        personalRulesService = PersonalRulesService(repository: mockRepository)
+        personalRulesService = PersonalRulesService(testMode: true)
     }
     
     override func tearDown() {

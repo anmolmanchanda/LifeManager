@@ -703,3 +703,22 @@ extension Float {
         return Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
+
+#if DEBUG
+// MARK: - Test Support
+extension PersonalRulesService {
+    /// Test-only initializer for unit testing
+    /// - Parameter testMode: Flag to indicate test mode initialization
+    convenience init(testMode: Bool) {
+        self.init()
+        // In test mode, skip async initialization
+        if testMode {
+            // Clear any production data
+            self.personalRules = []
+            self.userCorrections = []
+            self.ruleStats = RuleStats()
+            self.suggestedRules = []
+        }
+    }
+}
+#endif

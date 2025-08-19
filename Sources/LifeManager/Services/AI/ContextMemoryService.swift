@@ -59,10 +59,10 @@ class ContextMemoryService: ObservableObject {
     // MARK: - Published State
     
     @Published var activeContextWindow: [ContextMemoryItem] = []
-    @Published var dailySummaries: [DailySummary] = []
-    @Published var weeklySummaries: [WeeklySummary] = []
-    @Published var monthlySummaries: [MonthlySummary] = []
-    @Published var contextStats: ContextStats = ContextStats()
+    @Published var dailySummaries: [MemoryDailySummary] = []
+    @Published var weeklySummaries: [MemoryWeeklySummary] = []
+    @Published var monthlySummaries: [MemoryMonthlySummary] = []
+    @Published var contextStats: MemoryContextStats = MemoryContextStats()
     
     // MARK: - Dependencies
     
@@ -77,7 +77,7 @@ class ContextMemoryService: ObservableObject {
     private var contextUpdateTimer: Timer?
     private let contextQueue = DispatchQueue(label: "context.memory", qos: .utility)
     private var currentWindowSize: Int = ContextConfig.defaultSlidingWindowSize
-    private var activityPatterns: ActivityPatterns = ActivityPatterns()
+    private var activityPatterns: MemoryActivityPatterns = MemoryActivityPatterns()
     
     // MARK: - Memory Management
     
@@ -143,15 +143,39 @@ class ContextMemoryService: ObservableObject {
     func getCurrentContext() async -> ProcessingContext {
         let calendarContext = await getCalendarContext()
         
-        let recentItemsList = Array(activeContextWindow.suffix(currentWindowSize)).map { ContextItem(from: $0) }
+        let recentItemsList = Array(activeContextWindow.suffix(currentWindowSize)).map { MemoryContextItem(from: $0).toContextItem() }
+        
+        // Convert to regular ProcessingContext by converting summary types
+        let regularDailySummaries = dailySummaries.prefix(7).map { summary -> DailySummary in
+            let converted = DailySummary(date: summary.date)
+            converted.projectsActive = summary.projectsActive
+            converted.areasActive = summary.areasActive
+            converted.tasksCompleted = summary.tasksCompleted
+            converted.resourcesAdded = summary.resourcesAdded
+            converted.topTags = summary.topTags
+            converted.totalItems = summary.totalItems
+            return converted
+        }
+        
+        let regularWeeklySummaries = weeklySummaries.prefix(4).map { summary -> WeeklySummary in
+            WeeklySummary(weekStartDate: summary.weekStartDate, dailySummaries: regularDailySummaries)
+        }
+        
+        let regularMonthlySummaries = monthlySummaries.prefix(3).map { summary -> MonthlySummary in
+            MonthlySummary(monthStartDate: summary.monthStartDate, weeklySummaries: regularWeeklySummaries)
+        }
+        
+        let regularContextStats = ContextStats()
+        // Map available fields from MemoryContextStats to ContextStats
+        regularContextStats.totalItems = contextStats.totalItems
+        regularContextStats.lastUpdated = contextStats.lastUpdated
+        
         return ProcessingContext(
-            recentItems: recentItemsList, // Dynamic window size
-            recentActivityItems: recentItemsList, // Same data for compatibility
-            dailySummaries: Array(dailySummaries.prefix(7)), // Last 7 days
-            weeklySummaries: Array(weeklySummaries.prefix(4)), // Last 4 weeks
-            monthlySummaries: Array(monthlySummaries.prefix(3)), // Last 3 months
-            contextStats: contextStats,
-            calendarContext: calendarContext,
+            recentItems: recentItemsList,
+            dailySummaries: Array(regularDailySummaries),
+            weeklySummaries: Array(regularWeeklySummaries),
+            monthlySummaries: Array(regularMonthlySummaries),
+            contextStats: regularContextStats,
             timestamp: Date()
         )
     }
@@ -185,7 +209,7 @@ class ContextMemoryService: ObservableObject {
     }
     
     /// Get context summary for LLM prompts
-    func getContextSummary(for timeframe: ContextTimeframe = .week) async -> String {
+    func getContextSummary(for timeframe: MemoryContextTimeframe = .week) async -> String {
         switch timeframe {
         case .day:
             return await getDailyContextSummary()
@@ -235,7 +259,7 @@ class ContextMemoryService: ObservableObject {
         var combinedResults: [ContextItem] = semanticMatches
         for textMatch in textMatches {
             if !combinedResults.contains(where: { $0.id == textMatch.id }) {
-                combinedResults.append(ContextItem(from: textMatch))
+                combinedResults.append(MemoryContextItem(from: textMatch).toContextItem())
             }
         }
         
@@ -258,7 +282,7 @@ class ContextMemoryService: ObservableObject {
                     embedding2: itemEmbedding
                 )
                 if similarity > 0.7 { // Semantic similarity threshold
-                    similarities.append((item: ContextItem(from: item), similarity: similarity))
+                    similarities.append((item: MemoryContextItem(from: item).toContextItem(), similarity: similarity))
                 }
             }
         }
@@ -270,15 +294,15 @@ class ContextMemoryService: ObservableObject {
     }
     
     /// Get context patterns for personalization
-    func getContextPatterns() -> ContextPatterns {
+    func getContextPatterns() -> MemoryContextPatterns {
         let recentItems = Array(activeContextWindow.suffix(50))
         
-        return ContextPatterns(
-            frequentProjects: getFrequentItems(recentItems.map { ContextItem(from: $0) }, category: .project),
-            frequentAreas: getFrequentItems(recentItems.map { ContextItem(from: $0) }, category: .area),
-            commonTags: getCommonTags(recentItems.map { ContextItem(from: $0) }),
-            workPersonalRatio: getWorkPersonalRatio(recentItems.map { ContextItem(from: $0) }),
-            peakActivityHours: getPeakActivityHours(recentItems.map { ContextItem(from: $0) }),
+        return MemoryContextPatterns(
+            frequentProjects: getFrequentItems(recentItems.map { MemoryContextItem(from: $0) }, category: .project),
+            frequentAreas: getFrequentItems(recentItems.map { MemoryContextItem(from: $0) }, category: .area),
+            commonTags: getCommonTags(recentItems.map { MemoryContextItem(from: $0) }),
+            workPersonalRatio: getWorkPersonalRatio(recentItems.map { MemoryContextItem(from: $0) }),
+            peakActivityHours: getPeakActivityHours(recentItems.map { MemoryContextItem(from: $0) }),
             averageItemsPerDay: getAverageItemsPerDay()
         )
     }
@@ -301,7 +325,7 @@ class ContextMemoryService: ObservableObject {
     }
     
     private func getWeeklyContextSummary() async -> String {
-        let thisWeek = weeklySummaries.first ?? WeeklySummary(weekStartDate: Date())
+        let thisWeek = weeklySummaries.first ?? MemoryWeeklySummary(weekStartDate: Date())
         
         return """
         This Week's Context:
@@ -314,7 +338,7 @@ class ContextMemoryService: ObservableObject {
     }
     
     private func getMonthlyContextSummary() async -> String {
-        let thisMonth = monthlySummaries.first ?? MonthlySummary(monthStartDate: Date())
+        let thisMonth = monthlySummaries.first ?? MemoryMonthlySummary(monthStartDate: Date())
         
         return """
         This Month's Context:
@@ -352,11 +376,11 @@ class ContextMemoryService: ObservableObject {
         await MainActor.run {
             if let existingIndex = dailySummaries.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: today) }) {
                 // Update existing summary
-                dailySummaries[existingIndex].addItems(items.map { ContextItem(from: $0) })
+                dailySummaries[existingIndex].addItems(items.map { MemoryContextItem(from: $0).toContextItem() })
             } else {
                 // Create new daily summary
-                let newSummary = DailySummary(date: today)
-                let contextItems = items.map { ContextItem(from: $0) }
+                let newSummary = MemoryDailySummary(date: today)
+                let contextItems = items.map { MemoryContextItem(from: $0).toContextItem() }
                 newSummary.addItems(contextItems)
                 dailySummaries.insert(newSummary, at: 0)
                 
@@ -417,25 +441,25 @@ class ContextMemoryService: ObservableObject {
         }
     }
     
-    private func generateWeeklySummary(for weekStart: Date) -> WeeklySummary {
+    private func generateWeeklySummary(for weekStart: Date) -> MemoryWeeklySummary {
         let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? Date()
         let weekDailySummaries = dailySummaries.filter { summary in
             summary.date >= weekStart && summary.date < weekEnd
         }
         
-        return WeeklySummary(
+        return MemoryWeeklySummary(
             weekStartDate: weekStart,
             dailySummaries: weekDailySummaries
         )
     }
     
-    private func generateMonthlySummary(for monthStart: Date) -> MonthlySummary {
+    private func generateMonthlySummary(for monthStart: Date) -> MemoryMonthlySummary {
         let monthEnd = Calendar.current.date(byAdding: .month, value: 1, to: monthStart) ?? Date()
         let monthWeeklySummaries = weeklySummaries.filter { summary in
             summary.weekStartDate >= monthStart && summary.weekStartDate < monthEnd
         }
         
-        return MonthlySummary(
+        return MemoryMonthlySummary(
             monthStartDate: monthStart,
             weeklySummaries: monthWeeklySummaries
         )
@@ -458,7 +482,7 @@ class ContextMemoryService: ObservableObject {
             mostActiveCategory = .resource
         }
         
-        contextStats = ContextStats(
+        contextStats = MemoryContextStats(
             totalItems: totalItems,
             projectCount: projectCount,
             areaCount: areaCount,
@@ -469,7 +493,7 @@ class ContextMemoryService: ObservableObject {
         )
     }
     
-    private func getFrequentItems(_ items: [ContextItem], category: PARACategory) -> [String] {
+    private func getFrequentItems(_ items: [MemoryContextItem], category: PARACategory) -> [String] {
         let categoryItems = items.filter { $0.category == category }
         let titleCounts = Dictionary(grouping: categoryItems, by: { $0.title })
             .mapValues { $0.count }
@@ -480,7 +504,7 @@ class ContextMemoryService: ObservableObject {
             .map { $0.key }
     }
     
-    private func getCommonTags(_ items: [ContextItem]) -> [String] {
+    private func getCommonTags(_ items: [MemoryContextItem]) -> [String] {
         let allTags = items.flatMap { $0.tags }
         let tagCounts = Dictionary(grouping: allTags, by: { $0 })
             .mapValues { $0.count }
@@ -491,7 +515,7 @@ class ContextMemoryService: ObservableObject {
             .map { $0.key }
     }
     
-    private func getWorkPersonalRatio(_ items: [ContextItem]) -> String {
+    private func getWorkPersonalRatio(_ items: [MemoryContextItem]) -> String {
         let workItems = items.filter { $0.workPersonal == .work }.count
         let personalItems = items.filter { $0.workPersonal == .personal }.count
         let total = workItems + personalItems
@@ -502,7 +526,7 @@ class ContextMemoryService: ObservableObject {
         return "\(workPercentage)% work, \(100 - workPercentage)% personal"
     }
     
-    private func getPeakActivityHours(_ items: [ContextItem]) -> [Int] {
+    private func getPeakActivityHours(_ items: [MemoryContextItem]) -> [Int] {
         let hourCounts = Dictionary(grouping: items, by: { Calendar.current.component(.hour, from: $0.timestamp) })
             .mapValues { $0.count }
         
@@ -772,7 +796,7 @@ class ContextMemoryService: ObservableObject {
         }
     }
     
-    private func loadDailySummaries() async throws -> [DailySummary] {
+    private func loadDailySummaries() async throws -> [MemoryDailySummary] {
         let supabaseService = SupabaseService.shared
         let userId = getCurrentUserId()
         
@@ -803,7 +827,7 @@ class ContextMemoryService: ObservableObject {
             .execute()
             .value
         
-        var summaries: [DailySummary] = []
+        var summaries: [MemoryDailySummary] = []
         for record in records {
             guard let _ = UUID(uuidString: record.id),
                   let date = ISO8601DateFormatter().date(from: record.date),
@@ -813,14 +837,14 @@ class ContextMemoryService: ObservableObject {
                 continue
             }
             
-            let summary = DailySummary(date: date)
+            let summary = MemoryDailySummary(date: date)
             // TODO: Map additional fields from record to summary when DailySummary structure is finalized
             summaries.append(summary)
         }
         return summaries
     }
     
-    private func loadWeeklySummaries() async throws -> [WeeklySummary] {
+    private func loadWeeklySummaries() async throws -> [MemoryWeeklySummary] {
         let supabaseService = SupabaseService.shared
         let userId = getCurrentUserId()
         
@@ -851,7 +875,7 @@ class ContextMemoryService: ObservableObject {
             .execute()
             .value
         
-        var summaries: [WeeklySummary] = []
+        var summaries: [MemoryWeeklySummary] = []
         for record in records {
             guard let _ = UUID(uuidString: record.id),
                   let weekStart = ISO8601DateFormatter().date(from: record.week_start),
@@ -864,14 +888,14 @@ class ContextMemoryService: ObservableObject {
                 continue
             }
             
-            let summary = WeeklySummary(weekStartDate: weekStart)
+            let summary = MemoryWeeklySummary(weekStartDate: weekStart)
             // Set properties on the summary
             summaries.append(summary)
         }
         return summaries
     }
     
-    private func loadMonthlySummaries() async throws -> [MonthlySummary] {
+    private func loadMonthlySummaries() async throws -> [MemoryMonthlySummary] {
         let supabaseService = SupabaseService.shared
         let userId = getCurrentUserId()
         
@@ -905,7 +929,7 @@ class ContextMemoryService: ObservableObject {
             .execute()
             .value
         
-        var summaries: [MonthlySummary] = []
+        var summaries: [MemoryMonthlySummary] = []
         for record in records {
             guard let _ = UUID(uuidString: record.id),
                   let monthStart = ISO8601DateFormatter().date(from: record.month_start),
@@ -917,7 +941,7 @@ class ContextMemoryService: ObservableObject {
                 continue
             }
             
-            let summary = MonthlySummary(monthStartDate: monthStart)
+            let summary = MemoryMonthlySummary(monthStartDate: monthStart)
             // Set properties on the summary
             summaries.append(summary)
         }
@@ -1010,7 +1034,7 @@ class ContextMemoryService: ObservableObject {
             hourlyCreation[hour, default: 0] += 1
             
             // Estimate typical duration based on item type and priority
-            let estimatedDuration = estimateTaskDuration(ContextItem(from: item))
+            let estimatedDuration = estimateTaskDuration(MemoryContextItem(from: item).toContextItem())
             preferredDurations.append(estimatedDuration)
         }
         
@@ -1228,7 +1252,7 @@ struct ContextMemoryItem {
     }
 }
 
-struct ContextItem {
+struct MemoryContextItem {
     let id: UUID
     let title: String
     let content: String
@@ -1265,9 +1289,24 @@ struct ContextItem {
         self.timestamp = contextMemoryItem.timestamp
         self.isCompleted = contextMemoryItem.isCompleted
     }
+    
+    func toContextItem() -> ContextItem {
+        return ContextItem(
+            id: self.id,
+            title: self.title,
+            content: self.content,
+            category: self.category,
+            subcategory: self.subcategory,
+            tags: self.tags,
+            workPersonal: self.workPersonal,
+            priority: self.priority,
+            timestamp: self.timestamp,
+            isCompleted: self.isCompleted
+        )
+    }
 }
 
-class DailySummary: ObservableObject {
+class MemoryDailySummary: ObservableObject {
     let date: Date
     @Published var projectsActive: [String] = []
     @Published var areasActive: [String] = []
@@ -1313,11 +1352,11 @@ class DailySummary: ObservableObject {
     }
 }
 
-struct WeeklySummary {
+struct MemoryWeeklySummary {
     let weekStartDate: Date
-    let dailySummaries: [DailySummary]
+    let dailySummaries: [MemoryDailySummary]
     
-    init(weekStartDate: Date, dailySummaries: [DailySummary] = []) {
+    init(weekStartDate: Date, dailySummaries: [MemoryDailySummary] = []) {
         self.weekStartDate = weekStartDate
         self.dailySummaries = dailySummaries
     }
@@ -1347,11 +1386,11 @@ struct WeeklySummary {
     }
 }
 
-struct MonthlySummary {
+struct MemoryMonthlySummary {
     let monthStartDate: Date
-    let weeklySummaries: [WeeklySummary]
+    let weeklySummaries: [MemoryWeeklySummary]
     
-    init(monthStartDate: Date, weeklySummaries: [WeeklySummary] = []) {
+    init(monthStartDate: Date, weeklySummaries: [MemoryWeeklySummary] = []) {
         self.monthStartDate = monthStartDate
         self.weeklySummaries = weeklySummaries
     }
@@ -1377,7 +1416,7 @@ struct MonthlySummary {
     }
 }
 
-struct ContextStats {
+struct MemoryContextStats {
     let totalItems: Int
     let projectCount: Int
     let areaCount: Int
@@ -1417,13 +1456,13 @@ struct ContextStats {
     }
 }
 
-struct ProcessingContext {
+struct MemoryProcessingContext {
     let recentItems: [ContextItem]
     let recentActivityItems: [ContextItem]  // Added for compatibility
-    let dailySummaries: [DailySummary]
-    let weeklySummaries: [WeeklySummary]
-    let monthlySummaries: [MonthlySummary]
-    let contextStats: ContextStats
+    let dailySummaries: [MemoryDailySummary]
+    let weeklySummaries: [MemoryWeeklySummary]
+    let monthlySummaries: [MemoryMonthlySummary]
+    let contextStats: MemoryContextStats
     let calendarContext: CalendarContext
     let timestamp: Date
     
@@ -1459,7 +1498,7 @@ struct SchedulingPatterns {
     let workPersonalSplit: Double
 }
 
-struct ContextPatterns {
+struct MemoryContextPatterns {
     let frequentProjects: [String]
     let frequentAreas: [String]
     let commonTags: [String]
@@ -1468,13 +1507,13 @@ struct ContextPatterns {
     let averageItemsPerDay: Double
 }
 
-enum ContextTimeframe {
+enum MemoryContextTimeframe {
     case day, week, month, all
 }
 
 // MARK: - Activity Patterns for Dynamic Window Sizing
 
-struct ActivityPatterns {
+struct MemoryActivityPatterns {
     var todayItemCount: Int = 0
     var lastUpdateDate: Date? = nil
     var dailyActivityHistory: [Int] = []
@@ -1514,8 +1553,4 @@ struct ActivityPatterns {
 }
 
 
-extension Array where Element: Hashable {
-    func uniqued() -> [Element] {
-        return Array(Set(self))
-    }
-} 
+// Extension for uniqued() is defined in ContextQueryService 

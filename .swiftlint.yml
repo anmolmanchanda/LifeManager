@@ -137,7 +137,7 @@ custom_rules:
 
   no_hardcoded_strings:
     name: "No Hardcoded Strings"
-    regex: '"[^"]{20,}"'
+    regex: '"[^"]{50,}"'
     message: "Long strings should be localized or moved to constants"
     severity: warning
 

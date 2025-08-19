@@ -272,7 +272,7 @@ enum ComplexityLevel: String, Codable, CaseIterable {
 
 /// Filter configuration for Focus View
 struct FocusFilter: Identifiable, Codable, Hashable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let icon: String
     let description: String
@@ -282,6 +282,7 @@ struct FocusFilter: Identifiable, Codable, Hashable {
     
     static let defaultFilters: [FocusFilter] = [
         FocusFilter(
+            id: UUID(),
             name: "🔥 Urgent & Important",
             icon: "flame",
             description: "Critical tasks that need immediate attention",
@@ -293,6 +294,7 @@ struct FocusFilter: Identifiable, Codable, Hashable {
             sortOrder: 0
         ),
         FocusFilter(
+            id: UUID(),
             name: "🎯 AI Suggested",
             icon: "brain",
             description: "AI-recommended tasks based on your patterns",
@@ -303,6 +305,7 @@ struct FocusFilter: Identifiable, Codable, Hashable {
             sortOrder: 1
         ),
         FocusFilter(
+            id: UUID(),
             name: "⚡ Quick Wins",
             icon: "bolt",
             description: "Tasks that can be completed quickly",
@@ -314,6 +317,7 @@ struct FocusFilter: Identifiable, Codable, Hashable {
             sortOrder: 2
         ),
         FocusFilter(
+            id: UUID(),
             name: "🚀 Deep Work",
             icon: "brain.head.profile",
             description: "Complex tasks requiring focused attention",
@@ -325,6 +329,7 @@ struct FocusFilter: Identifiable, Codable, Hashable {
             sortOrder: 3
         ),
         FocusFilter(
+            id: UUID(),
             name: "📋 Low Energy",
             icon: "battery.25",
             description: "Simple tasks for when energy is low",
@@ -338,7 +343,7 @@ struct FocusFilter: Identifiable, Codable, Hashable {
     ]
 }
 
-struct FocusFilterCriteria: Codable {
+struct FocusFilterCriteria: Codable, Hashable {
     let priority: [FocusPriority]?
     let urgency: [UrgencyLevel]?
     let energyLevel: [EnergyLevel]?

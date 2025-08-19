@@ -84,7 +84,7 @@ struct ReschedulingEvent: Identifiable, Codable {
     let wasAutomatic: Bool
 }
 
-struct UndoableReschedulingAction: Identifiable {
+struct ServiceUndoableReschedulingAction: Identifiable {
     let id = UUID()
     let taskId: UUID
     let originalDueDate: Date?
@@ -92,7 +92,7 @@ struct UndoableReschedulingAction: Identifiable {
     let expiresAt: Date
 }
 
-enum ReschedulingAction: String, Codable {
+enum ServiceReschedulingAction: String, Codable {
     case approve = "approve"
     case reject = "reject"
     case modify = "modify"

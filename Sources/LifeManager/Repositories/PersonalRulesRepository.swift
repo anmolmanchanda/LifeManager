@@ -340,25 +340,26 @@ class PersonalRulesRepository: ObservableObject {
         
         // Create a simplified ContextualPARAItem for the correction
         // In a real implementation, this would reconstruct the full item
+        let atomicItem = AtomicItem(
+            content: "Correction Item",
+            type: .task,
+            contextualHints: [],
+            confidence: 0.5
+        )
+        
         let originalItem = ContextualPARAItem(
-            originalItem: PARAItem(
-                id: data.originalItemId,
-                title: "Correction Item",
-                content: "Item content",
-                contentType: .task,
-                paraCategory: originalCategory,
-                workPersonal: .personal,
-                priority: .medium,
-                tags: [],
-                createdAt: data.createdAt,
-                isCompleted: false
-            ),
+            originalItem: atomicItem,
             paraClassification: originalClassification,
-            confidence: 0.5,
+            semanticMatches: [],
+            metadata: ItemMetadata(
+                extractedTags: [],
+                detectedPeople: [],
+                estimatedDuration: nil,
+                urgencyLevel: .medium,
+                sentiment: nil
+            ),
             reasoning: "Original classification",
-            detectedKeywords: [],
-            suggestedActions: [],
-            relatedItems: []
+            confidence: 0.5
         )
         
         return UserCorrection(

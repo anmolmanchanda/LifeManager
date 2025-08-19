@@ -192,6 +192,9 @@ enum ContentType: String, CaseIterable, Codable {
     case goal = "goal"
     case project = "project"
     case area = "area"
+    case personalRule = "personal_rule"
+    case medication = "medication"
+    case healthLog = "health_log"
     
     var displayName: String {
         switch self {
@@ -207,6 +210,10 @@ enum ContentType: String, CaseIterable, Codable {
         case .goal: return "Goal"
         case .project: return "Project"
         case .area: return "Area"
+        case .personalRule: return "Personal Rule"
+        case .medication: return "Medication"
+        case .healthLog: return "Health Log"
+        @unknown default: return "Unknown Type"
         }
     }
     
@@ -224,6 +231,10 @@ enum ContentType: String, CaseIterable, Codable {
         case .goal: return "target"
         case .project: return "folder"
         case .area: return "square.stack.3d.up"
+        case .personalRule: return "gearshape.2"
+        case .medication: return "pills"
+        case .healthLog: return "heart.text.square"
+        @unknown default: return "questionmark.circle"
         }
     }
 }
@@ -256,6 +267,7 @@ enum TaskPriority: String, CaseIterable, Codable {
         case .high: return 1
         case .medium: return 2
         case .low: return 3
+        @unknown default: return 4
         }
     }
     
@@ -265,6 +277,7 @@ enum TaskPriority: String, CaseIterable, Codable {
         case .high: return 4
         case .medium: return 3
         case .low: return 2
+        @unknown default: return 1
         }
     }
     
@@ -705,7 +718,6 @@ struct PARAItem: Codable, Identifiable {
     let createdAt: Date
     let tags: [String]
     let isCompleted: Bool
-    let category: PARACategory // Alias for paraCategory for compatibility
     
     init(id: UUID = UUID(), title: String, content: String, contentType: ContentType, paraCategory: PARACategory, workPersonal: WorkPersonalType, priority: TaskPriority, createdAt: Date = Date(), tags: [String] = [], isCompleted: Bool = false) {
         self.id = id
@@ -713,12 +725,16 @@ struct PARAItem: Codable, Identifiable {
         self.content = content
         self.contentType = contentType
         self.paraCategory = paraCategory
-        self.category = paraCategory // Set alias
         self.workPersonal = workPersonal
         self.priority = priority
         self.createdAt = createdAt
         self.tags = tags
         self.isCompleted = isCompleted
+    }
+    
+    // Provide category as a computed property for compatibility
+    var category: PARACategory {
+        return paraCategory
     }
 }
 

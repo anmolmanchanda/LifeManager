@@ -2,65 +2,101 @@
 // InboxView.swift
 // LifeManager
 //
-// Implements: v1.0 "Natural Language Input", v1.25 "Enhanced UI", v2.0 "Modular Architecture"
-// Roadmap Reference: v1.0 Foundation → v1.25 Intelligence & UI → v2.0 Intelligence Expansion
-// Status: ✅ COMPLETE as of June 18, 2025 (extracted from ContentView.swift)
-// Future: v2.5 Advanced Input Methods, Voice Input, Image Processing
+// Extracted from ContentView for better modularity
+// Handles inbox/brain dump functionality
 //
 
 import SwiftUI
 
-/// Universal inbox for all natural language input processing
-/// Central entry point for PARA methodology content creation
-/// Clean, focused interface extracted from monolithic ContentView
+/// Main inbox view for brain dump and natural language input
 struct InboxView: View {
     @EnvironmentObject var viewModel: MainViewModel
+    @State private var showingHistory = false
+    @State private var showingProcessingDetails = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Natural Language Input Area - Takes up significant space
-            VStack(spacing: 20) {
-                NaturalLanguageInputView()
+        VStack(spacing: 20) {
+            // Header
+            InboxHeaderView(
+                showingHistory: $showingHistory,
+                showingProcessingDetails: $showingProcessingDetails
+            )
+            
+            // Natural Language Input
+            NaturalLanguageInputView()
+                .environmentObject(viewModel)
+            
+            // Processing State
+            if viewModel.isProcessingInbox {
+                ProcessingStateView()
                     .environmentObject(viewModel)
-                    .frame(maxHeight: .infinity) // Let input take up as much space as possible
-                
-                // No bulk actions toolbar - removed notes from inbox
             }
-            .frame(minHeight: 300) // Minimum height for input area
-            .padding()
             
-            Divider()
-            
-            // Empty space - no notes list, just history in input area
-            Spacer()
-                .frame(maxHeight: .infinity)
-            
-            // Show loading state
-            if viewModel.isLoading {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Processing notes with AI...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
+            // Recent Items
+            if !viewModel.recentBlobs.isEmpty {
+                RecentItemsSection()
+                    .environmentObject(viewModel)
             }
         }
-        .background(Color(NSColor.controlBackgroundColor))
-        .sheet(isPresented: $viewModel.showingConfirmationDialog) {
-            ProcessingConfirmationView()
+        .padding()
+        .sheet(isPresented: $showingHistory) {
+            HistoryView()
                 .environmentObject(viewModel)
         }
-        .sheet(isPresented: $viewModel.showingProcessingSummary) {
-            ProcessingSummaryView()
+        .sheet(isPresented: $showingProcessingDetails) {
+            ProcessingDetailsView()
                 .environmentObject(viewModel)
         }
     }
 }
 
-/* #Preview // DISABLED FOR STABILIZATION
-    InboxView()
-        .environmentObject(MainViewModel())
-        .frame(width: 800, height: 600)
-}*/
+/// Header for inbox view with action buttons
+struct InboxHeaderView: View {
+    @Binding var showingHistory: Bool
+    @Binding var showingProcessingDetails: Bool
+    
+    var body: some View {
+        HStack {
+            Label("Brain Dump", systemImage: "brain")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            Spacer()
+            
+            HStack(spacing: 12) {
+                Button(action: { showingHistory.toggle() }) {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+                .buttonStyle(.bordered)
+                
+                Button(action: { showingProcessingDetails.toggle() }) {
+                    Label("Details", systemImage: "info.circle")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+}
+
+/// Section showing recently processed items
+struct RecentItemsSection: View {
+    @EnvironmentObject var viewModel: MainViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Recent Items", systemImage: "clock.fill")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(viewModel.recentBlobs.prefix(10)) { blob in
+                        BlobRowView(blob: blob)
+                            .environmentObject(viewModel)
+                    }
+                }
+            }
+            .frame(maxHeight: 300)
+        }
+    }
+}

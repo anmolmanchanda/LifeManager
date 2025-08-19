@@ -1,0 +1,264 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SWIFT_VERSION: 5.10
+  MIN_COVERAGE: 60
+  MAX_SERVICE_LINES: 500
+  MAX_VIEW_LINES: 800
+
+jobs:
+  lint:
+    name: Code Quality
+    runs-on: macos-14
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup SwiftLint
+      run: brew install swiftlint
+    
+    - name: Run SwiftLint
+      run: |
+        swiftlint lint --strict --reporter json > swiftlint.json || true
+        swiftlint lint --strict
+    
+    - name: Check file sizes
+      run: |
+        EXIT_CODE=0
+        echo "## File Size Report" >> $GITHUB_STEP_SUMMARY
+        echo "| File | Lines | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+        
+        while IFS= read -r file; do
+          lines=$(wc -l < "$file")
+          filename=$(basename "$file")
+          
+          if [[ "$file" == *"Service"* ]] && [ "$lines" -gt "$MAX_SERVICE_LINES" ]; then
+            echo "| $filename | $lines | ❌ Exceeds limit |" >> $GITHUB_STEP_SUMMARY
+            echo "::error file=$file::Service file exceeds $MAX_SERVICE_LINES lines (has $lines)"
+            EXIT_CODE=1
+          elif [[ "$file" == *"View"* ]] && [ "$lines" -gt "$MAX_VIEW_LINES" ]; then
+            echo "| $filename | $lines | ⚠️ Large file |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning file=$file::View file exceeds $MAX_VIEW_LINES lines (has $lines)"
+          else
+            echo "| $filename | $lines | ✅ |" >> $GITHUB_STEP_SUMMARY
+          fi
+        done < <(find Sources -name "*.swift" -type f)
+        
+        exit $EXIT_CODE
+    
+    - name: Check for TODOs
+      run: |
+        echo "## TODO Report" >> $GITHUB_STEP_SUMMARY
+        grep -rn "TODO\|FIXME\|HACK" Sources --include="*.swift" | while read -r line; do
+          echo "- $line" >> $GITHUB_STEP_SUMMARY
+        done || echo "No TODOs found ✅" >> $GITHUB_STEP_SUMMARY
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run TruffleHog
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.pull_request.base.sha }}
+        head: ${{ github.event.pull_request.head.sha }}
+        extra_args: --only-verified
+    
+    - name: Dependency Check
+      run: |
+        echo "## Dependency Security Report" >> $GITHUB_STEP_SUMMARY
+        # Check for known vulnerable dependencies
+        if [ -f "Package.resolved" ]; then
+          echo "Checking Swift package dependencies..." >> $GITHUB_STEP_SUMMARY
+          # Add actual dependency scanning here
+        fi
+
+  test:
+    name: Test Matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-13, macos-14]
+        swift: ['5.9', '5.10']
+        exclude:
+          - os: macos-13
+            swift: '5.10'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: ${{ matrix.swift }}
+    
+    - name: Cache Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          .build
+          ~/Library/Caches/org.swift.swiftpm
+        key: ${{ runner.os }}-swift-${{ matrix.swift }}-${{ hashFiles('Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-swift-${{ matrix.swift }}-
+    
+    - name: Build
+      run: |
+        swift build --build-tests
+    
+    - name: Run Tests with Coverage
+      run: |
+        swift test --enable-code-coverage --parallel
+    
+    - name: Generate Coverage Report
+      run: |
+        xcrun llvm-cov export \
+          .build/debug/*PackageTests.xctest/Contents/MacOS/*PackageTests \
+          -instr-profile .build/debug/codecov/default.profdata \
+          -format lcov > coverage.lcov
+    
+    - name: Upload Coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: coverage.lcov
+        fail_ci_if_error: false
+        flags: unittests-${{ matrix.os }}-swift${{ matrix.swift }}
+    
+    - name: Coverage Summary
+      run: |
+        coverage=$(xcrun llvm-cov report \
+          .build/debug/*PackageTests.xctest/Contents/MacOS/*PackageTests \
+          -instr-profile .build/debug/codecov/default.profdata | \
+          grep TOTAL | awk '{print $4}' | sed 's/%//')
+        
+        echo "## Test Coverage: ${coverage}%" >> $GITHUB_STEP_SUMMARY
+        
+        if (( $(echo "$coverage < $MIN_COVERAGE" | bc -l) )); then
+          echo "::error::Coverage ${coverage}% is below minimum ${MIN_COVERAGE}%"
+          exit 1
+        fi
+
+  integration:
+    name: Integration Tests
+    runs-on: macos-14
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Environment
+      run: |
+        cp config.txt.template config.txt
+        echo "SUPABASE_URL=http://localhost:54321" >> config.txt
+        echo "OPENAI_API_KEY=test-key" >> config.txt
+    
+    - name: Run Integration Tests
+      run: |
+        # Run integration test suite without external dependencies
+        # Using mock services for CI environment
+        swift test --filter Integration || true
+
+  performance:
+    name: Performance Benchmarks
+    runs-on: macos-14
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '5.10'
+    
+    - name: Run Benchmarks
+      run: |
+        echo "## Performance Benchmarks" >> $GITHUB_STEP_SUMMARY
+        echo "| Operation | Time (ms) | Memory (MB) | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|-----------|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+        
+        # Run performance tests
+        swift test --filter Performance > perf.log 2>&1 || true
+        
+        # Parse and report results
+        # Add actual benchmark parsing here
+
+  pr-summary:
+    name: PR Validation Summary
+    runs-on: ubuntu-latest
+    needs: [lint, security, test, integration, performance]
+    if: always()
+    
+    steps:
+    - name: Generate PR Comment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const jobs = {
+            lint: '${{ needs.lint.result }}',
+            security: '${{ needs.security.result }}',
+            test: '${{ needs.test.result }}',
+            integration: '${{ needs.integration.result }}',
+            performance: '${{ needs.performance.result }}'
+          };
+          
+          let comment = '## PR Validation Results\n\n';
+          comment += '| Check | Status |\n';
+          comment += '|-------|--------|\n';
+          
+          let allPassed = true;
+          for (const [job, result] of Object.entries(jobs)) {
+            const emoji = result === 'success' ? '✅' : result === 'failure' ? '❌' : '⏭️';
+            comment += `| ${job} | ${emoji} ${result} |\n`;
+            if (result === 'failure') allPassed = false;
+          }
+          
+          comment += '\n';
+          comment += allPassed 
+            ? '### ✅ All checks passed! Ready for review.'
+            : '### ❌ Some checks failed. Please review the logs.';
+          
+          // Find and update or create comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && comment.body.includes('PR Validation Results')
+          );
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: comment
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+          }

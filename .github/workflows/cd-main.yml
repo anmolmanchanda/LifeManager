@@ -1,0 +1,275 @@
+name: Production Deployment
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: write
+  packages: write
+  deployments: write
+  id-token: write
+
+env:
+  SWIFT_VERSION: 5.10
+  APP_NAME: LifeManager
+
+jobs:
+  version:
+    name: Version Management
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Generate Version
+      id: version
+      run: |
+        if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION="v$(date +%Y.%m.%d)-${GITHUB_SHA::8}"
+        fi
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "Generated version: ${VERSION}"
+    
+    - name: Generate Changelog
+      id: changelog
+      run: |
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" -10)
+        else
+          CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)")
+        fi
+        
+        # Escape for JSON
+        CHANGELOG="${CHANGELOG//$'\n'/\\n}"
+        CHANGELOG="${CHANGELOG//\"/\\\"}"
+        
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build & Package
+    runs-on: macos-14
+    needs: version
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: ${{ env.SWIFT_VERSION }}
+    
+    - name: Setup Certificates
+      env:
+        CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE }}
+        CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      run: |
+        # Create temporary keychain
+        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+        
+        # Import certificates
+        echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.p12
+        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+        security import certificate.p12 -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+        security list-keychain -d user -s $KEYCHAIN_PATH
+    
+    - name: Build Release
+      run: |
+        swift build --configuration release \
+          --arch arm64 --arch x86_64 \
+          -Xswiftc -DRELEASE \
+          -Xswiftc -DVERSION="${{ needs.version.outputs.version }}"
+    
+    - name: Create App Bundle
+      run: |
+        ./scripts/create_app_bundle.sh \
+          --version "${{ needs.version.outputs.version }}" \
+          --sign "${{ secrets.APPLE_TEAM_ID }}"
+    
+    - name: Notarize App
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        # Notarize the app
+        xcrun notarytool submit LifeManager.app.zip \
+          --apple-id "$APPLE_ID" \
+          --password "$APPLE_PASSWORD" \
+          --team-id "$TEAM_ID" \
+          --wait
+    
+    - name: Create DMG
+      run: |
+        create-dmg \
+          --volname "LifeManager ${{ needs.version.outputs.version }}" \
+          --background "./assets/dmg-background.png" \
+          --window-size 600 400 \
+          --icon-size 100 \
+          --icon "LifeManager.app" 150 200 \
+          --app-drop-link 450 200 \
+          "LifeManager-${{ needs.version.outputs.version }}.dmg" \
+          "LifeManager.app"
+    
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-${{ needs.version.outputs.version }}
+        path: |
+          LifeManager-${{ needs.version.outputs.version }}.dmg
+          LifeManager.app.zip
+        retention-days: 30
+
+  test-e2e:
+    name: E2E Tests
+    runs-on: macos-14
+    needs: build
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download Build
+      uses: actions/download-artifact@v3
+      with:
+        name: release-${{ needs.version.outputs.version }}
+    
+    - name: Install App
+      run: |
+        unzip LifeManager.app.zip
+        cp -R LifeManager.app /Applications/
+    
+    - name: Run E2E Tests
+      run: |
+        # Run UI automation tests
+        swift test --filter E2E
+
+  staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, test-e2e]
+    environment:
+      name: staging
+      url: https://staging.lifemanager.app
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy Database Migrations
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT }}
+      run: |
+        # Deploy migrations to staging
+        supabase db push --project-ref $SUPABASE_PROJECT_REF
+    
+    - name: Update Release Notes
+      run: |
+        echo "## Staging Deployment - ${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Changes:" >> $GITHUB_STEP_SUMMARY
+        echo "${{ needs.version.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Smoke Tests
+      run: |
+        # Run smoke tests against staging
+        curl -f https://staging.lifemanager.app/health || exit 1
+
+  production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [staging, version]
+    if: github.ref_type == 'tag' || github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://lifemanager.app
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download Build
+      uses: actions/download-artifact@v3
+      with:
+        name: release-${{ needs.version.outputs.version }}
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ needs.version.outputs.version }}
+        name: Release ${{ needs.version.outputs.version }}
+        body: |
+          ## What's Changed
+          ${{ needs.version.outputs.changelog }}
+          
+          ## Downloads
+          - [macOS Universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.version }}/LifeManager-${{ needs.version.outputs.version }}.dmg)
+          
+          ## Installation
+          1. Download the DMG file
+          2. Open the DMG and drag LifeManager to Applications
+          3. Launch LifeManager from Applications
+          
+          **Note:** First launch may require right-click → Open due to Gatekeeper.
+        files: |
+          LifeManager-${{ needs.version.outputs.version }}.dmg
+        draft: false
+        prerelease: false
+    
+    - name: Deploy Database Migrations
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.PROD_SUPABASE_PROJECT }}
+      run: |
+        # Deploy migrations to production
+        supabase db push --project-ref $SUPABASE_PROJECT_REF
+    
+    - name: Update Homebrew Cask
+      run: |
+        # Update homebrew cask formula
+        # This would update your homebrew tap repository
+        echo "Homebrew cask update skipped - implement when ready"
+    
+    - name: Send Release Notification
+      run: |
+        # Send notifications (Slack, Discord, email, etc.)
+        echo "Release ${{ needs.version.outputs.version }} deployed to production"
+
+  rollback:
+    name: Rollback Plan
+    runs-on: ubuntu-latest
+    needs: production
+    if: failure()
+    
+    steps:
+    - name: Rollback Procedure
+      run: |
+        echo "::error::Production deployment failed!"
+        echo "## Rollback Instructions" >> $GITHUB_STEP_SUMMARY
+        echo "1. Revert database migrations: \`supabase db reset --project-ref \$PROD_PROJECT\`" >> $GITHUB_STEP_SUMMARY
+        echo "2. Re-deploy previous version from GitHub releases" >> $GITHUB_STEP_SUMMARY
+        echo "3. Update status page" >> $GITHUB_STEP_SUMMARY
+        echo "4. Notify team in #incidents channel" >> $GITHUB_STEP_SUMMARY
