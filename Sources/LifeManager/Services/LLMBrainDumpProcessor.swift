@@ -31,6 +31,10 @@ class LLMBrainDumpProcessor {
     private let contextMemoryService: ContextMemoryService
     private let personalRulesService: PersonalRulesService
     
+    // MARK: - Enhanced Services
+    private let contentTypeHandler = BrainDumpContentTypeHandler.shared
+    private let embeddingsGenerator = BrainDumpEmbeddingsService.shared
+    
     init() {
         self.llmService = LLMServiceCoordinator.shared
         self.blobRepository = BlobRepository()
@@ -279,56 +283,68 @@ class LLMBrainDumpProcessor {
     func executeBrainDump(_ result: BrainDumpResult, userApprovedItems: [EnhancedBrainDumpItem]) async throws -> ExecutionSummary {
         Logger.shared.brainDumpProgress("🧠 Executing brain dump with \(userApprovedItems.count) items...")
         
-        var createdItems = 0
-        var errors: [String] = []
+        let startTime = Date()
         
-        // Create database entries for each approved item
-        for item in userApprovedItems {
-            do {
-                try await createDatabaseEntry(for: item)
-                createdItems += 1
-                Logger.shared.success("✅ Created \(item.contentType.rawValue): \(item.title)")
-            } catch {
-                errors.append("Failed to create \(item.title): \(error.localizedDescription)")
-                Logger.shared.error("❌ Failed to create \(item.title): \(error)")
-            }
-        }
+        // Process all items using the content type handler
+        let batchResult = await contentTypeHandler.processContentItems(userApprovedItems)
+        
+        // Generate embeddings for all approved items
+        await embeddingsGenerator.generateEmbeddingsForItems(userApprovedItems)
+        
+        var createdItems = batchResult.successfulCreations.count
+        var errors = batchResult.errors.map { "Failed to create \($0.itemTitle): \($0.error.localizedDescription)" }
         
         // Update context memory with successful items
         await updateContextWithResults(result)
         
         // Group created items by type for display
-        let taskItems = userApprovedItems.filter { $0.contentType == .task }.map { $0.title }
-        let noteItems = userApprovedItems.filter { $0.contentType == .note || $0.contentType == .knowledge }.map { $0.title }
-        let journalItems = userApprovedItems.filter { $0.contentType == .journal }.map { $0.title }
+        let taskItems = batchResult.successfulCreations.filter { $0.type == .task }.map { $0.title }
+        let noteItems = batchResult.successfulCreations.filter { $0.type == .note || $0.type == .knowledge }.map { $0.title }
+        let journalItems = batchResult.successfulCreations.filter { $0.type == .journal }.map { $0.title }
+        let resourceItems = batchResult.successfulCreations.filter { $0.type == .resource }.map { $0.title }
+        let appointmentItems = batchResult.successfulCreations.filter { $0.type == .appointment }.map { $0.title }
+        let habitItems = batchResult.successfulCreations.filter { $0.type == .habit }.map { $0.title }
+        let goalItems = batchResult.successfulCreations.filter { $0.type == .goal }.map { $0.title }
+        let financialItems = batchResult.successfulCreations.filter { $0.type == .financial }.map { $0.title }
+        
+        // Build confidence and category distributions
+        var confidenceDistribution: [String: Int] = [:]
+        var categoryDistribution: [PARACategory: Int] = [:]
+        
+        for item in userApprovedItems {
+            let confidenceLevel = item.confidence >= 0.8 ? "high" : item.confidence >= 0.5 ? "medium" : "low"
+            confidenceDistribution[confidenceLevel, default: 0] += 1
+            categoryDistribution[item.paraCategory, default: 0] += 1
+        }
         
         let summary = ExecutionSummary(
             totalItemsProcessed: userApprovedItems.count,
             itemsCreated: createdItems,
             itemsSkipped: userApprovedItems.count - createdItems,
             errors: errors,
-            warnings: [],
-            processingTime: TimeInterval(2.0), // Placeholder
-            confidenceDistribution: [:],
-            categoryDistribution: [:],
-            newAreasCreated: [],
-            newProjectsCreated: [],
+            warnings: batchResult.errors.map { "Warning: \($0.itemTitle) may need review" },
+            processingTime: Date().timeIntervalSince(startTime),
+            confidenceDistribution: confidenceDistribution,
+            categoryDistribution: categoryDistribution,
+            newAreasCreated: batchResult.successfulCreations.filter { $0.type == .area }.map { $0.title },
+            newProjectsCreated: batchResult.successfulCreations.filter { $0.type == .project }.map { $0.title },
             successCount: createdItems,
             tasksCreated: taskItems,
             notesCreated: noteItems,
             journalEntriesCreated: journalItems,
-            resourcesCreated: [],
-            appointmentsCreated: [],
-            habitsCreated: [],
-            goalsCreated: [],
-            financialTransactionsCreated: []
+            resourcesCreated: resourceItems,
+            appointmentsCreated: appointmentItems,
+            habitsCreated: habitItems,
+            goalsCreated: goalItems,
+            financialTransactionsCreated: financialItems
         )
         
         Logger.shared.success("🧠 Brain dump execution complete: \(createdItems) items created")
         return summary
     }
     
-    /// Create database entry for an enhanced brain dump item - FIXED: Database persistence restored
+    /// Create database entry for an enhanced brain dump item - DEPRECATED: Use contentTypeHandler instead
+    @available(*, deprecated, message: "Use contentTypeHandler.processContentItem instead")
     private func createDatabaseEntry(for item: EnhancedBrainDumpItem) async throws {
         switch item.contentType {
         case .task:
