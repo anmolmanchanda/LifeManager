@@ -21,6 +21,19 @@ struct ContextItem: Codable, Identifiable {
     let timestamp: Date
     let isCompleted: Bool
     
+    init(id: UUID = UUID(), title: String, content: String, category: PARACategory, subcategory: String? = nil, tags: [String], workPersonal: WorkPersonalType, priority: TaskPriority, timestamp: Date, isCompleted: Bool) {
+        self.id = id
+        self.title = title
+        self.content = content
+        self.category = category
+        self.subcategory = subcategory
+        self.tags = tags
+        self.workPersonal = workPersonal
+        self.priority = priority
+        self.timestamp = timestamp
+        self.isCompleted = isCompleted
+    }
+    
     init(from paraItem: PARAItem) {
         self.id = UUID()
         self.title = paraItem.title
@@ -42,7 +55,7 @@ struct ContextItem: Codable, Identifiable {
         self.subcategory = record.subcategory
         self.tags = record.tags
         self.workPersonal = WorkPersonalType(rawValue: record.workPersonal) ?? .personal
-        self.priority = TaskPriority(rawValue: record.priority) ?? .medium
+        self.priority = TaskPriority(rawValue: String(record.priority)) ?? .medium
         self.timestamp = record.timestamp
         self.isCompleted = record.isCompleted
     }
@@ -138,7 +151,7 @@ struct DailySummaryRecord: Codable {
     
     init(from summary: DailySummary) {
         self.id = summary.id
-        self.userId = SupabaseService.shared.currentUserId ?? UUID()
+        self.userId = UUID(uuidString: SupabaseService.shared.currentUser?.id ?? "") ?? UUID()
         self.date = summary.date
         self.projectsActive = summary.projectsActive
         self.areasActive = summary.areasActive

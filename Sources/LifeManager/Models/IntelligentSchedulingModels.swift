@@ -421,7 +421,7 @@ enum NotificationPriority: String, CaseIterable, Codable {
     case medium = "medium"
     case high = "high"
     case urgent = "urgent"
-    case critical = "critical"
+    case veryHigh = "very_high"  // Renamed from critical to avoid conflict
     
     var displayName: String {
         switch self {
@@ -429,7 +429,7 @@ enum NotificationPriority: String, CaseIterable, Codable {
         case .medium: return "Medium"
         case .high: return "High"
         case .urgent: return "Urgent"
-        case .critical: return "Critical"
+        case .veryHigh: return "Very High"
         }
     }
 }
@@ -504,7 +504,7 @@ struct ProactiveNotification: Codable, Identifiable {
 }
 
 // Type alias for backward compatibility
-typealias ReschedulingEvent = ReschedulingHistoryEntry
+// typealias ReschedulingEvent = ReschedulingHistoryEntry  // Commented out due to naming conflict
 
 // MARK: - Enhanced Calendar Event with Intelligence
 
@@ -748,7 +748,7 @@ struct TaskWithDependencies {
     /// Check if all prerequisites are completed
     var canStart: Bool {
         return prerequisites.allSatisfy { prerequisite in
-            prerequisite.status == .done || prerequisite.status == .completed
+            prerequisite.status == .completed
         }
     }
     

@@ -115,8 +115,8 @@ class TaskDependencyRepository {
         
         try await supabaseService.delete(
             from: "task_dependencies",
-            id: dependencyId.uuidString,
-            column: "id"
+            matching: "id",
+            value: dependencyId.uuidString
         )
     }
     
@@ -267,7 +267,12 @@ class TaskDependencyRepository {
         logger.debug("TASK_DEPENDENCY_REPO: Creating \(dependencies.count) dependencies")
         
         let records = dependencies.map { TaskDependencyRecord(from: $0) }
-        let savedRecords: [TaskDependencyRecord] = try await supabaseService.insertBatch(records, into: "task_dependencies")
+        var savedRecords: [TaskDependencyRecord] = []
+        
+        for record in records {
+            let saved: TaskDependencyRecord = try await supabaseService.insert(record, into: "task_dependencies")
+            savedRecords.append(saved)
+        }
         
         return savedRecords.map { $0.toTaskDependency() }
     }
@@ -277,17 +282,17 @@ class TaskDependencyRepository {
         logger.debug("TASK_DEPENDENCY_REPO: Deleting all dependencies for task \(taskId)")
         
         // Delete where task is dependent
-        let dependentQuery = "dependent_task_id.eq.\(taskId.uuidString)"
-        try await supabaseService.deleteWithQuery(
+        try await supabaseService.delete(
             from: "task_dependencies",
-            query: dependentQuery
+            matching: "dependent_task_id",
+            value: taskId.uuidString
         )
         
         // Delete where task is dependency
-        let dependsOnQuery = "depends_on_task_id.eq.\(taskId.uuidString)"
-        try await supabaseService.deleteWithQuery(
+        try await supabaseService.delete(
             from: "task_dependencies",
-            query: dependsOnQuery
+            matching: "depends_on_task_id",
+            value: taskId.uuidString
         )
     }
     

@@ -202,7 +202,7 @@ class MainViewModelRefactored: ObservableObject {
         }
     }
     
-    private func handleSuccessfulAuth(_ session: Session) async {
+    private func handleSuccessfulAuth(_ session: VMSession) async {
         isAuthenticated = true
         
         // Load user profile
@@ -415,13 +415,13 @@ enum AuthState {
     case signedOut
 }
 
-struct Session {
-    let user: SessionUser
+struct VMSession {
+    let user: VMSessionUser
     let accessToken: String
     let refreshToken: String?
 }
 
-struct SessionUser {
+struct VMSessionUser {
     let id: String
     let email: String?
 }

@@ -325,7 +325,7 @@ struct InputSegment {
 
 struct O1AnalysisResult: Codable {
     let items: [AnalyzedItem]
-    let relationships: [ItemRelationship]
+    let relationships: [BrainDumpItemRelationship]
     let temporalConstraints: [TemporalConstraint]
     let priorities: [PriorityRanking]
     let confidence: Double
@@ -361,7 +361,7 @@ struct AnalyzedItem: Codable {
     }
 }
 
-struct ItemRelationship: Codable {
+struct BrainDumpItemRelationship: Codable {
     let fromId: String
     let toId: String
     let relationshipType: String
@@ -470,7 +470,7 @@ struct ComplexBrainDumpResult {
     }
 }
 
-struct ProcessingMetadata {
+struct BrainDumpProcessingMetadata {
     let model: String
     let processingTime: Date
     let confidence: Double
@@ -484,7 +484,7 @@ struct ProcessedNote: Codable {
     let confidenceScore: Double
     let categoriesFound: [String]
     let entitiesExtracted: [String: Any]
-    let relationships: [ItemRelationship]
+    let relationships: [BrainDumpItemRelationship]
 }
 
 // Protocol for all brain dump items

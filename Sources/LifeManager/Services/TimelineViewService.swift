@@ -16,7 +16,7 @@ class TimelineViewService: ObservableObject {
     @Published var timelineInsights: [TimelineInsight] = []
     @Published var versionHistory: [TimelineVersionHistory] = []
     @Published var progressSummary: ProgressSummary?
-    @Published var viewConfig = TimelineViewConfig.default
+    @Published var viewConfig = ServiceTimelineViewConfig.default
     @Published var isLoading = false
     
     private let logger = Logger.shared
@@ -168,15 +168,15 @@ class TimelineViewService: ObservableObject {
 
 // MARK: - Configuration
 
-struct TimelineViewConfig {
+struct ServiceTimelineViewConfig {
     var showMilestones: Bool = true
     var showDependencies: Bool = true
     var showAIInsights: Bool = true
     var autoRefresh: Bool = false
     var refreshInterval: TimeInterval = 300
     
-    static var `default`: TimelineViewConfig {
-        return TimelineViewConfig()
+    static var `default`: ServiceTimelineViewConfig {
+        return ServiceTimelineViewConfig()
     }
 }
 

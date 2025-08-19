@@ -29,7 +29,7 @@ struct TrendData: Codable {
 
 // MARK: - Missing Rule Models for Tests
 
-struct PersonalRule: Codable {
+struct StubPersonalRule: Codable {
     let id: UUID
     let pattern: String
     let action: PersonalRuleAction
@@ -64,7 +64,7 @@ struct AIInsight: Codable {
     let timestamp: Date
 }
 
-struct PatternAnalysis: Codable {
+struct StubPatternAnalysis: Codable {
     let patterns: [String: Float]
     let confidence: Float
     let sampleSize: Int

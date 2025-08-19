@@ -6,7 +6,7 @@ import SwiftUI
 
 /// Represents a potential rescheduling scenario
 struct ReschedulingScenario: Identifiable, Codable, Hashable {
-    let id = UUID()
+    let id: UUID
     let taskId: UUID
     let originalDate: Date
     let proposedDate: Date
@@ -158,7 +158,7 @@ struct ReschedulingDecision: Codable {
 }
 
 /// Impact assessment for rescheduling
-struct ReschedulingImpact: Codable {
+struct ReschedulingImpact: Codable, Hashable {
     let severity: ImpactSeverity
     let affectedTaskCount: Int
     let cascadeDepth: Int
@@ -194,7 +194,7 @@ struct ReschedulingRisk: Identifiable, Codable {
 
 /// Personal rule for AI learning
 struct PersonalRule: Identifiable, Codable {
-    let id = UUID()
+    let id: UUID
     let ruleType: RuleType
     let pattern: String
     let action: String

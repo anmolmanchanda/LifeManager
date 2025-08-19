@@ -325,14 +325,6 @@ enum ProjectSortOption: String, CaseIterable {
 }
 
 extension ProjectStatus {
-    var displayName: String {
-        switch self {
-        case .active: return "Active"
-        case .onHold: return "On Hold"
-        case .completed: return "Completed"
-        case .archived: return "Archived"
-        }
-    }
     
     var icon: String {
         switch self {
