@@ -21,7 +21,7 @@ class RelationshipDetectionService: ObservableObject {
     static let shared = RelationshipDetectionService()
     
     // MARK: - Dependencies
-    private let llmService = LLMService()
+    private let llmService = LLMServiceCoordinator.shared
     private let semanticService = SemanticSimilarityService.shared
     private let logger = Logger.shared
     
@@ -414,15 +414,15 @@ class RelationshipDetectionService: ObservableObject {
         
         do {
             let response = try await llmService.sendMessage(prompt)
-            let lines = response.components(separatedBy: .newlines)
+            let lines = response.components(separatedBy: CharacterSet.newlines)
             
             for line in lines {
                 let parts = line.components(separatedBy: "|")
                 guard parts.count == 5 else { continue }
                 
                 // Find matching items
-                let sourceId = parts[0].trimmingCharacters(in: .whitespaces)
-                let targetId = parts[1].trimmingCharacters(in: .whitespaces)
+                let sourceId = parts[0].trimmingCharacters(in: CharacterSet.whitespaces)
+                let targetId = parts[1].trimmingCharacters(in: CharacterSet.whitespaces)
                 
                 guard let source = items.first(where: { $0.id.uuidString.hasPrefix(sourceId) }),
                       let target = items.first(where: { $0.id.uuidString.hasPrefix(targetId) }),

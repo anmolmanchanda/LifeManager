@@ -373,21 +373,8 @@ class PARAManagementViewModel: ObservableObject {
 
 // MARK: - Supporting Types
 
-enum PARAView: String, CaseIterable {
-    case projects = "Projects"
-    case areas = "Areas"
-    case resources = "Resources"
-    case archives = "Archives"
-    
-    var icon: String {
-        switch self {
-        case .projects: return "folder.badge.star"
-        case .areas: return "square.grid.2x2"
-        case .resources: return "books.vertical"
-        case .archives: return "archivebox"
-        }
-    }
-}
+// PARAView enum is defined in CoreModels.swift
+// Using the shared definition to avoid duplication
 
 struct ProjectStatistics {
     let total: Int

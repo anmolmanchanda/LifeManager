@@ -396,4 +396,9 @@ enum LLMError: Error {
     case networkError
     case invalidResponse
     case cachingFailed
+    case parsingError
+    case rateLimitExceeded
+    case invalidAPIKey
+    case unsupportedModel
+    case contextLengthExceeded
 }

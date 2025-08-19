@@ -488,7 +488,7 @@ struct ProcessedNote: Codable {
 }
 
 // Protocol for all brain dump items
-protocol EnhancedBrainDumpItem: Codable {
+protocol EnhancedBrainDumpItemProtocol: Codable {
     var id: String { get }
     func getEmbeddingText() -> String
 }

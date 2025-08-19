@@ -9,26 +9,8 @@
 
 import Foundation
 
-/// LLM-specific errors
-enum LLMError: Error, LocalizedError {
-    case missingAPIKey
-    case invalidResponse
-    case networkError(Error)
-    case processingFailed(String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .missingAPIKey:
-            return "LLM API key is not configured"
-        case .invalidResponse:
-            return "Invalid response from LLM service"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .processingFailed(let message):
-            return "Processing failed: \(message)"
-        }
-    }
-}
+// LLMError is defined in LLMServicePremiumCached.swift
+// Using the existing LLMError from that file
 
 /// Coordinates all LLM services to provide unified AI functionality
 /// Maintains backward compatibility while using modular architecture
@@ -59,19 +41,34 @@ class LLMServiceCoordinator: ObservableObject {
         logger.info("🧠 COORDINATOR: LLM Service Coordinator initialized")
     }
     
+    // MARK: - API Compatibility Methods
+    
+    /// Check if service has valid API key
+    func hasValidAPIKey() -> Bool {
+        return configService.hasValidAPIKey()
+    }
+    
+    /// Send message to LLM (compatibility method)
+    func sendMessage(_ message: String) async throws -> String {
+        return try await communicationService.sendMessage(message)
+    }
+    
     // MARK: - High-Level Processing Methods (Backward Compatible)
     
     /// Process natural language input for PARA categorization
     func processMessage(
         _ message: String,
-        prompt: LLMPromptTemplate? = nil,
         temperature: Double = 0.7
     ) async throws -> String {
-        return try await processingService.processNaturalLanguage(
-            message,
-            prompt: prompt,
-            temperature: temperature
-        )
+        // Process natural language and convert result to string
+        let result = try await processingService.processNaturalLanguage(input: message)
+        
+        // Convert PARAProcessingResult to string representation
+        var output = "Processed \(result.extractedItems.count) items:\n"
+        for item in result.extractedItems {
+            output += "- \(item.content) [\(item.category.rawValue)]\n"
+        }
+        return output
     }
     
     func processNaturalLanguage(

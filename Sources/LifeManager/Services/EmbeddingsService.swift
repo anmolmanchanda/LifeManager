@@ -10,11 +10,36 @@
 
 import Foundation
 
+enum EmbeddingsError: Error {
+    case missingAPIKey
+    case generationFailed
+    case parsingFailed
+}
+
 /// Service for generating and managing text embeddings for semantic similarity
 /// Enables contextual PARA matching based on meaning rather than keywords
 class EmbeddingsService: ObservableObject {
     
     static let shared = EmbeddingsService()
+    
+    // MARK: - Public Methods for External Services
+    
+    /// Fetch embedding by ID
+    func fetchEmbedding(for id: String) async -> [Float]? {
+        // Check cache first
+        if let cached = embeddingCache[id] {
+            return cached
+        }
+        // In production, this would fetch from database
+        return nil
+    }
+    
+    /// Store embedding with metadata
+    func storeEmbedding(for id: String, embedding: [Float], metadata: [String: Any]) async {
+        // Store in cache
+        embeddingCache[id] = embedding
+        // In production, this would also store in database
+    }
     
     // MARK: - Configuration
     
@@ -75,7 +100,7 @@ class EmbeddingsService: ObservableObject {
         }
         
         // Generate new embedding
-        guard let embedding = await generateEmbedding(for: normalizedText) else {
+        guard let embedding = await generateEmbeddingInternal(for: normalizedText) else {
             return nil
         }
         
@@ -269,7 +294,7 @@ class EmbeddingsService: ObservableObject {
                 let cacheKey = generateCacheKey(for: item.content)
                 
                 if await getCachedEmbedding(for: cacheKey) == nil {
-                    if let embedding = await generateEmbedding(for: item.content) {
+                    if let embedding = await generateEmbeddingInternal(for: item.content) {
                         await cacheEmbedding(embedding, for: cacheKey, text: item.content)
                         await storePARAEmbedding(id: item.id, embedding: embedding, type: item.category.rawValue)
                         updatedCount += 1
@@ -287,7 +312,14 @@ class EmbeddingsService: ObservableObject {
     // MARK: - Private Methods
     
     /// Generate embedding using OpenAI API
-    private func generateEmbedding(for text: String) async -> [Float]? {
+    func generateEmbedding(for text: String) async throws -> [Float] {
+        guard let embedding = await generateEmbeddingInternal(for: text) else {
+            throw EmbeddingsError.generationFailed
+        }
+        return embedding
+    }
+    
+    private func generateEmbeddingInternal(for text: String) async -> [Float]? {
         guard !text.isEmpty else { return nil }
         
         let apiKey = loadAPIKey()

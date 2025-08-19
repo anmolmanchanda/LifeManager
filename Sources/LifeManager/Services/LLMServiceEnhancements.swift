@@ -336,12 +336,5 @@ struct ProcessedSegment {
     let type: ProcessingType
 }
 
-// Extended error types
-extension LLMError {
-    static let invalidJSONResponse = LLMError.parsingError
-    static let embeddingExtractionFailed = LLMError.invalidResponse
-    
-    static func apiError(_ message: String) -> LLMError {
-        return LLMError.networkError // Simplified for now
-    }
-}
+// Extended error types - using the LLMError enum from LLMServicePremiumCached.swift
+// No extension needed as LLMError is already defined
