@@ -215,7 +215,7 @@ class EnhancedBrainDumpProcessor: ObservableObject {
         for item in data.allItems {
             let text = item.getEmbeddingText()
             let embedding = try await embeddingsService.generateEmbedding(for: text)
-            embeddings.append(ItemEmbedding(itemId: item.id, embedding: embedding))
+            embeddings.append(ItemEmbedding(itemId: item.id.uuidString, embedding: embedding))
         }
         
         return embeddings

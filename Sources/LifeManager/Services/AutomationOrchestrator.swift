@@ -318,6 +318,8 @@ class AutomationOrchestrator: ObservableObject {
         case .performanceOptimization:
             // Coordinate with performance monitor
             await coordinatePerformanceOptimization(decision)
+        @unknown default:
+            logger.warning("AUTOMATION_ORCHESTRATOR: Unknown decision type: \(decision.decisionType)")
         }
     }
     
@@ -405,6 +407,8 @@ class AutomationOrchestrator: ObservableObject {
             await executePerformanceOptimizationWorkflow(workflow)
         case .dependencyUpdate:
             await executeDependencyUpdateWorkflow(workflow)
+        @unknown default:
+            logger.warning("AUTOMATION_ORCHESTRATOR: Unknown workflow type: \(workflow.type)")
         }
     }
     
@@ -553,6 +557,8 @@ class AutomationOrchestrator: ObservableObject {
             await optimizeServices(request.optimization)
         case .databaseOptimization:
             await optimizeDatabaseQueries(request.optimization)
+        @unknown default:
+            logger.warning("AUTOMATION_ORCHESTRATOR: Unknown optimization type: \(request.optimization.type)")
         }
         
         // Update request status

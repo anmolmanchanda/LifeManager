@@ -429,6 +429,8 @@ enum BufferStatus: String, CaseIterable {
         case .healthy: return .green
         case .warning: return .orange
         case .critical: return .red
+        @unknown default:
+            return .gray
         }
     }
     
@@ -437,6 +439,8 @@ enum BufferStatus: String, CaseIterable {
         case .healthy: return "checkmark.circle.fill"
         case .warning: return "exclamationmark.triangle.fill"
         case .critical: return "xmark.octagon.fill"
+        @unknown default:
+            return "questionmark.circle.fill"
         }
     }
 } 

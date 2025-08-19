@@ -830,6 +830,8 @@ private extension EmbeddingsService {
             enhanced *= 1.05
         case .low:
             enhanced *= 0.95
+        @unknown default:
+            enhanced *= 1.0 // No enhancement for unknown priorities
         }
         
         // Category-specific pattern matching
@@ -878,6 +880,8 @@ private extension EmbeddingsService {
             confidence *= 1.0
         case .archive:
             confidence *= 0.9 // Archived items less relevant
+        @unknown default:
+            confidence *= 1.0 // No adjustment for unknown categories
         }
         
         return min(1.0, confidence)

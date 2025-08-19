@@ -72,6 +72,8 @@ class LLMCommunicationService: ObservableObject {
                 response = try await callOpenAI(prompt: prompt)
             case .claude:
                 response = try await callClaude(prompt: prompt)
+            @unknown default:
+                throw LLMCommunicationError.missingAPIKey
             }
             
             // Update request counting
@@ -345,6 +347,8 @@ enum LLMCommunicationError: Error, LocalizedError {
             return "Network error: \(error.localizedDescription)"
         case .parseError(let message):
             return "Failed to parse LLM response: \(message)"
+        @unknown default:
+            return "Unknown LLM communication error occurred"
         }
     }
 }

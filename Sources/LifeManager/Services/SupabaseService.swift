@@ -490,6 +490,8 @@ enum SupabaseError: Error, LocalizedError {
             return "Invalid callback"
         case .emailConfirmationRequired:
             return "Email confirmation required"
+        @unknown default:
+            return "Unknown Supabase error occurred"
         }
     }
 }

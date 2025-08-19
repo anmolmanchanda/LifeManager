@@ -12,6 +12,146 @@
 
 import Foundation
 
+// MARK: - Database Record Types
+
+struct TaskRecord: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let priority: String
+    let status: String
+    let work_personal: String
+    let due_date: String?
+    let tags: [String]
+    let project_id: String?
+    let area_id: String?
+}
+
+struct ProjectRecord: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let status: String
+    let work_personal: String
+    let priority: String
+    let tags: [String]
+    let start_date: String?
+    let end_date: String?
+}
+
+struct ResourceRecord: Codable {
+    let id: String
+    let title: String
+    let content: String
+    let url: String?
+    let resource_type: String
+    let work_personal: String
+    let tags: [String]
+    let area_id: String?
+}
+
+struct AreaRecord: Codable {
+    let id: String
+    let name: String
+    let description: String
+    let work_personal: String
+}
+
+struct NoteRecord: Codable {
+    let id: String
+    let title: String
+    let content: String
+    let note_type: String
+    let work_personal: String
+    let tags: [String]
+    let project_id: String?
+    let area_id: String?
+}
+
+struct BlobRecord: Codable {
+    let id: String
+    let content: String
+    let source_type: String
+    let work_personal: String
+    let metadata: [String: [String]]?
+}
+
+struct JournalRecord: Codable {
+    let id: String
+    let blob_id: String
+    let summary: String
+    let area_id: String?
+    let project_id: String?
+    let tags: [String]?
+}
+
+struct CalendarEventRecord: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let start_date: String
+    let end_date: String
+    let type: String
+    let work_personal: String
+}
+
+struct HabitRecord: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let frequency: String
+    let work_personal: String
+    let area_id: String?
+}
+
+struct GoalRecord: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let target_date: String?
+    let work_personal: String
+    let project_id: String?
+    let area_id: String?
+}
+
+struct FinancialTransactionRecord: Codable {
+    let id: String
+    let amount: Double
+    let description: String
+    let transaction_type: String
+    let category: String
+    let date: String
+    let work_personal: String
+}
+
+struct MedicationRecord: Codable {
+    let id: String
+    let name: String
+    let dosage: String
+    let frequency: String
+    let notes: String
+    let start_date: String
+}
+
+struct HealthLogRecord: Codable {
+    let id: String
+    let type: String
+    let description: String
+    let details: String
+    let date: String
+    let tags: [String]
+}
+
+struct PersonalRuleRecord: Codable {
+    let id: String
+    let title: String
+    let description: String
+    let category: String
+    let priority: String
+    let is_active: Bool
+    let work_personal: String
+}
+
 /// Enterprise-grade handler for rich content types in brain dump processing
 /// Supports 10+ content types with specialized processing logic
 @MainActor
@@ -168,18 +308,18 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let task = [
-                "id": item.id.uuidString,
-                "title": item.title,
-                "description": item.content,
-                "priority": item.priority.rawValue,
-                "status": "inbox",
-                "work_personal": item.workPersonal.rawValue,
-                "due_date": item.dueDate,
-                "tags": item.tags,
-                "project_id": item.suggestedProject,
-                "area_id": item.suggestedArea
-            ].compactMapValues { $0 }
+            let task = TaskRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                description: item.content,
+                priority: item.priority.rawValue,
+                status: "inbox",
+                work_personal: item.workPersonal.rawValue,
+                due_date: item.dueDate,
+                tags: item.tags,
+                project_id: item.suggestedProject,
+                area_id: item.suggestedArea
+            )
             
             try await service.insert(task, into: "tasks")
             
@@ -201,13 +341,13 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let blob = [
-                "id": item.id.uuidString,
-                "content": item.content,
-                "source_type": "note",
-                "work_personal": item.workPersonal.rawValue,
-                "metadata": ["title": item.title, "tags": item.tags]
-            ] as [String: Any]
+            let blob = BlobRecord(
+                id: item.id.uuidString,
+                content: item.content,
+                source_type: "note",
+                work_personal: item.workPersonal.rawValue,
+                metadata: ["title": [item.title], "tags": item.tags]
+            )
             
             try await service.insert(blob, into: "blobs")
             
@@ -231,23 +371,25 @@ class BrainDumpContentTypeHandler: ObservableObject {
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
             // First create blob
             let blobId = UUID()
-            let blob = [
-                "id": blobId.uuidString,
-                "content": item.content,
-                "source_type": "journal",
-                "work_personal": item.workPersonal.rawValue
-            ] as [String: Any]
+            let blob = BlobRecord(
+                id: blobId.uuidString,
+                content: item.content,
+                source_type: "journal",
+                work_personal: item.workPersonal.rawValue,
+                metadata: nil
+            )
             
             try await service.insert(blob, into: "blobs")
             
             // Then create journal entry
-            let journal = [
-                "id": item.id.uuidString,
-                "blob_id": blobId.uuidString,
-                "summary": item.title,
-                "area_id": item.suggestedArea,
-                "project_id": item.suggestedProject
-            ].compactMapValues { $0 }
+            let journal = JournalRecord(
+                id: item.id.uuidString,
+                blob_id: blobId.uuidString,
+                summary: item.title,
+                area_id: item.suggestedArea,
+                project_id: item.suggestedProject,
+                tags: nil
+            )
             
             try await service.insert(journal, into: "journal_entries")
             
@@ -271,25 +413,27 @@ class BrainDumpContentTypeHandler: ObservableObject {
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
             // First create blob
             let blobId = UUID()
-            let blob = [
-                "id": blobId.uuidString,
-                "content": item.content,
-                "source_type": "resource",
-                "work_personal": item.workPersonal.rawValue
-            ] as [String: Any]
+            let blob = BlobRecord(
+                id: blobId.uuidString,
+                content: item.content,
+                source_type: "resource",
+                work_personal: item.workPersonal.rawValue,
+                metadata: nil
+            )
             
             try await service.insert(blob, into: "blobs")
             
             // Then create resource
-            let resource = [
-                "id": item.id.uuidString,
-                "blob_id": blobId.uuidString,
-                "title": item.title,
-                "type": "reference",
-                "work_personal": item.workPersonal.rawValue,
-                "area_id": item.suggestedArea,
-                "project_id": item.suggestedProject
-            ].compactMapValues { $0 }
+            let resource = ResourceRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                content: item.content,
+                url: nil,
+                resource_type: "reference",
+                work_personal: item.workPersonal.rawValue,
+                tags: item.tags,
+                area_id: item.suggestedArea
+            )
             
             try await service.insert(resource, into: "resources")
             
@@ -311,14 +455,17 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let project = [
-                "id": item.id.uuidString,
-                "name": item.title,
-                "description": item.content,
-                "work_personal": item.workPersonal.rawValue,
-                "status": "active",
-                "area_id": item.suggestedArea
-            ].compactMapValues { $0 }
+            let project = ProjectRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                description: item.content,
+                status: "active",
+                work_personal: item.workPersonal.rawValue,
+                priority: item.priority.rawValue,
+                tags: item.tags,
+                start_date: nil,
+                end_date: nil
+            )
             
             try await service.insert(project, into: "projects")
             
@@ -340,12 +487,12 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let area = [
-                "id": item.id.uuidString,
-                "name": item.title,
-                "description": item.content,
-                "work_personal": item.workPersonal.rawValue
-            ] as [String: Any]
+            let area = AreaRecord(
+                id: item.id.uuidString,
+                name: item.title,
+                description: item.content,
+                work_personal: item.workPersonal.rawValue
+            )
             
             try await service.insert(area, into: "areas")
             
@@ -371,15 +518,15 @@ class BrainDumpContentTypeHandler: ObservableObject {
             let startDate = extractDate(from: item) ?? Date().addingTimeInterval(86400) // Tomorrow
             let endDate = startDate.addingTimeInterval(3600) // 1 hour duration
             
-            let event = [
-                "id": item.id.uuidString,
-                "title": item.title,
-                "description": item.content,
-                "start_date": ISO8601DateFormatter().string(from: startDate),
-                "end_date": ISO8601DateFormatter().string(from: endDate),
-                "type": "meeting",
-                "work_personal": item.workPersonal.rawValue
-            ] as [String: Any]
+            let event = CalendarEventRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                description: item.content,
+                start_date: ISO8601DateFormatter().string(from: startDate),
+                end_date: ISO8601DateFormatter().string(from: endDate),
+                type: "meeting",
+                work_personal: item.workPersonal.rawValue
+            )
             
             try await service.insert(event, into: "calendar_events")
             
@@ -408,14 +555,14 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let habit = [
-                "id": item.id.uuidString,
-                "title": item.title,
-                "description": item.content,
-                "frequency": "daily",
-                "work_personal": item.workPersonal.rawValue,
-                "area_id": item.suggestedArea
-            ].compactMapValues { $0 }
+            let habit = HabitRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                description: item.content,
+                frequency: "daily",
+                work_personal: item.workPersonal.rawValue,
+                area_id: item.suggestedArea
+            )
             
             try await service.insert(habit, into: "habits")
             
@@ -439,15 +586,15 @@ class BrainDumpContentTypeHandler: ObservableObject {
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
             let targetDate = item.dueDate != nil ? item.dueDate : ISO8601DateFormatter().string(from: Date().addingTimeInterval(2592000)) // 30 days
             
-            let goal = [
-                "id": item.id.uuidString,
-                "title": item.title,
-                "description": item.content,
-                "target_date": targetDate,
-                "work_personal": item.workPersonal.rawValue,
-                "project_id": item.suggestedProject,
-                "area_id": item.suggestedArea
-            ].compactMapValues { $0 }
+            let goal = GoalRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                description: item.content,
+                target_date: targetDate,
+                work_personal: item.workPersonal.rawValue,
+                project_id: item.suggestedProject,
+                area_id: item.suggestedArea
+            )
             
             try await service.insert(goal, into: "goals")
             
@@ -472,15 +619,15 @@ class BrainDumpContentTypeHandler: ObservableObject {
             let amount = extractAmount(from: item.content) ?? 0.0
             let transactionType = detectTransactionType(from: item.content)
             
-            let transaction = [
-                "id": item.id.uuidString,
-                "amount": amount,
-                "description": item.title,
-                "transaction_type": transactionType,
-                "category": item.suggestedArea ?? "general",
-                "date": ISO8601DateFormatter().string(from: Date()),
-                "work_personal": item.workPersonal.rawValue
-            ] as [String: Any]
+            let transaction = FinancialTransactionRecord(
+                id: item.id.uuidString,
+                amount: amount,
+                description: item.title,
+                transaction_type: transactionType,
+                category: item.suggestedArea ?? "general",
+                date: ISO8601DateFormatter().string(from: Date()),
+                work_personal: item.workPersonal.rawValue
+            )
             
             try await service.insert(transaction, into: "financial_transactions")
             
@@ -538,21 +685,24 @@ class BrainDumpContentTypeHandler: ObservableObject {
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
             // Create as special journal entry with therapy tag
             let blobId = UUID()
-            let blob = [
-                "id": blobId.uuidString,
-                "content": item.content,
-                "source_type": "therapy",
-                "work_personal": "personal"
-            ] as [String: Any]
+            let blob = BlobRecord(
+                id: blobId.uuidString,
+                content: item.content,
+                source_type: "therapy",
+                work_personal: "personal",
+                metadata: nil
+            )
             
             try await service.insert(blob, into: "blobs")
             
-            let journal = [
-                "id": item.id.uuidString,
-                "blob_id": blobId.uuidString,
-                "summary": item.title,
-                "tags": ["therapy"]
-            ] as [String: Any]
+            let journal = JournalRecord(
+                id: item.id.uuidString,
+                blob_id: blobId.uuidString,
+                summary: item.title,
+                area_id: nil,
+                project_id: nil,
+                tags: ["therapy"]
+            )
             
             try await service.insert(journal, into: "journal_entries")
             
@@ -576,23 +726,26 @@ class BrainDumpContentTypeHandler: ObservableObject {
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
             // Create as resource with knowledge type
             let blobId = UUID()
-            let blob = [
-                "id": blobId.uuidString,
-                "content": item.content,
-                "source_type": "knowledge",
-                "work_personal": item.workPersonal.rawValue
-            ] as [String: Any]
+            let blob = BlobRecord(
+                id: blobId.uuidString,
+                content: item.content,
+                source_type: "knowledge",
+                work_personal: item.workPersonal.rawValue,
+                metadata: nil
+            )
             
             try await service.insert(blob, into: "blobs")
             
-            let resource = [
-                "id": item.id.uuidString,
-                "blob_id": blobId.uuidString,
-                "title": item.title,
-                "type": "knowledge",
-                "work_personal": item.workPersonal.rawValue,
-                "tags": item.tags
-            ] as [String: Any]
+            let resource = ResourceRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                content: item.content,
+                url: nil,
+                resource_type: "knowledge",
+                work_personal: item.workPersonal.rawValue,
+                tags: item.tags,
+                area_id: nil
+            )
             
             try await service.insert(resource, into: "resources")
             
@@ -614,14 +767,14 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let medication = [
-                "id": item.id.uuidString,
-                "name": item.title,
-                "dosage": extractDosage(from: item.content),
-                "frequency": extractFrequency(from: item.content),
-                "notes": item.content,
-                "start_date": ISO8601DateFormatter().string(from: Date())
-            ] as [String: Any]
+            let medication = MedicationRecord(
+                id: item.id.uuidString,
+                name: item.title,
+                dosage: extractDosage(from: item.content),
+                frequency: extractFrequency(from: item.content),
+                notes: item.content,
+                start_date: ISO8601DateFormatter().string(from: Date())
+            )
             
             try await service.insert(medication, into: "medications")
             
@@ -659,14 +812,14 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let healthLog = [
-                "id": item.id.uuidString,
-                "type": detectHealthType(from: item.content),
-                "description": item.title,
-                "details": item.content,
-                "date": ISO8601DateFormatter().string(from: Date()),
-                "tags": item.tags
-            ] as [String: Any]
+            let healthLog = HealthLogRecord(
+                id: item.id.uuidString,
+                type: detectHealthType(from: item.content),
+                description: item.title,
+                details: item.content,
+                date: ISO8601DateFormatter().string(from: Date()),
+                tags: item.tags
+            )
             
             try await service.insert(healthLog, into: "health_logs")
             
@@ -698,15 +851,15 @@ class BrainDumpContentTypeHandler: ObservableObject {
         }
         
         func create(_ item: EnhancedBrainDumpItem, using service: SupabaseService) async throws -> ContentCreationResult {
-            let rule = [
-                "id": item.id.uuidString,
-                "title": item.title,
-                "description": item.content,
-                "category": item.suggestedArea ?? "general",
-                "priority": item.priority.rawValue,
-                "is_active": true,
-                "work_personal": item.workPersonal.rawValue
-            ] as [String: Any]
+            let rule = PersonalRuleRecord(
+                id: item.id.uuidString,
+                title: item.title,
+                description: item.content,
+                category: item.suggestedArea ?? "general",
+                priority: item.priority.rawValue,
+                is_active: true,
+                work_personal: item.workPersonal.rawValue
+            )
             
             try await service.insert(rule, into: "personal_rules")
             
