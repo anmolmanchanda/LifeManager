@@ -40,7 +40,18 @@ struct EnhancedLLMAnalysisResult {
     let crossItemRelationships: [ItemRelationship]
 }
 
-struct EnhancedBrainDumpItem {
+// Protocol for types that can be treated as EnhancedBrainDumpItem
+protocol EnhancedBrainDumpItemProtocol {
+    var id: UUID { get }
+    var title: String { get }
+    var content: String { get }
+    var contentType: ContentType { get }
+    var paraCategory: PARACategory { get }
+    var workPersonal: WorkPersonalType { get }
+    var priority: TaskPriority { get }
+}
+
+struct EnhancedBrainDumpItem: EnhancedBrainDumpItemProtocol {
     let id: UUID
     let title: String
     let content: String

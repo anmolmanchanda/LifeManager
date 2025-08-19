@@ -243,7 +243,7 @@ class EnhancedBrainDumpProcessor: ObservableObject {
         return ComplexBrainDumpResult(
             originalInput: originalInput,
             structuredData: data,
-            processingMetadata: ProcessingMetadata(
+            processingMetadata: BrainDumpProcessingMetadata(
                 model: "o1-reasoning + gpt-4-structured",
                 processingTime: Date(),
                 confidence: data.overallConfidence,
@@ -407,8 +407,8 @@ struct StructuredBrainDumpData: Codable {
         journalEntries.count + financialEntries.count + contacts.count
     }
     
-    var allItems: [any EnhancedBrainDumpItem] {
-        var items: [any EnhancedBrainDumpItem] = []
+    var allItems: [any EnhancedBrainDumpItemProtocol] {
+        var items: [any EnhancedBrainDumpItemProtocol] = []
         items.append(contentsOf: healthLogs)
         items.append(contentsOf: medications)
         items.append(contentsOf: personalRules)
@@ -462,7 +462,7 @@ struct ItemEmbedding {
 struct ComplexBrainDumpResult {
     let originalInput: String
     let structuredData: StructuredBrainDumpData
-    let processingMetadata: ProcessingMetadata
+    let processingMetadata: BrainDumpProcessingMetadata
     let requiresReview: Bool
     
     var totalItemsExtracted: Int {
@@ -494,7 +494,7 @@ protocol EnhancedBrainDumpItemProtocol: Codable {
 }
 
 // Placeholder model structs (extend with full implementations)
-struct HealthLog: EnhancedBrainDumpItem, Codable {
+struct HealthLog: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let condition: String
     let symptoms: [String]
@@ -516,7 +516,7 @@ struct HealthLog: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct MedicationTracking: EnhancedBrainDumpItem, Codable {
+struct MedicationTracking: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let name: String
     let dosage: String
@@ -538,7 +538,7 @@ struct MedicationTracking: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct EnhancedPersonalRule: EnhancedBrainDumpItem, Codable {
+struct EnhancedPersonalRule: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let ruleText: String
     let ruleType: String?
@@ -560,7 +560,7 @@ struct EnhancedPersonalRule: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct EnhancedGoal: EnhancedBrainDumpItem, Codable {
+struct EnhancedGoal: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let title: String
     let description: String?
@@ -582,7 +582,7 @@ struct EnhancedGoal: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct Schedule: EnhancedBrainDumpItem, Codable {
+struct Schedule: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let title: String
     let timeBlocks: [[String: String]]
@@ -602,7 +602,7 @@ struct Schedule: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct Appointment: EnhancedBrainDumpItem, Codable {
+struct Appointment: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let title: String
     let date: Date?
@@ -624,7 +624,7 @@ struct Appointment: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct Note: EnhancedBrainDumpItem, Codable {
+struct Note: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let content: String
     let category: String?
@@ -642,7 +642,7 @@ struct Note: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct Contact: EnhancedBrainDumpItem, Codable {
+struct Contact: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let name: String
     let relationship: String?
@@ -664,7 +664,7 @@ struct Contact: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct EnhancedJournalEntry: EnhancedBrainDumpItem, Codable {
+struct EnhancedJournalEntry: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let content: String
     let mood: String?
@@ -682,7 +682,7 @@ struct EnhancedJournalEntry: EnhancedBrainDumpItem, Codable {
     }
 }
 
-struct EnhancedFinancialEntry: EnhancedBrainDumpItem, Codable {
+struct EnhancedFinancialEntry: EnhancedBrainDumpItemProtocol, Codable {
     let id: String
     let description: String
     let amount: Double?
